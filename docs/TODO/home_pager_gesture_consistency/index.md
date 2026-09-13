@@ -8,6 +8,30 @@ device_acceptance: verification_pending
 
 # 三页首页横向手势一致性修复
 
+<!-- doc-toc:start -->
+<details>
+<summary>本页导航</summary>
+
+- [2026-08-19 AI 对话崩溃与内容滚动回归修复](#2026-08-19-ai-对话崩溃与内容滚动回归修复)
+- [文档状态与权威边界](#文档状态与权威边界)
+- [本地实现结果](#本地实现结果)
+- [问题定义](#问题定义)
+- [目标](#目标)
+- [非目标](#非目标)
+- [已验证事实](#已验证事实)
+- [必须保持的不变量](#必须保持的不变量)
+- [方案比较](#方案比较)
+- [目标架构](#目标架构)
+- [预计代码影响](#预计代码影响)
+- [分阶段实施](#分阶段实施)
+- [自动测试详细矩阵](#自动测试详细矩阵)
+- [风险与控制](#风险与控制)
+- [禁止实现](#禁止实现)
+- [完成定义](#完成定义)
+
+</details>
+<!-- doc-toc:end -->
+
 ## 2026-08-19 AI 对话崩溃与内容滚动回归修复
 
 状态：`DEVICE EDGE RECHECK FIX LOCALLY VALIDATED / DEVICE RECHECK PENDING`
@@ -96,9 +120,9 @@ device_acceptance: verification_pending
 
 - [Kiyori 产品壳与导航架构](../../doc-src/architecture/kiyori_product_shell_and_navigation.md)
 - [模态 AI 左抽屉导航决策](../../doc-src/decisions/0004_modal_ai_drawer_navigation.md)
-- [Kiyori App Shell 与首页导航](../kiyori_product_shell/1_app_shell_and_home_navigation.md)
+- [Kiyori App Shell 与首页导航](../kiyori_product_shell/01_app_shell_and_home_navigation.md)
 
-历史的 [AI 首页输入接管](../plugin_runtime_storage_and_home_input/4_home_input.md) 只记录
+历史的 [AI 首页输入接管](../plugin_runtime_storage_and_home_input/04_home_input.md) 只记录
 2026-07-23 为解决“动画未结束时点击被抢占”而加入的状态包装。本次目标设备复现已经证明该历史
 切片没有实现与原生 `HorizontalPager` 等价的吸附语义，因此其“输入修复完成”结论由本文取代。
 

@@ -1,5 +1,9 @@
 # Tool Stream Reconcile 方案说明
 
+> 本页保留方案与接入清单，勾选项只表示原记录范围。当前请求执行与交互边界分别见
+> [AI 执行契约](../contracts/ai_execution.md)和[交互契约](../contracts/ai_interaction.md)；
+> 未完成的现场验证仍需按实际版本执行，不能把方案中的“当前”直接作为设备事实。
+
 ## 计划进度
 
 - [x] 定义侧事件通道最小协议：`SAVEPOINT / ROLLBACK + id`
@@ -15,7 +19,7 @@
 
 前提：
 
-- 当前版本已发布。
+- 原始上游方案以已发布版本的兼容性为前提；Kiyori 当前仍处于未正式发行的开发阶段。
 - 现有 `tool_xxxx` 随机 XML 标签方案必须继续保留并向前兼容。
 - 不做“把整个 `Stream<String>` 改造成统一事件流”这种大改。
 - 目标是修复 OpenAI 兼容链路里，tool 流式输出中途断网重试后产生的“半截旧 tool + 新 tool”污染。

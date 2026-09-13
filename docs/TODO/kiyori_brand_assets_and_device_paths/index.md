@@ -27,9 +27,9 @@ status: verification_pending
 
 ## 实施顺序
 
-1. [Android 与系统可见品牌](1_android_and_system_surfaces.md)
-2. [图片、WebChat、模板与终端](2_assets_templates_and_terminal.md)
-3. [残留审计与构建验收](3_validation.md)
+1. [Android 与系统可见品牌](01_android_and_system_surfaces.md)
+2. [图片、WebChat、模板与终端](02_assets_templates_and_terminal.md)
+3. [残留审计与构建验收](03_validation.md)
 
 ## 非目标
 

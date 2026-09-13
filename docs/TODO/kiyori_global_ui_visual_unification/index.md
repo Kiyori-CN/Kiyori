@@ -97,8 +97,8 @@ date: 2026-07-29
 
 ## 设计文档
 
-- [语义色与组件规则](1_semantic_visual_system.md)
-- [覆盖矩阵、实施顺序与验收](2_coverage_and_validation.md)
+- [语义色与组件规则](01_semantic_visual_system.md)
+- [覆盖矩阵、实施顺序与验收](02_coverage_and_validation.md)
 
 ## 串行里程碑
 

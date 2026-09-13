@@ -1,5 +1,43 @@
 # 双 Session 聊天 Runtime 上移到前台服务方案
 
+> 本页保留方案与接入清单，勾选项只表示原记录范围。当前请求执行与交互边界分别见
+> [AI 执行契约](../contracts/ai_execution.md)和[交互契约](../contracts/ai_interaction.md)；
+> 未完成的现场验证仍需按实际版本执行，不能把方案中的“当前”直接作为设备事实。
+
+<!-- doc-toc:start -->
+<details>
+<summary>本页导航</summary>
+
+- [计划清单](#计划清单)
+- [已确认前提](#已确认前提)
+- [一、这次真正要解决的问题](#一这次真正要解决的问题)
+- [二、目标](#二目标)
+- [三、明确不做的事](#三明确不做的事)
+- [四、推荐结构](#四推荐结构)
+- [1. 一个 Runtime 宿主](#1-一个-runtime-宿主)
+- [2. 两个 `ChatServiceCore`](#2-两个-chatservicecore)
+- [3. 选择策略要分开](#3-选择策略要分开)
+- [五、各层职责](#五各层职责)
+- [1. `ChatViewModel`](#1-chatviewmodel)
+- [2. `FloatingChatService`](#2-floatingchatservice)
+- [3. `FloatingWindowDelegate`](#3-floatingwindowdelegate)
+- [六、需要额外注意的两个点](#六需要额外注意的两个点)
+- [1. `MessageProcessingDelegate` 不能继续用 companion 共享状态](#1-messageprocessingdelegate-不能继续用-companion-共享状态)
+- [2. `ChatHistoryDelegate` 不能继续默认全跟全局](#2-chathistorydelegate-不能继续默认全跟全局)
+- [七、实施方案](#七实施方案)
+- [Phase 1：建立双 Core Runtime 宿主](#phase-1建立双-core-runtime-宿主)
+- [Phase 2：补齐 chat 选择隔离](#phase-2补齐-chat-选择隔离)
+- [Phase 3：主界面接 `MAIN` Core](#phase-3主界面接-main-core)
+- [Phase 4：悬浮窗接 `FLOATING` Core](#phase-4悬浮窗接-floating-core)
+- [Phase 5：删除双向同步逻辑](#phase-5删除双向同步逻辑)
+- [八、建议涉及文件](#八建议涉及文件)
+- [九、清理原则](#九清理原则)
+- [十、验收标准](#十验收标准)
+- [十一、结论](#十一结论)
+
+</details>
+<!-- doc-toc:end -->
+
 ## 计划清单
 
 - [x] 建立前台服务 Runtime 宿主，负责持有聊天协程作用域和 Core 槽位

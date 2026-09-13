@@ -48,12 +48,12 @@ GPT-5.6 映射固定为：
 
 ## 里程碑
 
-1. [IMPLEMENTED] [Responses 可恢复执行](1_resumable_responses_execution.md)
-2. [IMPLEMENTED] [模型能力与请求编译](2_model_capability_and_request_compiler.md)
-3. [PARTIAL] [缓存、工具与遥测](3_cache_tools_and_metrics.md)
-4. [LOCAL VERIFIED] [验证与交付](4_validation_and_delivery.md)
-5. [IN PROGRESS] [故障注入、进程恢复与可观察性收口](5_post_regression_development_plan.md)
-6. [M1-M5 LOCAL VERIFIED / M6 LOCAL VALIDATION COMPLETE] [DeepSeek、长上下文缓存、协议适配与对话统计方案](6_deepseek_long_context_cache_and_usage_plan.md)
+1. [IMPLEMENTED] [Responses 可恢复执行](01_resumable_responses_execution.md)
+2. [IMPLEMENTED] [模型能力与请求编译](02_model_capability_and_request_compiler.md)
+3. [PARTIAL] [缓存、工具与遥测](03_cache_tools_and_metrics.md)
+4. [LOCAL VERIFIED] [验证与交付](04_validation_and_delivery.md)
+5. [IN PROGRESS] [故障注入、进程恢复与可观察性收口](05_post_regression_development_plan.md)
+6. [M1-M5 LOCAL VERIFIED / M6 LOCAL VALIDATION COMPLETE] [DeepSeek、长上下文缓存、协议适配与对话统计方案](06_deepseek_long_context_cache_and_usage_plan.md)
 
 本轮新增方案以 DeepSeek Harness 官方固定提交
 `b150a551b8d465e31e418e1b2eaf5e79bbb7d28e` 为研究基准，冻结 provider usage、DeepSeek

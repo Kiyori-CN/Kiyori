@@ -6,6 +6,24 @@ last_reviewed: 2026-09-05
 
 # 架构门禁与机器可读所有权规范
 
+<!-- doc-toc:start -->
+<details>
+<summary>本页导航</summary>
+
+- [目的](#目的)
+- [ownership schema](#ownership-schema)
+- [已实现的诊断规则](#已实现的诊断规则)
+- [旧标识登记](#旧标识登记)
+- [stable contract snapshot](#stable-contract-snapshot)
+- [命令接口](#命令接口)
+- [CI 接入](#ci-接入)
+- [exception 规则](#exception-规则)
+- [G-00 验收证据](#g-00-验收证据)
+- [门禁自身验收](#门禁自身验收)
+
+</details>
+<!-- doc-toc:end -->
+
 ## 目的
 
 文档只能解释架构，自动门禁负责阻止新代码重新越过边界。

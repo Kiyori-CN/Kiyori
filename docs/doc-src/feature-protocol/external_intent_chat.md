@@ -1,6 +1,6 @@
 # 外部 Intent 对话接口：`EXTERNAL_CHAT`
 
-本文档描述一个**独立于工作流系统**的外部交互接口：外部应用通过发送广播 Intent（`com.ai.assistance.operit.EXTERNAL_CHAT`）向 Operit 发起一次“发送消息给 AI”的请求，并通过另一个广播接收执行结果。
+本文档描述一个**独立于工作流系统**的外部交互接口：外部应用通过发送广播 Intent（`com.ai.assistance.operit.EXTERNAL_CHAT`）向 Kiyori 发起一次“发送消息给 AI”的请求，并通过另一个广播接收执行结果。
 
 如果你希望通过局域网 HTTP 调用，而不是广播 Intent，请查看：
 
@@ -49,7 +49,7 @@ Manifest 注册：
 
 ## 3. 回传参数（Intent extras）
 
-Operit 在处理完成后会发送一条广播（action 为 `reply_action` 或默认 action），携带如下 extras：
+Kiyori 在处理完成后会发送一条广播（action 为 `reply_action` 或默认 action），携带如下 extras：
 
 | extra key | 类型 | 说明 |
 | --- | ---: | --- |
@@ -85,10 +85,15 @@ Operit 在处理完成后会发送一条广播（action 为 `reply_action` 或�
 
 ## 5. adb 示例
 
+以下 Bash 示例显式指定 Kiyori 安装包和完整 Receiver 类名，避免同机旧 Operit 或隐式广播限制
+影响投递。PowerShell 执行时将 Bash 的行续接反斜杠改为单行命令。命令会真实发送对话请求，
+需先配置目标模型并确认允许调用；本页说明不代表已完成设备验收。
+
 ### 5.1 创建新对话 + 分组 + 发送消息 + 显示悬浮窗
 
 ```bash
 adb shell am broadcast \
+  -n com.kiyori/com.ai.assistance.operit.integrations.intent.ExternalChatReceiver \
   -a com.ai.assistance.operit.EXTERNAL_CHAT \
   --es request_id "req-001" \
   --es message "你好，帮我总结一下这段话" \
@@ -104,6 +109,7 @@ adb shell am broadcast \
 
 ```bash
 adb shell am broadcast \
+  -n com.kiyori/com.ai.assistance.operit.integrations.intent.ExternalChatReceiver \
   -a com.ai.assistance.operit.EXTERNAL_CHAT \
   --es request_id "req-002" \
   --es chat_id "YOUR_CHAT_ID" \
@@ -116,6 +122,7 @@ adb shell am broadcast \
 
 ```bash
 adb shell am broadcast \
+  -n com.kiyori/com.ai.assistance.operit.integrations.intent.ExternalChatReceiver \
   -a com.ai.assistance.operit.EXTERNAL_CHAT \
   --es request_id "req-003" \
   --es message "测试" \
@@ -139,7 +146,7 @@ Operit 会在处理完成后发送广播回传：
 
 - `reply_package = 你的包名`
 
-这样 Operit 在回传时会对广播设置 `intent.setPackage(reply_package)`。
+这样 Kiyori 在回传时会对广播设置 `intent.setPackage(reply_package)`。
 
 ### 6.1 写一个最小接收 App / Receiver（用于调试/集成）
 
@@ -192,6 +199,7 @@ class ExternalChatResultReceiver : BroadcastReceiver() {
 
 ```bash
 adb shell am broadcast \
+  -n com.kiyori/com.ai.assistance.operit.integrations.intent.ExternalChatReceiver \
   -a com.ai.assistance.operit.EXTERNAL_CHAT \
   --es request_id "req-101" \
   --es message "hello" \

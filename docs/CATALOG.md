@@ -161,8 +161,8 @@
 
 | 文档 | 用途或标题 |
 | --- | --- |
-| [1_AgreementVersionGate.md](TODO/agreement_version_confirmation/1_AgreementVersionGate.md) | 步骤 1：协议版本门禁 [DONE] |
-| [2_AgreementTextDraft.md](TODO/agreement_version_confirmation/2_AgreementTextDraft.md) | 旧协议文本实现记录 |
+| [01_agreement_version_gate.md](TODO/agreement_version_confirmation/01_agreement_version_gate.md) | 步骤 1：协议版本门禁 [DONE] |
+| [02_agreement_text_draft.md](TODO/agreement_version_confirmation/02_agreement_text_draft.md) | 旧协议文本实现记录 |
 | [index.md](TODO/agreement_version_confirmation/index.md) | 已发布用户协议版本确认（历史记录） |
 
 ## docs/TODO/ai_chat_experience_refinement
@@ -194,42 +194,42 @@
 
 | 文档 | 用途或标题 |
 | --- | --- |
-| [1_model_data_and_binding.md](TODO/ai_model_tag_management/1_model_data_and_binding.md) | 1. 模型数据与绑定安全 |
-| [2_model_tag_ui.md](TODO/ai_model_tag_management/2_model_tag_ui.md) | 2. 模型标签与添加交互 |
-| [3_validation.md](TODO/ai_model_tag_management/3_validation.md) | 3. 验证与交付 |
-| [4_ui_refinement.md](TODO/ai_model_tag_management/4_ui_refinement.md) | 4. 第二轮 UI 与布局精修 |
+| [01_model_data_and_binding.md](TODO/ai_model_tag_management/01_model_data_and_binding.md) | 1. 模型数据与绑定安全 |
+| [02_model_tag_ui.md](TODO/ai_model_tag_management/02_model_tag_ui.md) | 2. 模型标签与添加交互 |
+| [03_validation.md](TODO/ai_model_tag_management/03_validation.md) | 3. 验证与交付 |
+| [04_ui_refinement.md](TODO/ai_model_tag_management/04_ui_refinement.md) | 4. 第二轮 UI 与布局精修 |
 | [index.md](TODO/ai_model_tag_management/index.md) | AI 助手模型名称标签管理 |
 
 ## docs/TODO/android_toolchain_16kb_native
 
 | 文档 | 用途或标题 |
 | --- | --- |
-| [1_toolchain_alignment.md](TODO/android_toolchain_16kb_native/1_toolchain_alignment.md) | 1. 工具链对齐 |
-| [2_native_16kb_dependencies.md](TODO/android_toolchain_16kb_native/2_native_16kb_dependencies.md) | 2. 16 KB native 依赖审计与处理 |
+| [01_toolchain_alignment.md](TODO/android_toolchain_16kb_native/01_toolchain_alignment.md) | 1. 工具链对齐 |
+| [02_native_16kb_dependencies.md](TODO/android_toolchain_16kb_native/02_native_16kb_dependencies.md) | 2. 16 KB native 依赖审计与处理 |
 | [index.md](TODO/android_toolchain_16kb_native/index.md) | Android 工具链与 16 KB native 对齐 |
 
 ## docs/TODO/api_key_onboarding
 
 | 文档 | 用途或标题 |
 | --- | --- |
-| [1_QuickConfiguration.md](TODO/api_key_onboarding/1_QuickConfiguration.md) | 快速配置校验与界面 [DONE] |
-| [2_CustomConfigurationReturn.md](TODO/api_key_onboarding/2_CustomConfigurationReturn.md) | 自定义配置返回事务 [DONE] |
-| [3_StaticReviewAndDelivery.md](TODO/api_key_onboarding/3_StaticReviewAndDelivery.md) | 静态审查与交付 [DONE] |
+| [01_quick_configuration.md](TODO/api_key_onboarding/01_quick_configuration.md) | 快速配置校验与界面 [DONE] |
+| [02_custom_configuration_return.md](TODO/api_key_onboarding/02_custom_configuration_return.md) | 自定义配置返回事务 [DONE] |
+| [03_static_review_and_delivery.md](TODO/api_key_onboarding/03_static_review_and_delivery.md) | 静态审查与交付 [DONE] |
 | [index.md](TODO/api_key_onboarding/index.md) | API Key 首次引导修复 |
 
 ## docs/TODO/api_provider_configuration_redesign
 
 | 文档 | 用途或标题 |
 | --- | --- |
-| [1_current_architecture_and_provider_inventory.md](TODO/api_provider_configuration_redesign/1_current_architecture_and_provider_inventory.md) | 当前架构与供应商清单 |
-| [2_reference_channel_design.md](TODO/api_provider_configuration_redesign/2_reference_channel_design.md) | sub2api 与 new-api 参考设计 |
-| [3_target_data_and_protocol_contract.md](TODO/api_provider_configuration_redesign/3_target_data_and_protocol_contract.md) | 目标数据与协议契约 |
-| [4_ui_information_architecture.md](TODO/api_provider_configuration_redesign/4_ui_information_architecture.md) | UI 信息架构与交互 |
-| [5_reasoning_and_codex_tiers.md](TODO/api_provider_configuration_redesign/5_reasoning_and_codex_tiers.md) | 思考模式与 gpt-5.6 Codex 五档 |
-| [6_migration_and_compatibility.md](TODO/api_provider_configuration_redesign/6_migration_and_compatibility.md) | 迁移与兼容边界 |
-| [7_implementation_and_validation.md](TODO/api_provider_configuration_redesign/7_implementation_and_validation.md) | 实现、验证与交付 |
-| [8_followup_interaction_and_reasoning_design.md](TODO/api_provider_configuration_redesign/8_followup_interaction_and_reasoning_design.md) | 协议识别、供应商抽屉与 Codex 推理摘要后续设计 |
-| [9_auto_detection_removal_drawer_unification_and_responses_tools.md](TODO/api_provider_configuration_redesign/9_auto_detection_removal_drawer_unification_and_responses_tools.md) | 自动识别删除、统一底部抽屉与 Responses 工具调用修复 |
+| [01_current_architecture_and_provider_inventory.md](TODO/api_provider_configuration_redesign/01_current_architecture_and_provider_inventory.md) | 当前架构与供应商清单 |
+| [02_reference_channel_design.md](TODO/api_provider_configuration_redesign/02_reference_channel_design.md) | sub2api 与 new-api 参考设计 |
+| [03_target_data_and_protocol_contract.md](TODO/api_provider_configuration_redesign/03_target_data_and_protocol_contract.md) | 目标数据与协议契约 |
+| [04_ui_information_architecture.md](TODO/api_provider_configuration_redesign/04_ui_information_architecture.md) | UI 信息架构与交互 |
+| [05_reasoning_and_codex_tiers.md](TODO/api_provider_configuration_redesign/05_reasoning_and_codex_tiers.md) | 思考模式与 gpt-5.6 Codex 五档 |
+| [06_migration_and_compatibility.md](TODO/api_provider_configuration_redesign/06_migration_and_compatibility.md) | 迁移与兼容边界 |
+| [07_implementation_and_validation.md](TODO/api_provider_configuration_redesign/07_implementation_and_validation.md) | 实现、验证与交付 |
+| [08_followup_interaction_and_reasoning_design.md](TODO/api_provider_configuration_redesign/08_followup_interaction_and_reasoning_design.md) | 协议识别、供应商抽屉与 Codex 推理摘要后续设计 |
+| [09_auto_detection_removal_drawer_unification_and_responses_tools.md](TODO/api_provider_configuration_redesign/09_auto_detection_removal_drawer_unification_and_responses_tools.md) | 自动识别删除、统一底部抽屉与 Responses 工具调用修复 |
 | [index.md](TODO/api_provider_configuration_redesign/index.md) | 模型与 API 供应商及协议重构 |
 
 ## docs/TODO/application_network_proxy
@@ -291,12 +291,12 @@
 
 | 文档 | 用途或标题 |
 | --- | --- |
+| [01_brand_and_compatibility.md](TODO/formal_development_readiness/01_brand_and_compatibility.md) | 品牌与兼容性边界 |
+| [02_reproducible_development.md](TODO/formal_development_readiness/02_reproducible_development.md) | 可复现开发 |
+| [03_ci_and_security_gates.md](TODO/formal_development_readiness/03_ci_and_security_gates.md) | CI 与安全门禁 |
+| [04_identity_and_data_migration.md](TODO/formal_development_readiness/04_identity_and_data_migration.md) | 身份与数据迁移 |
+| [05_release_and_device_acceptance.md](TODO/formal_development_readiness/05_release_and_device_acceptance.md) | 发布与真机验收 |
 | [06_historical_evidence.md](TODO/formal_development_readiness/06_historical_evidence.md) | 正式开发准备历史验证证据 |
-| [1_brand_and_compatibility.md](TODO/formal_development_readiness/1_brand_and_compatibility.md) | 品牌与兼容性边界 |
-| [2_reproducible_development.md](TODO/formal_development_readiness/2_reproducible_development.md) | 可复现开发 |
-| [3_ci_and_security_gates.md](TODO/formal_development_readiness/3_ci_and_security_gates.md) | CI 与安全门禁 |
-| [4_identity_and_data_migration.md](TODO/formal_development_readiness/4_identity_and_data_migration.md) | 身份与数据迁移 |
-| [5_release_and_device_acceptance.md](TODO/formal_development_readiness/5_release_and_device_acceptance.md) | 发布与真机验收 |
 | [index.md](TODO/formal_development_readiness/index.md) | 正式开发准备 |
 
 ## docs/TODO/home_pager_gesture_consistency
@@ -315,6 +315,15 @@
 
 | 文档 | 用途或标题 |
 | --- | --- |
+| [01_current_architecture_and_naming_ledger.md](TODO/kiyori_architecture_refactor/01_current_architecture_and_naming_ledger.md) | 当前架构与命名分类账 |
+| [02_target_package_architecture.md](TODO/kiyori_architecture_refactor/02_target_package_architecture.md) | 目标包结构与依赖规则 |
+| [03_migration_sequence.md](TODO/kiyori_architecture_refactor/03_migration_sequence.md) | 分阶段迁移顺序 |
+| [04_upstream_sync_strategy.md](TODO/kiyori_architecture_refactor/04_upstream_sync_strategy.md) | Operit AI 上游同步策略 |
+| [05_data_backup_and_rollback.md](TODO/kiyori_architecture_refactor/05_data_backup_and_rollback.md) | 开发数据、备份与回滚 |
+| [06_validation_and_approval_gate.md](TODO/kiyori_architecture_refactor/06_validation_and_approval_gate.md) | 验证矩阵与批准门禁 |
+| [07_file_ownership_and_migration_matrix.md](TODO/kiyori_architecture_refactor/07_file_ownership_and_migration_matrix.md) | 源码所有权与文件迁移矩阵 |
+| [08_compatibility_contract_inventory.md](TODO/kiyori_architecture_refactor/08_compatibility_contract_inventory.md) | 兼容合同与稳定标识清单 |
+| [09_workspace_preflight_and_backup_runbook.md](TODO/kiyori_architecture_refactor/09_workspace_preflight_and_backup_runbook.md) | 工作区、基线与备份作战手册 |
 | [10_milestone_execution_template.md](TODO/kiyori_architecture_refactor/10_milestone_execution_template.md) | 里程碑执行模板与首批规格 |
 | [11_risk_register_and_stop_conditions.md](TODO/kiyori_architecture_refactor/11_risk_register_and_stop_conditions.md) | 风险登记与停止条件 |
 | [12_approval_and_implementation_readiness.md](TODO/kiyori_architecture_refactor/12_approval_and_implementation_readiness.md) | 最终批准与实施就绪清单 |
@@ -325,43 +334,34 @@
 | [17_m02_application_platform_access_manifest.md](TODO/kiyori_architecture_refactor/17_m02_application_platform_access_manifest.md) | M-02 Application 全局访问平台化精确清单 |
 | [18_m03_application_package_move_manifest.md](TODO/kiyori_architecture_refactor/18_m03_application_package_move_manifest.md) | M-03 KiyoriApplication 包迁移精确清单 |
 | [19_m04_root_composition_and_shell_manifest.md](TODO/kiyori_architecture_refactor/19_m04_root_composition_and_shell_manifest.md) | M-04 根组合与 Shell 精确实施清单 |
-| [1_current_architecture_and_naming_ledger.md](TODO/kiyori_architecture_refactor/1_current_architecture_and_naming_ledger.md) | 当前架构与命名分类账 |
 | [20_m05_design_and_platform_manifest.md](TODO/kiyori_architecture_refactor/20_m05_design_and_platform_manifest.md) | M-05 Design 与 Platform 精确实施清单 |
 | [21_quality_debt_and_stage4_readiness_manifest.md](TODO/kiyori_architecture_refactor/21_quality_debt_and_stage4_readiness_manifest.md) | Stage 4 前质量债务与开发就绪精确清单 |
 | [22_full_project_design_and_execution.md](TODO/kiyori_architecture_refactor/22_full_project_design_and_execution.md) | 全项目重构 v4 设计与实施契约 |
 | [23_repository_structure_and_build_logic.md](TODO/kiyori_architecture_refactor/23_repository_structure_and_build_logic.md) | 仓库结构与构建职责规范化 |
-| [2_target_package_architecture.md](TODO/kiyori_architecture_refactor/2_target_package_architecture.md) | 目标包结构与依赖规则 |
-| [3_migration_sequence.md](TODO/kiyori_architecture_refactor/3_migration_sequence.md) | 分阶段迁移顺序 |
-| [4_upstream_sync_strategy.md](TODO/kiyori_architecture_refactor/4_upstream_sync_strategy.md) | Operit AI 上游同步策略 |
-| [5_data_backup_and_rollback.md](TODO/kiyori_architecture_refactor/5_data_backup_and_rollback.md) | 开发数据、备份与回滚 |
-| [6_validation_and_approval_gate.md](TODO/kiyori_architecture_refactor/6_validation_and_approval_gate.md) | 验证矩阵与批准门禁 |
-| [7_file_ownership_and_migration_matrix.md](TODO/kiyori_architecture_refactor/7_file_ownership_and_migration_matrix.md) | 源码所有权与文件迁移矩阵 |
-| [8_compatibility_contract_inventory.md](TODO/kiyori_architecture_refactor/8_compatibility_contract_inventory.md) | 兼容合同与稳定标识清单 |
-| [9_workspace_preflight_and_backup_runbook.md](TODO/kiyori_architecture_refactor/9_workspace_preflight_and_backup_runbook.md) | 工作区、基线与备份作战手册 |
 | [index.md](TODO/kiyori_architecture_refactor/index.md) | Kiyori 项目架构与 Operit 命名重构 |
 
 ## docs/TODO/kiyori_brand_assets_and_device_paths
 
 | 文档 | 用途或标题 |
 | --- | --- |
-| [1_android_and_system_surfaces.md](TODO/kiyori_brand_assets_and_device_paths/1_android_and_system_surfaces.md) | Android 与系统可见品牌 |
-| [2_assets_templates_and_terminal.md](TODO/kiyori_brand_assets_and_device_paths/2_assets_templates_and_terminal.md) | 图片、WebChat、模板与终端 |
-| [3_validation.md](TODO/kiyori_brand_assets_and_device_paths/3_validation.md) | 残留审计与构建验收 |
+| [01_android_and_system_surfaces.md](TODO/kiyori_brand_assets_and_device_paths/01_android_and_system_surfaces.md) | Android 与系统可见品牌 |
+| [02_assets_templates_and_terminal.md](TODO/kiyori_brand_assets_and_device_paths/02_assets_templates_and_terminal.md) | 图片、WebChat、模板与终端 |
+| [03_validation.md](TODO/kiyori_brand_assets_and_device_paths/03_validation.md) | 残留审计与构建验收 |
 | [index.md](TODO/kiyori_brand_assets_and_device_paths/index.md) | Kiyori 品牌、图标与设备路径清理 |
 
 ## docs/TODO/kiyori_brand_migration
 
 | 文档 | 用途或标题 |
 | --- | --- |
-| [1_IdentityChannelsAndAssets.md](TODO/kiyori_brand_migration/1_IdentityChannelsAndAssets.md) | 身份、渠道与资产 |
+| [01_identity_channels_and_assets.md](TODO/kiyori_brand_migration/01_identity_channels_and_assets.md) | 身份、渠道与资产 |
 | [index.md](TODO/kiyori_brand_migration/index.md) | Kiyori 品牌迁移 |
 
 ## docs/TODO/kiyori_browser_bookmarks
 
 | 文档 | 用途或标题 |
 | --- | --- |
-| [1_data_and_runtime_contract.md](TODO/kiyori_browser_bookmarks/1_data_and_runtime_contract.md) | 数据与运行时合同 |
-| [2_drawer_interaction_and_validation.md](TODO/kiyori_browser_bookmarks/2_drawer_interaction_and_validation.md) | 抽屉交互与验证 |
+| [01_data_and_runtime_contract.md](TODO/kiyori_browser_bookmarks/01_data_and_runtime_contract.md) | 数据与运行时合同 |
+| [02_drawer_interaction_and_validation.md](TODO/kiyori_browser_bookmarks/02_drawer_interaction_and_validation.md) | 抽屉交互与验证 |
 | [index.md](TODO/kiyori_browser_bookmarks/index.md) | 浏览器书签菜单与书签抽屉 |
 
 ## docs/TODO/kiyori_browser_force_zoom
@@ -374,9 +374,9 @@
 
 | 文档 | 用途或标题 |
 | --- | --- |
-| [1_runtime_and_directory_architecture.md](TODO/kiyori_browser_home_websession/1_runtime_and_directory_architecture.md) | 运行时与目录架构 |
-| [2_ui_navigation_and_source_port.md](TODO/kiyori_browser_home_websession/2_ui_navigation_and_source_port.md) | 界面、导航与 source-port |
-| [3_validation_and_handoff.md](TODO/kiyori_browser_home_websession/3_validation_and_handoff.md) | 验证与交付 |
+| [01_runtime_and_directory_architecture.md](TODO/kiyori_browser_home_websession/01_runtime_and_directory_architecture.md) | 运行时与目录架构 |
+| [02_ui_navigation_and_source_port.md](TODO/kiyori_browser_home_websession/02_ui_navigation_and_source_port.md) | 界面、导航与 source-port |
+| [03_validation_and_handoff.md](TODO/kiyori_browser_home_websession/03_validation_and_handoff.md) | 验证与交付 |
 | [index.md](TODO/kiyori_browser_home_websession/index.md) | 浏览器首页与 WebSession 共用计划 |
 
 ## docs/TODO/kiyori_browser_navigation_and_session_restoration
@@ -389,6 +389,15 @@
 
 | 文档 | 用途或标题 |
 | --- | --- |
+| [01_overlay_back_insets_and_ai_adoption.md](TODO/kiyori_browser_product_completion/01_overlay_back_insets_and_ai_adoption.md) | 悬浮浏览器系统 Back、系统栏与 AI 接管 |
+| [02_software_home_and_fullscreen_search.md](TODO/kiyori_browser_product_completion/02_software_home_and_fullscreen_search.md) | 软件首页与全屏网页搜索 |
+| [03_incognito_profiles_and_window_thumbnails.md](TODO/kiyori_browser_product_completion/03_incognito_profiles_and_window_thumbnails.md) | 真无痕 Profile、窗口逻辑与网页缩略图 |
+| [04_settings_home_and_browser_settings.md](TODO/kiyori_browser_product_completion/04_settings_home_and_browser_settings.md) | 网页浏览器设置复刻 |
+| [05_download_center_and_settings.md](TODO/kiyori_browser_product_completion/05_download_center_and_settings.md) | 下载中心与下载设置 |
+| [06_minus_one_browser_library.md](TODO/kiyori_browser_product_completion/06_minus_one_browser_library.md) | 负一屏浏览器资料入口 |
+| [07_browser_menu_capabilities.md](TODO/kiyori_browser_product_completion/07_browser_menu_capabilities.md) | 浏览器菜单真实能力 |
+| [08_media_intent_and_player_foundation.md](TODO/kiyori_browser_product_completion/08_media_intent_and_player_foundation.md) | 媒体 Intent 与播放器基础 |
+| [09_browser_sniffer_and_floating_playback.md](TODO/kiyori_browser_product_completion/09_browser_sniffer_and_floating_playback.md) | 浏览器资源嗅探与悬浮播放 |
 | [10_validation_build_git_and_device_acceptance.md](TODO/kiyori_browser_product_completion/10_validation_build_git_and_device_acceptance.md) | 验证、构建、Git 与真机验收 |
 | [11_player_runtime_ui_and_browser_completion.md](TODO/kiyori_browser_product_completion/11_player_runtime_ui_and_browser_completion.md) | 播放器运行时、界面与浏览器播放收口 |
 | [12_player_process_crash_isolation.md](TODO/kiyori_browser_product_completion/12_player_process_crash_isolation.md) | 播放器进程崩溃隔离与诊断页 |
@@ -399,36 +408,27 @@
 | [17_log_driven_browser_player_proxy_repair.md](TODO/kiyori_browser_product_completion/17_log_driven_browser_player_proxy_repair.md) | 日志驱动的浏览器、播放器与代理链路修复 |
 | [18_android16_player_close_and_handoff_repair.md](TODO/kiyori_browser_product_completion/18_android16_player_close_and_handoff_repair.md) | Android 16 播放器关闭与重复交接修复 |
 | [19_latest_log_runtime_readiness_and_diagnostic_noise.md](TODO/kiyori_browser_product_completion/19_latest_log_runtime_readiness_and_diagnostic_noise.md) | 最新日志复核：runtime readiness 与诊断噪声 |
-| [1_overlay_back_insets_and_ai_adoption.md](TODO/kiyori_browser_product_completion/1_overlay_back_insets_and_ai_adoption.md) | 悬浮浏览器系统 Back、系统栏与 AI 接管 |
 | [21_browser_gesture_reload_ua_stability.md](TODO/kiyori_browser_product_completion/21_browser_gesture_reload_ua_stability.md) | 浏览器重复刷新、触摸回吸与 UA 生效稳定性 |
-| [2_software_home_and_fullscreen_search.md](TODO/kiyori_browser_product_completion/2_software_home_and_fullscreen_search.md) | 软件首页与全屏网页搜索 |
-| [3_incognito_profiles_and_window_thumbnails.md](TODO/kiyori_browser_product_completion/3_incognito_profiles_and_window_thumbnails.md) | 真无痕 Profile、窗口逻辑与网页缩略图 |
-| [4_settings_home_and_browser_settings.md](TODO/kiyori_browser_product_completion/4_settings_home_and_browser_settings.md) | 网页浏览器设置复刻 |
-| [5_download_center_and_settings.md](TODO/kiyori_browser_product_completion/5_download_center_and_settings.md) | 下载中心与下载设置 |
-| [6_minus_one_browser_library.md](TODO/kiyori_browser_product_completion/6_minus_one_browser_library.md) | 负一屏浏览器资料入口 |
-| [7_browser_menu_capabilities.md](TODO/kiyori_browser_product_completion/7_browser_menu_capabilities.md) | 浏览器菜单真实能力 |
-| [8_media_intent_and_player_foundation.md](TODO/kiyori_browser_product_completion/8_media_intent_and_player_foundation.md) | 媒体 Intent 与播放器基础 |
-| [9_browser_sniffer_and_floating_playback.md](TODO/kiyori_browser_product_completion/9_browser_sniffer_and_floating_playback.md) | 浏览器资源嗅探与悬浮播放 |
 | [index.md](TODO/kiyori_browser_product_completion/index.md) | 浏览器产品能力连续完善 |
 
 ## docs/TODO/kiyori_browser_topbar_search_toolbox_windows
 
 | 文档 | 用途或标题 |
 | --- | --- |
-| [1_source_mapping_and_capability_matrix.md](TODO/kiyori_browser_topbar_search_toolbox_windows/1_source_mapping_and_capability_matrix.md) | 证据矩阵与能力映射 |
-| [2_search_chrome_and_window_state.md](TODO/kiyori_browser_topbar_search_toolbox_windows/2_search_chrome_and_window_state.md) | 顶栏、全屏搜索、窗口与返回状态机 |
-| [3_toolbox_actions_and_runtime_boundaries.md](TODO/kiyori_browser_topbar_search_toolbox_windows/3_toolbox_actions_and_runtime_boundaries.md) | 浏览器菜单、按钮接线与运行时边界 |
-| [4_self_qa_and_validation.md](TODO/kiyori_browser_topbar_search_toolbox_windows/4_self_qa_and_validation.md) | 自问自答、实现清单与验证 |
+| [01_source_mapping_and_capability_matrix.md](TODO/kiyori_browser_topbar_search_toolbox_windows/01_source_mapping_and_capability_matrix.md) | 证据矩阵与能力映射 |
+| [02_search_chrome_and_window_state.md](TODO/kiyori_browser_topbar_search_toolbox_windows/02_search_chrome_and_window_state.md) | 顶栏、全屏搜索、窗口与返回状态机 |
+| [03_toolbox_actions_and_runtime_boundaries.md](TODO/kiyori_browser_topbar_search_toolbox_windows/03_toolbox_actions_and_runtime_boundaries.md) | 浏览器菜单、按钮接线与运行时边界 |
+| [04_self_qa_and_validation.md](TODO/kiyori_browser_topbar_search_toolbox_windows/04_self_qa_and_validation.md) | 自问自答、实现清单与验证 |
 | [index.md](TODO/kiyori_browser_topbar_search_toolbox_windows/index.md) | 浏览器顶栏、全屏搜索、浏览器菜单与窗口重构 |
 
 ## docs/TODO/kiyori_browser_ui_refactor
 
 | 文档 | 用途或标题 |
 | --- | --- |
-| [1_source_mapping_and_architecture.md](TODO/kiyori_browser_ui_refactor/1_source_mapping_and_architecture.md) | 源映射与目录架构 |
-| [2_ui_navigation_and_adaptive_layout.md](TODO/kiyori_browser_ui_refactor/2_ui_navigation_and_adaptive_layout.md) | 页面、按钮与自适应布局 |
-| [3_drawer_tabs_motion_and_back.md](TODO/kiyori_browser_ui_refactor/3_drawer_tabs_motion_and_back.md) | 抽屉、标签、转场与 Back |
-| [4_runtime_ai_validation_and_handoff.md](TODO/kiyori_browser_ui_refactor/4_runtime_ai_validation_and_handoff.md) | 共享运行时、验证与交付 |
+| [01_source_mapping_and_architecture.md](TODO/kiyori_browser_ui_refactor/01_source_mapping_and_architecture.md) | 源映射与目录架构 |
+| [02_ui_navigation_and_adaptive_layout.md](TODO/kiyori_browser_ui_refactor/02_ui_navigation_and_adaptive_layout.md) | 页面、按钮与自适应布局 |
+| [03_drawer_tabs_motion_and_back.md](TODO/kiyori_browser_ui_refactor/03_drawer_tabs_motion_and_back.md) | 抽屉、标签、转场与 Back |
+| [04_runtime_ai_validation_and_handoff.md](TODO/kiyori_browser_ui_refactor/04_runtime_ai_validation_and_handoff.md) | 共享运行时、验证与交付 |
 | [index.md](TODO/kiyori_browser_ui_refactor/index.md) | 浏览器沉浸式 UI 重构 |
 
 ## docs/TODO/kiyori_extension_script_brand_migration
@@ -441,38 +441,38 @@
 
 | 文档 | 用途或标题 |
 | --- | --- |
-| [1_flow_and_content.md](TODO/kiyori_first_run_experience/1_flow_and_content.md) | 首次启动流程与内容 |
-| [2_permission_authorization.md](TODO/kiyori_first_run_experience/2_permission_authorization.md) | 集中权限授权 |
-| [3_implementation_and_validation.md](TODO/kiyori_first_run_experience/3_implementation_and_validation.md) | 实现与验证 |
+| [01_flow_and_content.md](TODO/kiyori_first_run_experience/01_flow_and_content.md) | 首次启动流程与内容 |
+| [02_permission_authorization.md](TODO/kiyori_first_run_experience/02_permission_authorization.md) | 集中权限授权 |
+| [03_implementation_and_validation.md](TODO/kiyori_first_run_experience/03_implementation_and_validation.md) | 实现与验证 |
 | [index.md](TODO/kiyori_first_run_experience/index.md) | Kiyori 完整首次启动体验 |
 
 ## docs/TODO/kiyori_full_ui_and_function_chain_audit
 
 | 文档 | 用途或标题 |
 | --- | --- |
-| [1_ui_inventory_and_design.md](TODO/kiyori_full_ui_and_function_chain_audit/1_ui_inventory_and_design.md) | UI 覆盖矩阵与设计规则 |
-| [2_function_chain_inventory.md](TODO/kiyori_full_ui_and_function_chain_audit/2_function_chain_inventory.md) | 功能逻辑链路矩阵 |
-| [3_implementation_and_validation.md](TODO/kiyori_full_ui_and_function_chain_audit/3_implementation_and_validation.md) | 实施阶段与验证门禁 |
+| [01_ui_inventory_and_design.md](TODO/kiyori_full_ui_and_function_chain_audit/01_ui_inventory_and_design.md) | UI 覆盖矩阵与设计规则 |
+| [02_function_chain_inventory.md](TODO/kiyori_full_ui_and_function_chain_audit/02_function_chain_inventory.md) | 功能逻辑链路矩阵 |
+| [03_implementation_and_validation.md](TODO/kiyori_full_ui_and_function_chain_audit/03_implementation_and_validation.md) | 实施阶段与验证门禁 |
 | [index.md](TODO/kiyori_full_ui_and_function_chain_audit/index.md) | 全量 UI 与功能逻辑链路审计优化 |
 
 ## docs/TODO/kiyori_global_ui_visual_unification
 
 | 文档 | 用途或标题 |
 | --- | --- |
-| [1_semantic_visual_system.md](TODO/kiyori_global_ui_visual_unification/1_semantic_visual_system.md) | 语义色与组件规则 |
-| [2_coverage_and_validation.md](TODO/kiyori_global_ui_visual_unification/2_coverage_and_validation.md) | 覆盖矩阵、实施顺序与验收 |
+| [01_semantic_visual_system.md](TODO/kiyori_global_ui_visual_unification/01_semantic_visual_system.md) | 语义色与组件规则 |
+| [02_coverage_and_validation.md](TODO/kiyori_global_ui_visual_unification/02_coverage_and_validation.md) | 覆盖矩阵、实施顺序与验收 |
 | [index.md](TODO/kiyori_global_ui_visual_unification/index.md) | 全局页面视觉一致性与语义彩色图标 |
 
 ## docs/TODO/kiyori_home_ui_refresh
 
 | 文档 | 用途或标题 |
 | --- | --- |
-| [1_home_visual_and_adaptive_layout.md](TODO/kiyori_home_ui_refresh/1_home_visual_and_adaptive_layout.md) | 1. 首页视觉与自适应布局 |
-| [2_weather_and_browser_windows.md](TODO/kiyori_home_ui_refresh/2_weather_and_browser_windows.md) | 2. 天气与浏览器窗口 |
-| [3_ai_quick_actions.md](TODO/kiyori_home_ui_refresh/3_ai_quick_actions.md) | 3. AI 快捷动作 |
-| [4_validation.md](TODO/kiyori_home_ui_refresh/4_validation.md) | 4. 验证 |
-| [5_home_and_search_interaction_refinement.md](TODO/kiyori_home_ui_refresh/5_home_and_search_interaction_refinement.md) | 5. 首页与全屏搜索交互细化 |
-| [6_incognito_lifecycle_and_window_cards.md](TODO/kiyori_home_ui_refresh/6_incognito_lifecycle_and_window_cards.md) | 6. 无痕生命周期与窗口卡片 |
+| [01_home_visual_and_adaptive_layout.md](TODO/kiyori_home_ui_refresh/01_home_visual_and_adaptive_layout.md) | 1. 首页视觉与自适应布局 |
+| [02_weather_and_browser_windows.md](TODO/kiyori_home_ui_refresh/02_weather_and_browser_windows.md) | 2. 天气与浏览器窗口 |
+| [03_ai_quick_actions.md](TODO/kiyori_home_ui_refresh/03_ai_quick_actions.md) | 3. AI 快捷动作 |
+| [04_validation.md](TODO/kiyori_home_ui_refresh/04_validation.md) | 4. 验证 |
+| [05_home_and_search_interaction_refinement.md](TODO/kiyori_home_ui_refresh/05_home_and_search_interaction_refinement.md) | 5. 首页与全屏搜索交互细化 |
+| [06_incognito_lifecycle_and_window_cards.md](TODO/kiyori_home_ui_refresh/06_incognito_lifecycle_and_window_cards.md) | 6. 无痕生命周期与窗口卡片 |
 | [index.md](TODO/kiyori_home_ui_refresh/index.md) | Kiyori 首页 UI 重设计 |
 
 ## docs/TODO/kiyori_onboarding_first_run
@@ -485,24 +485,24 @@
 
 | 文档 | 用途或标题 |
 | --- | --- |
-| [1_app_shell_and_home_navigation.md](TODO/kiyori_product_shell/1_app_shell_and_home_navigation.md) | Kiyori App Shell 与首页导航 |
-| [2_modal_ai_drawer_and_settings_ownership.md](TODO/kiyori_product_shell/2_modal_ai_drawer_and_settings_ownership.md) | 模态 AI 左抽屉与设置归属 |
-| [3_web_search_and_adaptive_layout.md](TODO/kiyori_product_shell/3_web_search_and_adaptive_layout.md) | 网页搜索与自适应布局 |
-| [4_capability_authorization_and_audit.md](TODO/kiyori_product_shell/4_capability_authorization_and_audit.md) | AI 能力授权与操作记录 |
-| [5_browser_source_port.md](TODO/kiyori_product_shell/5_browser_source_port.md) | 浏览器 source-port |
+| [01_app_shell_and_home_navigation.md](TODO/kiyori_product_shell/01_app_shell_and_home_navigation.md) | Kiyori App Shell 与首页导航 |
+| [02_modal_ai_drawer_and_settings_ownership.md](TODO/kiyori_product_shell/02_modal_ai_drawer_and_settings_ownership.md) | 模态 AI 左抽屉与设置归属 |
+| [03_web_search_and_adaptive_layout.md](TODO/kiyori_product_shell/03_web_search_and_adaptive_layout.md) | 网页搜索与自适应布局 |
+| [04_capability_authorization_and_audit.md](TODO/kiyori_product_shell/04_capability_authorization_and_audit.md) | AI 能力授权与操作记录 |
+| [05_browser_source_port.md](TODO/kiyori_product_shell/05_browser_source_port.md) | 浏览器 source-port |
 | [index.md](TODO/kiyori_product_shell/index.md) | Kiyori 产品壳与 AI 融合计划 |
 
 ## docs/TODO/kiyori_professional_browser_theme
 
 | 文档 | 用途或标题 |
 | --- | --- |
-| [1_visual_language_and_palette.md](TODO/kiyori_professional_browser_theme/1_visual_language_and_palette.md) | 视觉语言与色板 |
-| [2_theme_architecture_and_migration.md](TODO/kiyori_professional_browser_theme/2_theme_architecture_and_migration.md) | 主题架构与清理 |
-| [3_ai_browser_shell_integration.md](TODO/kiyori_professional_browser_theme/3_ai_browser_shell_integration.md) | AI、浏览器与产品壳视觉整合 |
-| [4_validation_and_device_acceptance.md](TODO/kiyori_professional_browser_theme/4_validation_and_device_acceptance.md) | 验证与真机验收 |
-| [5_home_browser_control_alignment.md](TODO/kiyori_professional_browser_theme/5_home_browser_control_alignment.md) | 首页与浏览器控件对齐迭代 |
-| [6_ai_accent_and_static_home_pages.md](TODO/kiyori_professional_browser_theme/6_ai_accent_and_static_home_pages.md) | 蓝色应用强调、浏览器保护域与三页面静态复刻 |
-| [7_ai_theme_settings_and_browser_settings_removal.md](TODO/kiyori_professional_browser_theme/7_ai_theme_settings_and_browser_settings_removal.md) | AI 主题精调、设置入口与浏览器设置移除 |
+| [01_visual_language_and_palette.md](TODO/kiyori_professional_browser_theme/01_visual_language_and_palette.md) | 视觉语言与色板 |
+| [02_theme_architecture_and_migration.md](TODO/kiyori_professional_browser_theme/02_theme_architecture_and_migration.md) | 主题架构与清理 |
+| [03_ai_browser_shell_integration.md](TODO/kiyori_professional_browser_theme/03_ai_browser_shell_integration.md) | AI、浏览器与产品壳视觉整合 |
+| [04_validation_and_device_acceptance.md](TODO/kiyori_professional_browser_theme/04_validation_and_device_acceptance.md) | 验证与真机验收 |
+| [05_home_browser_control_alignment.md](TODO/kiyori_professional_browser_theme/05_home_browser_control_alignment.md) | 首页与浏览器控件对齐迭代 |
+| [06_ai_accent_and_static_home_pages.md](TODO/kiyori_professional_browser_theme/06_ai_accent_and_static_home_pages.md) | 蓝色应用强调、浏览器保护域与三页面静态复刻 |
+| [07_ai_theme_settings_and_browser_settings_removal.md](TODO/kiyori_professional_browser_theme/07_ai_theme_settings_and_browser_settings_removal.md) | AI 主题精调、设置入口与浏览器设置移除 |
 | [index.md](TODO/kiyori_professional_browser_theme/index.md) | Kiyori 专业浏览器主题与固定应用强调色 |
 
 ## docs/TODO/kiyori_runtime_environment_crash_fixes
@@ -521,9 +521,9 @@
 
 | 文档 | 用途或标题 |
 | --- | --- |
-| [1_theme_boundary.md](TODO/kiyori_settings_theme_unification/1_theme_boundary.md) | 主题状态与个性化边界 |
-| [2_settings_visual_system.md](TODO/kiyori_settings_theme_unification/2_settings_visual_system.md) | 设置视觉系统与语义配色 |
-| [3_implementation_and_validation.md](TODO/kiyori_settings_theme_unification/3_implementation_and_validation.md) | 实施顺序、反向检查与验收 |
+| [01_theme_boundary.md](TODO/kiyori_settings_theme_unification/01_theme_boundary.md) | 主题状态与个性化边界 |
+| [02_settings_visual_system.md](TODO/kiyori_settings_theme_unification/02_settings_visual_system.md) | 设置视觉系统与语义配色 |
+| [03_implementation_and_validation.md](TODO/kiyori_settings_theme_unification/03_implementation_and_validation.md) | 实施顺序、反向检查与验收 |
 | [index.md](TODO/kiyori_settings_theme_unification/index.md) | 设置 UI、主题边界与现代化配色统一 |
 
 ## docs/TODO/kiyori_shizuku_privileged_execution_and_log_migration
@@ -536,29 +536,29 @@
 
 | 文档 | 用途或标题 |
 | --- | --- |
-| [1_starting_window_and_first_frame.md](TODO/kiyori_startup_performance/1_starting_window_and_first_frame.md) | 系统启动窗口与首帧 |
-| [2_runtime_initialization.md](TODO/kiyori_startup_performance/2_runtime_initialization.md) | 运行时初始化分层 |
-| [3_validation.md](TODO/kiyori_startup_performance/3_validation.md) | 验证 |
-| [4_runtime_staging_weather_mcp_and_search.md](TODO/kiyori_startup_performance/4_runtime_staging_weather_mcp_and_search.md) | 启动调度、首页天气、MCP 提示与首次搜索联合优化 |
+| [01_starting_window_and_first_frame.md](TODO/kiyori_startup_performance/01_starting_window_and_first_frame.md) | 系统启动窗口与首帧 |
+| [02_runtime_initialization.md](TODO/kiyori_startup_performance/02_runtime_initialization.md) | 运行时初始化分层 |
+| [03_validation.md](TODO/kiyori_startup_performance/03_validation.md) | 验证 |
+| [04_runtime_staging_weather_mcp_and_search.md](TODO/kiyori_startup_performance/04_runtime_staging_weather_mcp_and_search.md) | 启动调度、首页天气、MCP 提示与首次搜索联合优化 |
 | [index.md](TODO/kiyori_startup_performance/index.md) | Kiyori 启动性能优化 |
 
 ## docs/TODO/kiyori_storage_and_toolpkg_data_governance
 
 | 文档 | 用途或标题 |
 | --- | --- |
-| [1_storage_domains_and_paths.md](TODO/kiyori_storage_and_toolpkg_data_governance/1_storage_domains_and_paths.md) | 存储域与路径 |
-| [2_toolpkg_storage_and_migration.md](TODO/kiyori_storage_and_toolpkg_data_governance/2_toolpkg_storage_and_migration.md) | ToolPkg 存储与显式迁移 |
-| [3_artifact_pipeline_and_install_transaction.md](TODO/kiyori_storage_and_toolpkg_data_governance/3_artifact_pipeline_and_install_transaction.md) | 制品流水线与安装事务 |
-| [4_validation_and_rollout.md](TODO/kiyori_storage_and_toolpkg_data_governance/4_validation_and_rollout.md) | 验证、上线与完成标准 |
+| [01_storage_domains_and_paths.md](TODO/kiyori_storage_and_toolpkg_data_governance/01_storage_domains_and_paths.md) | 存储域与路径 |
+| [02_toolpkg_storage_and_migration.md](TODO/kiyori_storage_and_toolpkg_data_governance/02_toolpkg_storage_and_migration.md) | ToolPkg 存储与显式迁移 |
+| [03_artifact_pipeline_and_install_transaction.md](TODO/kiyori_storage_and_toolpkg_data_governance/03_artifact_pipeline_and_install_transaction.md) | 制品流水线与安装事务 |
+| [04_validation_and_rollout.md](TODO/kiyori_storage_and_toolpkg_data_governance/04_validation_and_rollout.md) | 验证、上线与完成标准 |
 | [index.md](TODO/kiyori_storage_and_toolpkg_data_governance/index.md) | Kiyori 存储路径与 ToolPkg 数据治理 |
 
 ## docs/TODO/kiyori_terminal_ubuntu_identity_and_setup
 
 | 文档 | 用途或标题 |
 | --- | --- |
-| [1_identity_and_compatibility.md](TODO/kiyori_terminal_ubuntu_identity_and_setup/1_identity_and_compatibility.md) | 身份与兼容边界 |
-| [2_node_toolchain_setup.md](TODO/kiyori_terminal_ubuntu_identity_and_setup/2_node_toolchain_setup.md) | Node 工具链首装契约 |
-| [3_validation.md](TODO/kiyori_terminal_ubuntu_identity_and_setup/3_validation.md) | 验证与 APK 交付 |
+| [01_identity_and_compatibility.md](TODO/kiyori_terminal_ubuntu_identity_and_setup/01_identity_and_compatibility.md) | 身份与兼容边界 |
+| [02_node_toolchain_setup.md](TODO/kiyori_terminal_ubuntu_identity_and_setup/02_node_toolchain_setup.md) | Node 工具链首装契约 |
+| [03_validation.md](TODO/kiyori_terminal_ubuntu_identity_and_setup/03_validation.md) | 验证与 APK 交付 |
 | [index.md](TODO/kiyori_terminal_ubuntu_identity_and_setup/index.md) | Kiyori 终端与 Ubuntu 身份及首装环境优化 |
 
 ## docs/TODO/kiyori_ubuntu_26_rootfs_upgrade
@@ -577,25 +577,25 @@
 
 | 文档 | 用途或标题 |
 | --- | --- |
-| [1_root_cause_and_contract.md](TODO/markdown_latex_rendering_compatibility/1_root_cause_and_contract.md) | 1. 根因与兼容合同 |
-| [2_compatibility_and_chemistry.md](TODO/markdown_latex_rendering_compatibility/2_compatibility_and_chemistry.md) | 2. 兼容预处理与化学表达式 |
-| [3_layout_and_diagnostics.md](TODO/markdown_latex_rendering_compatibility/3_layout_and_diagnostics.md) | 3. 布局与诊断 |
-| [4_verification.md](TODO/markdown_latex_rendering_compatibility/4_verification.md) | 4. 验证记录 |
+| [01_root_cause_and_contract.md](TODO/markdown_latex_rendering_compatibility/01_root_cause_and_contract.md) | 1. 根因与兼容合同 |
+| [02_compatibility_and_chemistry.md](TODO/markdown_latex_rendering_compatibility/02_compatibility_and_chemistry.md) | 2. 兼容预处理与化学表达式 |
+| [03_layout_and_diagnostics.md](TODO/markdown_latex_rendering_compatibility/03_layout_and_diagnostics.md) | 3. 布局与诊断 |
+| [04_verification.md](TODO/markdown_latex_rendering_compatibility/04_verification.md) | 4. 验证记录 |
 | [index.md](TODO/markdown_latex_rendering_compatibility/index.md) | Markdown/LaTeX 公式兼容性与化学渲染 |
 
 ## docs/TODO/market_release_author_verification
 
 | 文档 | 用途或标题 |
 | --- | --- |
-| [1_RemoveReleaseProof.md](TODO/market_release_author_verification/1_RemoveReleaseProof.md) | 移除 Release 正文证明 |
-| [2_DualSourceMarketRegistration.md](TODO/market_release_author_verification/2_DualSourceMarketRegistration.md) | 双来源市场登记 |
+| [01_remove_release_proof.md](TODO/market_release_author_verification/01_remove_release_proof.md) | 移除 Release 正文证明 |
+| [02_dual_source_market_registration.md](TODO/market_release_author_verification/02_dual_source_market_registration.md) | 双来源市场登记 |
 | [index.md](TODO/market_release_author_verification/index.md) | 市场发布作者验证 |
 
 ## docs/TODO/market_version_download_state
 
 | 文档 | 用途或标题 |
 | --- | --- |
-| [1_VersionRangeButtonState.md](TODO/market_version_download_state/1_VersionRangeButtonState.md) | 版本范围按钮状态 |
+| [01_version_range_button_state.md](TODO/market_version_download_state/01_version_range_button_state.md) | 版本范围按钮状态 |
 | [index.md](TODO/market_version_download_state/index.md) | 市场版本范围下载状态 |
 
 ## docs/TODO/mt_file_manager_replica
@@ -620,27 +620,27 @@
 
 | 文档 | 用途或标题 |
 | --- | --- |
+| [01_official_contract_and_feasibility.md](TODO/openai_hosted_web_search/01_official_contract_and_feasibility.md) | 1. 官方合同与可行性 |
+| [02_plugin_and_host_architecture.md](TODO/openai_hosted_web_search/02_plugin_and_host_architecture.md) | 2. 插件与宿主架构 |
+| [03_request_response_credentials_and_security.md](TODO/openai_hosted_web_search/03_request_response_credentials_and_security.md) | 3. 请求、响应、凭据与安全 |
+| [04_implementation_and_validation.md](TODO/openai_hosted_web_search/04_implementation_and_validation.md) | 4. 实施、测试与验收 |
+| [05_relay_and_environment_configuration.md](TODO/openai_hosted_web_search/05_relay_and_environment_configuration.md) | 5. 中转站与环境变量配置 |
+| [06_log_deep_analysis_20260812.md](TODO/openai_hosted_web_search/06_log_deep_analysis_20260812.md) | 2026-08-12 Kiyori 日志深度分析 |
+| [07_log_followup_fix_plan_20260812.md](TODO/openai_hosted_web_search/07_log_followup_fix_plan_20260812.md) | 2026-08-12 日志驱动后续修复计划 |
+| [08_20260813_readonly_analysis_checkpoint.md](TODO/openai_hosted_web_search/08_20260813_readonly_analysis_checkpoint.md) | 8. 2026-08-13 优化调查检查点 |
+| [09_20260813_optimization_implementation_plan.md](TODO/openai_hosted_web_search/09_20260813_optimization_implementation_plan.md) | 9. 2026-08-13 优化实施计划 |
 | [10_20260813_field_matrix_deep_analysis_and_revision_7_plan.md](TODO/openai_hosted_web_search/10_20260813_field_matrix_deep_analysis_and_revision_7_plan.md) | 2026-08-13 现场矩阵深度分析与 revision 7 实施计划 |
 | [11_20260829_optional_probe_and_relay_endpoint_plan.md](TODO/openai_hosted_web_search/11_20260829_optional_probe_and_relay_endpoint_plan.md) | 2026-08-29 首次调用门槛与中转地址规范化方案 |
-| [1_official_contract_and_feasibility.md](TODO/openai_hosted_web_search/1_official_contract_and_feasibility.md) | 1. 官方合同与可行性 |
-| [2_plugin_and_host_architecture.md](TODO/openai_hosted_web_search/2_plugin_and_host_architecture.md) | 2. 插件与宿主架构 |
-| [3_request_response_credentials_and_security.md](TODO/openai_hosted_web_search/3_request_response_credentials_and_security.md) | 3. 请求、响应、凭据与安全 |
-| [4_implementation_and_validation.md](TODO/openai_hosted_web_search/4_implementation_and_validation.md) | 4. 实施、测试与验收 |
-| [5_relay_and_environment_configuration.md](TODO/openai_hosted_web_search/5_relay_and_environment_configuration.md) | 5. 中转站与环境变量配置 |
-| [6_log_deep_analysis_20260812.md](TODO/openai_hosted_web_search/6_log_deep_analysis_20260812.md) | 2026-08-12 Kiyori 日志深度分析 |
-| [7_log_followup_fix_plan_20260812.md](TODO/openai_hosted_web_search/7_log_followup_fix_plan_20260812.md) | 2026-08-12 日志驱动后续修复计划 |
-| [8_20260813_readonly_analysis_checkpoint.md](TODO/openai_hosted_web_search/8_20260813_readonly_analysis_checkpoint.md) | 8. 2026-08-13 优化调查检查点 |
-| [9_20260813_optimization_implementation_plan.md](TODO/openai_hosted_web_search/9_20260813_optimization_implementation_plan.md) | 9. 2026-08-13 优化实施计划 |
 | [index.md](TODO/openai_hosted_web_search/index.md) | OpenAI 搜索插件化接入 |
 
 ## docs/TODO/operit_1_12_0_plus_8_plus_9_ai_plugin_update
 
 | 文档 | 用途或标题 |
 | --- | --- |
-| [1_upstream_and_market_audit.md](TODO/operit_1_12_0_plus_8_plus_9_ai_plugin_update/1_upstream_and_market_audit.md) | 上游与市场兼容审计 |
-| [2_toolpkg_and_market_runtime.md](TODO/operit_1_12_0_plus_8_plus_9_ai_plugin_update/2_toolpkg_and_market_runtime.md) | ToolPkg 与市场运行时 |
-| [3_ai_chat_updates.md](TODO/operit_1_12_0_plus_8_plus_9_ai_plugin_update/3_ai_chat_updates.md) | AI 对话更新 |
-| [4_verification_and_delivery.md](TODO/operit_1_12_0_plus_8_plus_9_ai_plugin_update/4_verification_and_delivery.md) | 验证与交付 |
+| [01_upstream_and_market_audit.md](TODO/operit_1_12_0_plus_8_plus_9_ai_plugin_update/01_upstream_and_market_audit.md) | 上游与市场兼容审计 |
+| [02_toolpkg_and_market_runtime.md](TODO/operit_1_12_0_plus_8_plus_9_ai_plugin_update/02_toolpkg_and_market_runtime.md) | ToolPkg 与市场运行时 |
+| [03_ai_chat_updates.md](TODO/operit_1_12_0_plus_8_plus_9_ai_plugin_update/03_ai_chat_updates.md) | AI 对话更新 |
+| [04_verification_and_delivery.md](TODO/operit_1_12_0_plus_8_plus_9_ai_plugin_update/04_verification_and_delivery.md) | 验证与交付 |
 | [index.md](TODO/operit_1_12_0_plus_8_plus_9_ai_plugin_update/index.md) | Operit 1.12.0+8/+9 AI 与插件生态兼容更新 |
 
 ## docs/TODO/operit_1_12_1_ai_update
@@ -661,55 +661,55 @@
 
 | 文档 | 用途或标题 |
 | --- | --- |
-| [1_interaction_and_state.md](TODO/package_environment_variables_drawer/1_interaction_and_state.md) | 交互与状态设计 |
-| [2_implementation_and_validation.md](TODO/package_environment_variables_drawer/2_implementation_and_validation.md) | 实施与验证 |
+| [01_interaction_and_state.md](TODO/package_environment_variables_drawer/01_interaction_and_state.md) | 交互与状态设计 |
+| [02_implementation_and_validation.md](TODO/package_environment_variables_drawer/02_implementation_and_validation.md) | 实施与验证 |
 | [index.md](TODO/package_environment_variables_drawer/index.md) | 包管理环境变量配置抽屉 |
 
 ## docs/TODO/package_manager_header_and_market_refresh
 
 | 文档 | 用途或标题 |
 | --- | --- |
-| [1_interaction_and_visual.md](TODO/package_manager_header_and_market_refresh/1_interaction_and_visual.md) | 交互与视觉 |
-| [2_state_and_validation.md](TODO/package_manager_header_and_market_refresh/2_state_and_validation.md) | 状态、实现与验证 |
+| [01_interaction_and_visual.md](TODO/package_manager_header_and_market_refresh/01_interaction_and_visual.md) | 交互与视觉 |
+| [02_state_and_validation.md](TODO/package_manager_header_and_market_refresh/02_state_and_validation.md) | 状态、实现与验证 |
 | [index.md](TODO/package_manager_header_and_market_refresh/index.md) | 包管理顶栏、固定搜索与市场安装刷新 |
 
 ## docs/TODO/plugin_runtime_storage_and_home_input
 
 | 文档 | 用途或标题 |
 | --- | --- |
-| [1_bundled_plugins.md](TODO/plugin_runtime_storage_and_home_input/1_bundled_plugins.md) | 预置插件资产 |
-| [2_plugin_package_semantics.md](TODO/plugin_runtime_storage_and_home_input/2_plugin_package_semantics.md) | 插件与包语义 |
-| [3_kiyori_storage.md](TODO/plugin_runtime_storage_and_home_input/3_kiyori_storage.md) | Kiyori 默认存储 |
-| [4_home_input.md](TODO/plugin_runtime_storage_and_home_input/4_home_input.md) | AI 首页输入接管（历史切片） |
+| [01_bundled_plugins.md](TODO/plugin_runtime_storage_and_home_input/01_bundled_plugins.md) | 预置插件资产 |
+| [02_plugin_package_semantics.md](TODO/plugin_runtime_storage_and_home_input/02_plugin_package_semantics.md) | 插件与包语义 |
+| [03_kiyori_storage.md](TODO/plugin_runtime_storage_and_home_input/03_kiyori_storage.md) | Kiyori 默认存储 |
+| [04_home_input.md](TODO/plugin_runtime_storage_and_home_input/04_home_input.md) | AI 首页输入接管（历史切片） |
 | [index.md](TODO/plugin_runtime_storage_and_home_input/index.md) | 插件运行时、Kiyori 存储与 AI 首页输入修复 |
 
 ## docs/TODO/pr_check_redesign
 
 | 文档 | 用途或标题 |
 | --- | --- |
-| [1_CandidateAndScopes.md](TODO/pr_check_redesign/1_CandidateAndScopes.md) | 步骤 1：候选树与作用域契约 |
-| [2_AttributionAndChecks.md](TODO/pr_check_redesign/2_AttributionAndChecks.md) | 步骤 2：差异归责与检查器 |
-| [3_WorkflowAndBuildLanes.md](TODO/pr_check_redesign/3_WorkflowAndBuildLanes.md) | 步骤 3：工作流与构建分层 |
+| [01_candidate_and_scopes.md](TODO/pr_check_redesign/01_candidate_and_scopes.md) | 步骤 1：候选树与作用域契约 |
+| [02_attribution_and_checks.md](TODO/pr_check_redesign/02_attribution_and_checks.md) | 步骤 2：差异归责与检查器 |
+| [03_workflow_and_build_lanes.md](TODO/pr_check_redesign/03_workflow_and_build_lanes.md) | 步骤 3：工作流与构建分层 |
 | [index.md](TODO/pr_check_redesign/index.md) | Pull Request 技术预审重构 |
 
 ## docs/TODO/refactor_building_sys
 
 | 文档 | 用途或标题 |
 | --- | --- |
-| [10_DebugInterfaceRegistryAndDataRescueShell.md](TODO/refactor_building_sys/10_DebugInterfaceRegistryAndDataRescueShell.md) | 步骤 10：调试接口注册与数据救援 Shell |
-| [11_ApkAuditAndPatch.md](TODO/refactor_building_sys/11_ApkAuditAndPatch.md) | 步骤 11：APK 审计与补丁链 |
-| [12_QaAdbOfflineSimulation.md](TODO/refactor_building_sys/12_QaAdbOfflineSimulation.md) | 步骤 12：QA ADB 离线模拟 |
-| [13_BuildPipelineContractAndAdapters.md](TODO/refactor_building_sys/13_BuildPipelineContractAndAdapters.md) | 步骤 13：构建流水线契约与平台适配 |
-| [14_DocumentationAndCleanup.md](TODO/refactor_building_sys/14_DocumentationAndCleanup.md) | 步骤 14：文档同步与旧路径清理 |
-| [1_BaselineAndContracts.md](TODO/refactor_building_sys/1_BaselineAndContracts.md) | 步骤 1：基线与构建契约 |
-| [2_JsWorkspaceAndLockfile.md](TODO/refactor_building_sys/2_JsWorkspaceAndLockfile.md) | 步骤 2：pnpm workspace 与锁文件 |
-| [3_ExternalArtifactManifest.md](TODO/refactor_building_sys/3_ExternalArtifactManifest.md) | 步骤 3：外部制品清单 |
-| [4_GradleInputNormalization.md](TODO/refactor_building_sys/4_GradleInputNormalization.md) | 步骤 4：Gradle 输入规范化 |
-| [5_ToolingDirectoryMigration.md](TODO/refactor_building_sys/5_ToolingDirectoryMigration.md) | 步骤 5：工具目录迁移 |
-| [6_PixiAndAssetPreparation.md](TODO/refactor_building_sys/6_PixiAndAssetPreparation.md) | 步骤 6：pixi 与资产准备入口 |
-| [7_AndroidCapabilityContracts.md](TODO/refactor_building_sys/7_AndroidCapabilityContracts.md) | 步骤 7：Android 能力契约 |
-| [8_FeatureModuleIsolation.md](TODO/refactor_building_sys/8_FeatureModuleIsolation.md) | 步骤 8：Feature 模块隔离 |
-| [9_VariantsSigningAndVersioning.md](TODO/refactor_building_sys/9_VariantsSigningAndVersioning.md) | 步骤 9：变体、调试边界、签名与版本身份 |
+| [01_baseline_and_contracts.md](TODO/refactor_building_sys/01_baseline_and_contracts.md) | 步骤 1：基线与构建契约 |
+| [02_js_workspace_and_lockfile.md](TODO/refactor_building_sys/02_js_workspace_and_lockfile.md) | 步骤 2：pnpm workspace 与锁文件 |
+| [03_external_artifact_manifest.md](TODO/refactor_building_sys/03_external_artifact_manifest.md) | 步骤 3：外部制品清单 |
+| [04_gradle_input_normalization.md](TODO/refactor_building_sys/04_gradle_input_normalization.md) | 步骤 4：Gradle 输入规范化 |
+| [05_tooling_directory_migration.md](TODO/refactor_building_sys/05_tooling_directory_migration.md) | 步骤 5：工具目录迁移 |
+| [06_pixi_and_asset_preparation.md](TODO/refactor_building_sys/06_pixi_and_asset_preparation.md) | 步骤 6：pixi 与资产准备入口 |
+| [07_android_capability_contracts.md](TODO/refactor_building_sys/07_android_capability_contracts.md) | 步骤 7：Android 能力契约 |
+| [08_feature_module_isolation.md](TODO/refactor_building_sys/08_feature_module_isolation.md) | 步骤 8：Feature 模块隔离 |
+| [09_variants_signing_and_versioning.md](TODO/refactor_building_sys/09_variants_signing_and_versioning.md) | 步骤 9：变体、调试边界、签名与版本身份 |
+| [10_debug_interface_registry_and_data_rescue_shell.md](TODO/refactor_building_sys/10_debug_interface_registry_and_data_rescue_shell.md) | 步骤 10：调试接口注册与数据救援 Shell |
+| [11_apk_audit_and_patch.md](TODO/refactor_building_sys/11_apk_audit_and_patch.md) | 步骤 11：APK 审计与补丁链 |
+| [12_qa_adb_offline_simulation.md](TODO/refactor_building_sys/12_qa_adb_offline_simulation.md) | 步骤 12：QA ADB 离线模拟 |
+| [13_build_pipeline_contract_and_adapters.md](TODO/refactor_building_sys/13_build_pipeline_contract_and_adapters.md) | 步骤 13：构建流水线契约与平台适配 |
+| [14_documentation_and_cleanup.md](TODO/refactor_building_sys/14_documentation_and_cleanup.md) | 步骤 14：文档同步与旧路径清理 |
 | [index.md](TODO/refactor_building_sys/index.md) | Kiyori 构建系统重构总计划 |
 
 ## docs/TODO/search_script_standardization
@@ -728,9 +728,9 @@
 
 | 文档 | 用途或标题 |
 | --- | --- |
-| [1_RegistrationIsolationAndInterrupt.md](TODO/toolpkg_engine_timeout/1_RegistrationIsolationAndInterrupt.md) | ToolPkg 注册隔离与强制中断 [DONE] |
-| [2_ContextLifecycle.md](TODO/toolpkg_engine_timeout/2_ContextLifecycle.md) | ToolPkg Context 生命周期 [DONE] |
-| [3_Verification.md](TODO/toolpkg_engine_timeout/3_Verification.md) | ToolPkg 超时修复验证 [DONE] |
+| [01_registration_isolation_and_interrupt.md](TODO/toolpkg_engine_timeout/01_registration_isolation_and_interrupt.md) | ToolPkg 注册隔离与强制中断 [DONE] |
+| [02_context_lifecycle.md](TODO/toolpkg_engine_timeout/02_context_lifecycle.md) | ToolPkg Context 生命周期 [DONE] |
+| [03_verification.md](TODO/toolpkg_engine_timeout/03_verification.md) | ToolPkg 超时修复验证 [DONE] |
 | [index.md](TODO/toolpkg_engine_timeout/index.md) | ToolPkg 引擎超时与生命周期修复 |
 
 ## docs/TODO/toolpkg_protection_ast_minify
@@ -743,7 +743,7 @@
 
 | 文档 | 用途或标题 |
 | --- | --- |
-| [1_CategoryLayoutAndEntrypoints.md](TODO/tools_directory_reorganization/1_CategoryLayoutAndEntrypoints.md) | 分类布局与入口迁移 |
+| [01_category_layout_and_entrypoints.md](TODO/tools_directory_reorganization/01_category_layout_and_entrypoints.md) | 分类布局与入口迁移 |
 | [index.md](TODO/tools_directory_reorganization/index.md) | Tools 目录重整 |
 
 ## docs/TODO/ui_style_unification
@@ -757,22 +757,22 @@
 
 | 文档 | 用途或标题 |
 | --- | --- |
-| [1_resumable_responses_execution.md](TODO/unified_model_capability_and_resumable_execution/1_resumable_responses_execution.md) | 1. Responses 可恢复执行 |
-| [2_model_capability_and_request_compiler.md](TODO/unified_model_capability_and_resumable_execution/2_model_capability_and_request_compiler.md) | 2. 模型能力与请求编译 |
-| [3_cache_tools_and_metrics.md](TODO/unified_model_capability_and_resumable_execution/3_cache_tools_and_metrics.md) | 3. 缓存、工具与遥测 |
-| [4_validation_and_delivery.md](TODO/unified_model_capability_and_resumable_execution/4_validation_and_delivery.md) | 4. 验证与交付 |
-| [5_post_regression_development_plan.md](TODO/unified_model_capability_and_resumable_execution/5_post_regression_development_plan.md) | 5. 故障注入、进程恢复与可观察性收口 |
-| [6_deepseek_long_context_cache_and_usage_plan.md](TODO/unified_model_capability_and_resumable_execution/6_deepseek_long_context_cache_and_usage_plan.md) | 6. DeepSeek、长上下文缓存、协议适配与对话统计方案 |
+| [01_resumable_responses_execution.md](TODO/unified_model_capability_and_resumable_execution/01_resumable_responses_execution.md) | 1. Responses 可恢复执行 |
+| [02_model_capability_and_request_compiler.md](TODO/unified_model_capability_and_resumable_execution/02_model_capability_and_request_compiler.md) | 2. 模型能力与请求编译 |
+| [03_cache_tools_and_metrics.md](TODO/unified_model_capability_and_resumable_execution/03_cache_tools_and_metrics.md) | 3. 缓存、工具与遥测 |
+| [04_validation_and_delivery.md](TODO/unified_model_capability_and_resumable_execution/04_validation_and_delivery.md) | 4. 验证与交付 |
+| [05_post_regression_development_plan.md](TODO/unified_model_capability_and_resumable_execution/05_post_regression_development_plan.md) | 5. 故障注入、进程恢复与可观察性收口 |
+| [06_deepseek_long_context_cache_and_usage_plan.md](TODO/unified_model_capability_and_resumable_execution/06_deepseek_long_context_cache_and_usage_plan.md) | 6. DeepSeek、长上下文缓存、协议适配与对话统计方案 |
 | [index.md](TODO/unified_model_capability_and_resumable_execution/index.md) | GPT-5.6 可恢复执行与统一模型能力 |
 
 ## docs/TODO/user_md_profile
 
 | 文档 | 用途或标题 |
 | --- | --- |
-| [1_StorageAndMigration.md](TODO/user_md_profile/1_StorageAndMigration.md) | 用户资料存储与迁移 |
-| [2_PromptAndTools.md](TODO/user_md_profile/2_PromptAndTools.md) | 提示词与用户资料工具 |
-| [3_MarkdownSettingsUi.md](TODO/user_md_profile/3_MarkdownSettingsUi.md) | 用户资料 Markdown 设置界面 |
-| [4_MemorySpaceCleanup.md](TODO/user_md_profile/4_MemorySpaceCleanup.md) | 记忆空间清理 |
+| [01_storage_and_migration.md](TODO/user_md_profile/01_storage_and_migration.md) | 用户资料存储与迁移 |
+| [02_prompt_and_tools.md](TODO/user_md_profile/02_prompt_and_tools.md) | 提示词与用户资料工具 |
+| [03_markdown_settings_ui.md](TODO/user_md_profile/03_markdown_settings_ui.md) | 用户资料 Markdown 设置界面 |
+| [04_memory_space_cleanup.md](TODO/user_md_profile/04_memory_space_cleanup.md) | 记忆空间清理 |
 | [index.md](TODO/user_md_profile/index.md) | 用户 Markdown 档案 |
 
 ## docs/TODO/windows_toolkit_refinement
@@ -786,14 +786,14 @@
 | 文档 | 用途或标题 |
 | --- | --- |
 | [README.md](doc-src/README.md) | Kiyori 正式文档源 |
-| [before_docing.md](doc-src/before_docing.md) | 文档维护规范 |
+| [documentation_guide.md](doc-src/documentation_guide.md) | 文档维护规范 |
 
 ## docs/doc-src/architecture
 
 | 文档 | 用途或标题 |
 | --- | --- |
 | [DEFAULT_TOOLS_ARCH.md](doc-src/architecture/DEFAULT_TOOLS_ARCH.md) | 默认工具架构（Default Tools）与参数变更清单 |
-| [RENDERER_ARCH.md](doc-src/architecture/RENDERER_ARCH.md) | 高性能流式 Markdown 渲染引擎：架构与优势 |
+| [RENDERER_ARCH.md](doc-src/architecture/RENDERER_ARCH.md) | 流式 Markdown 渲染架构 |
 | [browser_extension_development.md](doc-src/architecture/browser_extension_development.md) | AI 浏览器扩展与脚本开发 |
 | [browser_plugin_platform.md](doc-src/architecture/browser_plugin_platform.md) | 浏览器插件平台与插件中心架构 |
 | [chat_runtime_foreground_service_plan.md](doc-src/architecture/chat_runtime_foreground_service_plan.md) | 双 Session 聊天 Runtime 上移到前台服务方案 |

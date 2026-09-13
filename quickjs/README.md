@@ -3,6 +3,7 @@
 这个目录现在放的是可接入的 QuickJS JNI 模块本体。
 
 目录结构：
+
 - `src/main/cpp/CMakeLists.txt`：原生库构建脚本，并通过 CMake 获取上游 QuickJS C 源码
 - `src/main/cpp/quickjs_jni.cpp`：QuickJS JNI Runtime
 - `src/main/java/com/ai/assistance/operit/core/tools/javascript/QuickJsNativeRuntime.kt`：Kotlin Runtime 封装

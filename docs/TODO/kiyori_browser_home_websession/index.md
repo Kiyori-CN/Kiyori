@@ -45,14 +45,14 @@ legacy_design_reference: 24a2dfa91f0a4166dc58e5c4732d11861173f766
 ```text
 kiyori_browser_home_websession/
 	index.md
-	1_runtime_and_directory_architecture.md
-	2_ui_navigation_and_source_port.md
-	3_validation_and_handoff.md
+	01_runtime_and_directory_architecture.md
+	02_ui_navigation_and_source_port.md
+	03_validation_and_handoff.md
 ```
 
-1. [运行时与目录架构](1_runtime_and_directory_architecture.md)
-2. [界面、导航与 source-port](2_ui_navigation_and_source_port.md)
-3. [验证与交付](3_validation_and_handoff.md)
+1. [运行时与目录架构](01_runtime_and_directory_architecture.md)
+2. [界面、导航与 source-port](02_ui_navigation_and_source_port.md)
+3. [验证与交付](03_validation_and_handoff.md)
 
 ## 完成定义
 

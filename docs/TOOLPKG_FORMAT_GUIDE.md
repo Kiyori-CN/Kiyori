@@ -1,5 +1,26 @@
 # ToolPkg 格式说明文档
 
+<!-- doc-toc:start -->
+<details>
+<summary>本页导航</summary>
+
+- [1. 简介](#1-简介)
+- [2. ToolPkg 文件结构](#2-toolpkg-文件结构)
+- [3. Manifest 清单文件](#3-manifest-清单文件)
+- [4. 创建 ToolPkg](#4-创建-toolpkg)
+- [5. 子包脚本开发](#5-子包脚本开发)
+- [6. UI 模块开发](#6-ui-模块开发)
+- [7. 资源文件管理](#7-资源文件管理)
+- [8. 部署和分发](#8-部署和分发)
+- [9. 最佳实践](#9-最佳实践)
+- [10. 故障排查](#10-故障排查)
+- [11. 示例项目](#11-示例项目)
+- [12. 参考资料](#12-参考资料)
+- [13. 更新日志](#13-更新日志)
+
+</details>
+<!-- doc-toc:end -->
+
 ## 1. 简介
 
 **ToolPkg** 是 Kiyori 内置 Operit 工具体系用于打包和分发工具包的稳定格式。它允许开发者将多个相关的工具脚本、资源文件和 UI 模块打包成一个单一、可审计、易于分发和管理的文件。
@@ -45,7 +66,7 @@ Kiyori 支持 `1.0.0` 和 `1.0.1`；只有缺少 `api_version` 时默认 `1.0.0`
 
 一个典型的 `.toolpkg` 文件的内部结构如下：
 
-```
+```text
 windows_control.toolpkg (ZIP 压缩包)
 ├── manifest.json                          # 清单文件（必需）
 ├── main.js                                # ToolPkg 主入口脚本（必需）
@@ -252,6 +273,7 @@ include 不是安全绕过项。即使被声明，符号链接、越界路径、
 ```
 
 语言代码优先级：
+
 1. 完整语言标签（如 `zh-CN`、`en-US`）
 2. 语言代码（如 `zh`、`en`）
 3. `default` 键
@@ -286,6 +308,7 @@ include 不是安全绕过项。即使被声明，符号链接、越界路径、
 | `description` | LocalizedText | 否 | 子包的描述信息 |
 
 **子包脚本格式**：
+
 - 子包脚本必须是标准的 JavaScript 文件
 - 必须包含 `METADATA` 注释块（参考 [SCRIPT_DEV_GUIDE.md](./SCRIPT_DEV_GUIDE.md)）
 - 脚本中定义的工具会被注册为 `<subpackage_id>:<tool_name>` 格式
@@ -555,6 +578,7 @@ exports.onInputMenuToggle = onInputMenuToggle;
 - `activity_on_destroy`
 
 **Compose DSL 运行时**：
+
 - 使用 JavaScript 编写声明式 UI
 - 提供丰富的 UI 组件（Column, Row, Button, TextField 等）
 - 支持状态管理和事件处理
@@ -755,10 +779,12 @@ SHA-256、ToolPkg ID/版本、条目数和总解压大小。`kiyori_editor` 已�
 | `mime` | string | 否 | 资源的 MIME 类型 |
 
 **访问资源**：
+
 - 在子包脚本中：通过 PackageManager API 访问
 - 在 UI 模块中：通过 `ToolPkg.readResource(key)` 访问
 
 目录资源说明：
+
 - 当 `mime` 是目录类型（如 `inode/directory`、`vnd.android.document/directory`）时，`ToolPkg.readResource(key)` 会先将该目录压缩成 zip，再返回这个 zip 的临时文件路径。
 - 未显式传 `outputFileName` 时，目录资源默认会自动补上 `.zip` 后缀。
 
@@ -803,11 +829,13 @@ ToolPkg 现在可以通过 `manifest` 直接注册工作流模板。注册后，
 | `resource_key` | string | 是 | 指向 `resources` 中某个文件资源 |
 
 要求：
+
 - `resource_key` 必须引用一个文件资源，不能是目录资源
 - 文件内容必须是可被宿主反序列化的 `Workflow` JSON
 - 节点建议保留 `__type`，以便和宿主当前的 `kotlinx.serialization` 结构稳定对齐
 
 导入行为：
+
 - 宿主导入时会重新生成工作流 `id`
 - 执行统计字段会被重置
 - 导入成功后会落库成正式 `Workflow`
@@ -856,6 +884,7 @@ ToolPkg 也可以通过 `manifest` 注册工作区模板。注册后，模板会
 | `project_type` | string | 否 | 传给宿主 UI 展示的项目类型标签 |
 
 要求：
+
 - `resource_key` 必须引用一个目录资源，常见 `mime` 可写 `inode/directory` 或 `application/x-directory`
 - 目录内容里必须包含 `.operit/config.json`
 - 宿主导入时会把整个目录复制到当前 chat 的 workspace 目录
@@ -874,6 +903,7 @@ resources/
 ```
 
 最小可参考示例：
+
 - `examples/template_try/`
 - 里面同时演示了 `workflow_templates`、`workspace_templates`、目录资源和最小 `main.ts`
 
@@ -1108,6 +1138,7 @@ items[0];     // 对
 Compose DSL 是一种基于 JavaScript 的声明式 UI 框架，灵感来自 Jetpack Compose。
 
 **特点**：
+
 - 声明式语法
 - 组件化设计
 - 状态管理
@@ -1423,6 +1454,7 @@ active 提交前的任何错误都不能改变当前激活版本。成功更新�
 ### 8.5 版本管理
 
 建议使用语义化版本号：
+
 - `MAJOR.MINOR.PATCH`（如 `1.2.3`）
 - MAJOR：不兼容的 API 变更
 - MINOR：向后兼容的功能新增
@@ -1439,7 +1471,7 @@ active 提交前的任何错误都不能改变当前激活版本。成功更新�
 
 ### 9.2 文件组织
 
-```
+```text
 my_toolpkg/
 ├── manifest.json              # 清单文件
 ├── packages/                  # 子包目录
@@ -1490,21 +1522,25 @@ my_toolpkg/
 ### 10.1 常见问题
 
 **问题 1：包无法导入**
+
 - 检查 `manifest.json` 格式是否正确
 - 确认 `toolpkg_id` 是否唯一
 - 验证 ZIP 文件结构是否正确
 
 **问题 2：子包无法加载**
+
 - 检查 `entry` 路径是否正确
 - 确认脚本文件包含有效的 `METADATA`
 - 查看应用日志获取详细错误信息
 
 **问题 3：资源无法访问**
+
 - 检查资源 `key` 是否正确
 - 确认资源 `path` 在 ZIP 中存在
 - 验证资源文件没有损坏
 
 **问题 4：UI 模块不显示**
+
 - 检查 `main.js` 是否导出 `registerToolPkg`
 - 检查是否调用了 `ToolPkg.registerToolboxUiModule(...)`
 - 确认 `runtime` 类型正确
@@ -1638,7 +1674,7 @@ adb logcat -d -s JsEngine:* ToolPkg:* PackageManager:*
 
 完整示例位于 `examples/windows_control/`：
 
-```
+```text
 windows_control/
 ├── manifest.json
 ├── packages/
@@ -1655,6 +1691,7 @@ windows_control/
 ```
 
 **功能**：
+
 - 通过 HTTP 控制 Windows 电脑
 - 提供一键配置 UI
 - 包含 PC Agent 安装包资源

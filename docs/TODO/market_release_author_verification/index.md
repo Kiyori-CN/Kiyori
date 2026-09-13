@@ -21,7 +21,7 @@ status: in_progress
 
 ## 分项与验收
 
-1. [移除正文证明](1_RemoveReleaseProof.md)：代码与静态引用检查完成，测试未执行。
-2. [双来源登记](2_DualSourceMarketRegistration.md)：代码与静态引用检查完成，测试未执行。
+1. [移除正文证明](01_remove_release_proof.md)：代码与静态引用检查完成，测试未执行。
+2. [双来源登记](02_dual_source_market_registration.md)：代码与静态引用检查完成，测试未执行。
 
 两条路径应共用市场资产契约；远端行为和实际发布需另行验收，原 `in_progress` 状态保持。

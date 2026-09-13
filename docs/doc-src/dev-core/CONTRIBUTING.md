@@ -68,7 +68,11 @@ git submodule update --init --recursive terminal
 
 ## Fork 与分支
 
-Fork Kiyori 后克隆自己的仓库：
+以下流程面向外部贡献者自己的 fork；其中 `upstream` 指向 **Kiyori-CN/Kiyori**。
+维护者直接在 Kiyori checkout 持续开发时遵循根 `AGENTS.md` 的 `main` 规则，不套用本节的分支创建或 rebase。
+已有 checkout 的 `upstream` 可能指向原始 Operit，执行前用 `git remote -v` 核对，不能只凭名称判断目标。
+
+外部贡献者 Fork Kiyori 后克隆自己的仓库：
 
 ```bash
 git clone https://github.com/<your-account>/Kiyori.git
@@ -180,7 +184,8 @@ fresh-clone 检查见 [`ci/README.md`](../../../ci/README.md)。
 
 ## Pull Request 要求
 
-提交前把分支更新到最新 `upstream/main`，解决分歧并重跑相关验证：
+外部 fork 的贡献分支提交 PR 前，与已核对 URL 的 Kiyori `upstream/main` 同步并重跑相关验证。
+下列 rebase 仅用于自己尚未共享的贡献分支；已共享分支先与协作者确定同步方式，不强推覆盖他人工作：
 
 ```bash
 git fetch upstream

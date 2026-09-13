@@ -227,7 +227,13 @@ ReportLab 创建与水印共用字体注册：默认 CID `STSong-Light`，显式
 
 ## 应用内 AI 动作授权
 
-下表描述 Kiyori 产品的权限系统，不构成开发 Agent 的授权。
+当前实现由 `ToolPermissionSystem` 管理 `FORBID / ASK / ALLOW` 和单工具例外；`ALLOW` 分支直接
+允许该次工具调用。各工具或界面可能有独立的参数校验和确认，但不能据此承诺全工具范围内的风险分级。
+
+下表是已确认的**目标设计**，来源为状态仍为 `design_required` 的
+[AI 能力授权专项](../../TODO/kiyori_product_shell/04_capability_authorization_and_audit.md)。
+2026-09-14 源码核对尚未发现统一 R0–R3 请求分类与副作用前确认层，不能写成当前已实现的安全保证。
+本页描述产品能力与设计，不构成开发 Agent 的授权。
 
 | 风险级别 | 操作边界 |
 | --- | --- |
@@ -236,7 +242,9 @@ ReportLab 创建与水印共用字体注册：默认 CID `STSong-Light`，显式
 | R2 高影响 | 持久、多对象、敏感或准备外部影响；默认一次确认，可对固定目标与范围显式会话授权 |
 | R3 关键 | 难以撤销、特权、财务、账户或不可收回的外部动作；逐次确认，不允许会话/持久绕过 |
 
-`FORBID / ASK / ALLOW` 决定工具是否可调用；具体命令的 R0–R3 决定是否可产生副作用。`ALLOW` 不绕过 R2/R3；同一动作的 ASK 与操作确认合并为一次决定。
+目标方案要求 `FORBID / ASK / ALLOW` 控制工具调用、R0–R3 控制具体动作副作用，`ALLOW` 不绕过
+R2/R3，同一动作合并确认。该方案仍需实现、逐工具接线和设备验证；现行设置使用方式见
+[AI 工具权限说明](../feature-protocol/tool_permissions.md)。
 
 ## 工作区文件编辑
 

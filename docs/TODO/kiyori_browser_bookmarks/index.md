@@ -38,8 +38,8 @@ status: verification_pending
 
 ## 实施步骤
 
-1. [数据与运行时合同](1_data_and_runtime_contract.md)
-2. [抽屉交互与验证](2_drawer_interaction_and_validation.md)
+1. [数据与运行时合同](01_data_and_runtime_contract.md)
+2. [抽屉交互与验证](02_drawer_interaction_and_validation.md)
 
 ## 当前状态
 

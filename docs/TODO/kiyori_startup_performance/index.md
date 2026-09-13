@@ -36,17 +36,17 @@ Android 12 及以上会为 Launcher Activity 强制创建系统启动窗口。�
 - 软件首页第一次关键词搜索从 session recovery 初始化搜索引擎切换条
 
 详细方案与验收见
-[`4_runtime_staging_weather_mcp_and_search.md`](4_runtime_staging_weather_mcp_and_search.md)。
+[`04_runtime_staging_weather_mcp_and_search.md`](04_runtime_staging_weather_mcp_and_search.md)。
 
 ## 作用域
 
 ```text
 kiyori_startup_performance/
 	index.md
-	1_starting_window_and_first_frame.md
-	2_runtime_initialization.md
-	3_validation.md
-	4_runtime_staging_weather_mcp_and_search.md
+	01_starting_window_and_first_frame.md
+	02_runtime_initialization.md
+	03_validation.md
+	04_runtime_staging_weather_mcp_and_search.md
 ```
 
 实现范围限定在启动主题、`MainActivity` 启动顺序、`KiyoriApplication` 初始化阶段和相称的验证文档。现有下载、终端、浏览器与构建脚本改动不属于本任务。

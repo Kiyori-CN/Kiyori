@@ -126,4 +126,4 @@ status: verification_pending
 - `ModelApiSettingsSection.kt`：当前配置的状态、保存、模型获取和绑定影响确认
 - `ModelConfigScreen.kt`：连接测试按钮与实际测试模型展示
 - `UpstreamModelPickerSheet.kt`：上游模型搜索、多选和固定底部操作区
-- [`4_ui_refinement.md`](4_ui_refinement.md)：第二轮视觉和布局精修合同
+- [`04_ui_refinement.md`](04_ui_refinement.md)：第二轮视觉和布局精修合同

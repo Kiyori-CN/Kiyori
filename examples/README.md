@@ -53,4 +53,4 @@ Linux/macOS：
 - 每个包独立声明并导出公共函数。跨包组合前明确模块边界，不把多个示例直接拼接到同一全局作用域。
 - TypeScript 本地构建遵循对应 `tsconfig.json` 与打包命令；不能把任意 ES Module import 当作宿主直接支持的入口。
 - 修改后执行该包声明的类型检查与打包验证，再在应用中验证注册、参数、结果和生命周期。
-- ADB 日志、密钥、环境配置与生成的包留在本地；生产预置清单和资产生成流程见 [可复现开发](../docs/TODO/formal_development_readiness/2_reproducible_development.md)。
+- ADB 日志、密钥、环境配置与生成的包留在本地；生产预置清单和资产生成流程见 [可复现开发](../docs/TODO/formal_development_readiness/02_reproducible_development.md)。

@@ -19,8 +19,8 @@ last_reviewed: 2026-07-15
 
 ## 步骤
 
-1. [协议版本门禁 [DONE]](./1_AgreementVersionGate.md)：保存已确认版本、比较当前版本并在协议页展示版本
-2. [协议文本草案 [DONE]](./2_AgreementTextDraft.md)：根据用户审核结果更新人话版和严谨版条款，并同步协议版本
+1. [协议版本门禁 [DONE]](./01_agreement_version_gate.md)：保存已确认版本、比较当前版本并在协议页展示版本
+2. [协议文本草案 [DONE]](./02_agreement_text_draft.md)：根据用户审核结果更新人话版和严谨版条款，并同步协议版本
 
 ## 完成标记
 

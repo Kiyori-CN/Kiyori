@@ -20,7 +20,7 @@ Kiyori 从 Operit 源码建立新的独立项目。项目需要长期吸收 Oper
 - Kiyori 拥有应用壳、顶层导航、系统设置、产品品牌、发行与内容域
 - Operit AI 通过 Kiyori Capability API 操作内容域，不直接拥有内容页面状态
 - 继续保留 `com.ai.assistance.operit`、`operit://`、数据库、备份、插件、ToolPkg、MCP 和其他互操作标识
-- Kiyori 从未面向用户发布，继承的 Operit 导航不构成 Kiyori 用户接口合同，迁移时完整移除旧应用壳入口
+- 本决策采用时 Kiyori 尚未发行，继承的 Operit 导航不构成 Kiyori 用户接口合同，迁移时完整移除旧应用壳入口
 
 ## 影响
 
@@ -38,5 +38,5 @@ Kiyori 从 Operit 源码建立新的独立项目。项目需要长期吸收 Oper
 ## 相关资料
 
 - [Kiyori 产品壳与导航架构](../architecture/kiyori_product_shell_and_navigation.md)
-- [品牌与兼容性边界](../../TODO/formal_development_readiness/1_brand_and_compatibility.md)
+- [品牌与兼容性边界](../../TODO/formal_development_readiness/01_brand_and_compatibility.md)
 - [模态 AI 左抽屉导航决策](0004_modal_ai_drawer_navigation.md)

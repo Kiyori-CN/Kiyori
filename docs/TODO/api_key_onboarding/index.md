@@ -26,9 +26,9 @@ status: complete
 
 ## 步骤
 
-1. [快速配置校验与界面](./1_QuickConfiguration.md) [DONE]
-2. [自定义配置返回事务](./2_CustomConfigurationReturn.md) [DONE]
-3. [静态审查与交付](./3_StaticReviewAndDelivery.md) [DONE]
+1. [快速配置校验与界面](./01_quick_configuration.md) [DONE]
+2. [自定义配置返回事务](./02_custom_configuration_return.md) [DONE]
+3. [静态审查与交付](./03_static_review_and_delivery.md) [DONE]
 
 ## 执行约束
 

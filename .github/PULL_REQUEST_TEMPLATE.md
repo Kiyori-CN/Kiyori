@@ -50,6 +50,17 @@ List commands, tests, device/OS, build variants, and results; explain why a chec
 
 <!-- 可选：截图、录屏、日志、构建产物或对比结果。Optional: screenshots, recordings, logs, artifacts, or before/after results. -->
 
+## README 与文档 / README and documentation
+
+<!--
+仅修改 README.md / README.en.md 时：在本轮 docs/TODO 专项中新增“目标读者、变更理由、
+权威来源、排版验证、双语核对”五项说明，在这里链接该记录。
+中文字段与命令见 docs/doc-src/documentation_guide.md。内部进度和逐控件说明不要写入 README。
+For README changes, link the new review record in the relevant workstream. Confirm both language
+entry points and preview headings, lists, tables, fences, links, images, and narrow-screen wrapping.
+For other documentation changes, identify the authoritative document and validation performed.
+-->
+
 ## 检查清单 / Checklist
 
 <!--

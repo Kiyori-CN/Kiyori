@@ -1,5 +1,7 @@
 # AI 请求与执行契约
 
+本文定义请求编译、提交、取消、恢复与历史重放的不变量。产品总览见 [CONTEXT](../../../CONTEXT.md)，详细设计见 [统一模型能力与可恢复执行](../architecture/model_capability_and_resumable_execution.md)，现场验收见 [AI 中断恢复](../../TODO/ai_interrupted_turn_recovery/index.md)。
+
 ## 模型配置检测
 
 模型与功能配置测试固定启动时的模型配置及参数。媒体请求使用内置带标记的图片、音频和
@@ -8,8 +10,6 @@
 工具返回中 `success` 表示没有硬失败，`verified` 表示所有探测通过；`passedTests`、
 `unverifiedTests`、`failedTests` 分别计数。取消保持取消语义，测试结束释放服务和临时媒体。
 聊天模型选择器订阅现有 DataStore 的一致快照，配置增删和修改无需重新打开选择器。
-
-本文定义请求编译、提交、取消、恢复与历史重放的不变量。产品总览见 [CONTEXT](../../../CONTEXT.md)，详细设计见 [统一模型能力与可恢复执行](../architecture/model_capability_and_resumable_execution.md)，现场验收见 [AI 中断恢复](../../TODO/ai_interrupted_turn_recovery/index.md)。
 
 ## 对话数据统计
 

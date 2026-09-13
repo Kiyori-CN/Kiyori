@@ -4,6 +4,9 @@
 
 ## 最近整理
 
+2026-09-14 [全仓文档治理与排版完善](documentation_system_refinement/index.md#2026-09-14-全仓文档治理与排版完善)：
+统一专项命名与引用，完善 README 修改说明、结构检查与长文导航，纠正安装入口、Intent 与授权/渲染事实；当前验证及交付状态以专项为准。
+
 2026-09-12 [文档深度整理与全仓质量审查](documentation_system_refinement/index.md)本地维护与交付已完成：
 整理现行入口与历史证据，修复运行时和验证缺陷，完成全仓测试/Lint、Debug APK 与候选树检查，
 父仓和 terminal 已提交推送；设备、真实服务和远端 Actions 仍分别验收。
@@ -61,4 +64,4 @@
 
 旧总索引逐节保存在 [历史记录](history/README.md)，原计划、检查结果和未完成验收仍可追溯。历史内容用于理解当时决策，恢复前重新核对源码、Git 和设备状态。
 
-文档命名、分层与验证方式见 [文档维护规范](../doc-src/before_docing.md)。
+文档命名、分层与验证方式见 [文档维护规范](../doc-src/documentation_guide.md)。

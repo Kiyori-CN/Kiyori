@@ -7,6 +7,31 @@ device_verification: pending
 
 # 设置返回、浏览器窗口与会话恢复方案
 
+<!-- doc-toc:start -->
+<details>
+<summary>本页导航</summary>
+
+- [1. 文档定位](#1-文档定位)
+- [2. 任务合同](#2-任务合同)
+- [3. 实现前已验证现状与根因](#3-实现前已验证现状与根因)
+- [4. 统一术语与不变量](#4-统一术语与不变量)
+- [5. 设置导航实现](#5-设置导航实现)
+- [6. 浏览器窗口与网页导航实现](#6-浏览器窗口与网页导航实现)
+- [7. 四项新设置](#7-四项新设置)
+- [8. 滑屏前进后退](#8-滑屏前进后退)
+- [9. 普通窗口恢复模型](#9-普通窗口恢复模型)
+- [10. 启动恢复状态机](#10-启动恢复状态机)
+- [11. 实现阶段对账](#11-实现阶段对账)
+- [12. 实际主要文件](#12-实际主要文件)
+- [13. 测试矩阵](#13-测试矩阵)
+- [14. 实现阶段验证命令](#14-实现阶段验证命令)
+- [15. 风险与显式处理](#15-风险与显式处理)
+- [16. 完成标准](#16-完成标准)
+- [17. 研究依据](#17-研究依据)
+
+</details>
+<!-- doc-toc:end -->
+
 ## 1. 文档定位
 
 本专项冻结以下四类后续开发合同：
@@ -25,10 +50,10 @@ WebView 真实站点、触控和冷启动现场矩阵尚未执行，不能由本
 
 关联背景：
 
-- [网页浏览器设置复刻](../kiyori_browser_product_completion/4_settings_home_and_browser_settings.md)
-- [真无痕 Profile、窗口逻辑与网页缩略图](../kiyori_browser_product_completion/3_incognito_profiles_and_window_thumbnails.md)
-- [无痕生命周期与窗口卡片](../kiyori_home_ui_refresh/6_incognito_lifecycle_and_window_cards.md)
-- [抽屉、标签、转场与 Back](../kiyori_browser_ui_refactor/3_drawer_tabs_motion_and_back.md)
+- [网页浏览器设置复刻](../kiyori_browser_product_completion/04_settings_home_and_browser_settings.md)
+- [真无痕 Profile、窗口逻辑与网页缩略图](../kiyori_browser_product_completion/03_incognito_profiles_and_window_thumbnails.md)
+- [无痕生命周期与窗口卡片](../kiyori_home_ui_refresh/06_incognito_lifecycle_and_window_cards.md)
+- [抽屉、标签、转场与 Back](../kiyori_browser_ui_refactor/03_drawer_tabs_motion_and_back.md)
 - [正式开发准备](../formal_development_readiness/index.md)
 
 ## 2. 任务合同

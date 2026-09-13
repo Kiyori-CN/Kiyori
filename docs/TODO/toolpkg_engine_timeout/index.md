@@ -21,9 +21,9 @@ last_reviewed: 2026-07-16
 
 ## 步骤
 
-1. [注册隔离与强制中断 [DONE]](./1_RegistrationIsolationAndInterrupt.md)：修复同线程取消和共享注册引擎
-2. [Context 生命周期 [DONE]](./2_ContextLifecycle.md)：补齐容器所有权和 XML 渲染释放
-3. [验证与记录 [DONE]](./3_Verification.md)：增加定向回归测试并完成静态核对
+1. [注册隔离与强制中断 [DONE]](./01_registration_isolation_and_interrupt.md)：修复同线程取消和共享注册引擎
+2. [Context 生命周期 [DONE]](./02_context_lifecycle.md)：补齐容器所有权和 XML 渲染释放
+3. [验证与记录 [DONE]](./03_verification.md)：增加定向回归测试并完成静态核对
 
 ## 作用域
 

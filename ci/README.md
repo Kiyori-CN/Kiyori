@@ -46,7 +46,10 @@ Windows PowerShell 使用 `.\.venv\Scripts\python.exe` 和 `$baseSha`、`$candid
 .\.venv\Scripts\python.exe -B ci/script/check_documentation.py --repository .
 ```
 
-新增或移动文档后添加 `--write-catalogs` 更新两份派生目录；脚本只维护目录并检查格式/文件链接，不重写正文。编码、代码围栏、HTML 标题与目录行为由 `ci.test.test_documentation` 回归验证。
+新增或移动文档后添加 `--write-catalogs` 更新两份目录与已标记的页内导航，不重写正文。
+结构检查覆盖编码、标题、列表、表格、围栏、常用锚点和 HTML 本地资源，回归见 `ci.test.test_documentation`。
+根 README 变动时追加 `--base <本轮起点SHA>`，在专项新增读者、理由、来源、排版与双语说明；
+PR 的 Markdown 步骤使用同一个 base 执行结构及说明检查，规则见 [文档维护规范](../docs/doc-src/documentation_guide.md)。
 
 架构门禁默认只输出最终结论。诊断本地运行时间异常时可追加 `--timings`，逐项输出
 全部已注册检查的开始、结束与耗时；该选项不改变断言、扫描范围或退出码。源码枚举会跳过
@@ -101,7 +104,7 @@ PR workflow 只有 `contents: read` 权限，不读取仓库 secret，也不上�
 
 JVM lane 只下载 `libs.zip`，完整 Android lane 下载四个固定归档。`download_android_dependencies.sh` 使用固定 Google Drive file ID；`prepare_android_dependencies.py` 限制成员数量、解压大小、压缩比和文件类型，重建固定输出根目录，只验证本次实际解出的文件，并拒绝越界路径、重复成员及符号链接。完整 lane 还必须传入固定 NDK 路径：脚本移除已由 Maven AAR 接管的旧 GIF native 副本、删除 ffmpeg AAR 内重复的旧 arm64 C++ 运行库，并用该 NDK 的 arm64 `libc++_shared.so` 作为唯一运行库。
 
-这些 Drive 归档目前还没有内容 hash。归档内容寻址与许可证清单继续由[外部制品清单计划](../docs/TODO/refactor_building_sys/3_ExternalArtifactManifest.md)跟踪，在取得并审计真实归档前不记录推测值。
+这些 Drive 归档目前还没有内容 hash。归档内容寻址与许可证清单继续由[外部制品清单计划](../docs/TODO/refactor_building_sys/03_external_artifact_manifest.md)跟踪，在取得并审计真实归档前不记录推测值。
 
 正式准备检查会拒绝任意层级已跟踪的 `__pycache__`、`.pyc` 与 `.pyo`；`.gitignore` 只阻止
 新文件被普通添加，已经跟踪的缓存必须从索引中移除。检查本身不删除本机文件。

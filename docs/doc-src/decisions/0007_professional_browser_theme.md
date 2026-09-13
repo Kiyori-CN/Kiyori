@@ -50,7 +50,7 @@ Kiyori 尚未正式发布，因此本轮不保留旧全局自定义颜色方案�
 ## 相关资料
 
 - [实施计划](../../TODO/kiyori_professional_browser_theme/index.md)
-- [蓝色强调与静态页面阶段](../../TODO/kiyori_professional_browser_theme/6_ai_accent_and_static_home_pages.md)
-- [AI 主题精调与浏览器设置移除](../../TODO/kiyori_professional_browser_theme/7_ai_theme_settings_and_browser_settings_removal.md)
+- [蓝色强调与静态页面阶段](../../TODO/kiyori_professional_browser_theme/06_ai_accent_and_static_home_pages.md)
+- [AI 主题精调与浏览器设置移除](../../TODO/kiyori_professional_browser_theme/07_ai_theme_settings_and_browser_settings_removal.md)
 - [UI 设计来源层级](0003_ui_design_source_hierarchy.md)
 - [Browser Home 使用沉浸式浏览器 chrome](0005_browser_home_immersive_chrome.md)

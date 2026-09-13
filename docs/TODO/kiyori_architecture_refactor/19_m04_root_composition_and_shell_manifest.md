@@ -10,6 +10,48 @@ last_reviewed: 2026-08-01
 
 # M-04 根组合与 Shell 精确实施清单
 
+<!-- doc-toc:start -->
+<details>
+<summary>本页导航</summary>
+
+- [当前结论](#当前结论)
+- [2026-08-18 Stage 4 设置返回维护批准](#2026-08-18-stage-4-设置返回维护批准)
+- [2026-08-18 Stage 5 Browser 来源设置展示与 Back owner 维护批准](#2026-08-18-stage-5-browser-来源设置展示与-back-owner-维护批准)
+- [2026-08-18 Stage 6 首页手势、搜索 overlay 与 AI 横向内容维护批准](#2026-08-18-stage-6-首页手势搜索-overlay-与-ai-横向内容维护批准)
+- [2026-08-18 Stage 7 Settings surface 转场宿主维护批准](#2026-08-18-stage-7-settings-surface-转场宿主维护批准)
+- [2026-08-19 Stage 8 AI 内容手势与 App Shell fling 隔离维护批准](#2026-08-19-stage-8-ai-内容手势与-app-shell-fling-隔离维护批准)
+- [M-04E 精确 ownership 与总封板设计](#m-04e-精确-ownership-与总封板设计)
+- [M-04A1 精确合同](#m-04a1-精确合同)
+- [M-04A2 根组合边界](#m-04a2-根组合边界)
+- [M-04B Shell core 目标](#m-04b-shell-core-目标)
+- [M-04C navigation integration 目标](#m-04c-navigation-integration-目标)
+- [M-04D MainActivity 目标](#m-04d-mainactivity-目标)
+- [ARCH019](#arch019)
+- [当前 M-04A1 验收](#当前-m-04a1-验收)
+- [M-04A2 验收](#m-04a2-验收)
+- [M-04B1 Operit navigation policy 验收](#m-04b1-operit-navigation-policy-验收)
+- [M-04B2 Browser presentation contract 与纯 Shell state 验收](#m-04b2-browser-presentation-contract-与纯-shell-state-验收)
+- [M-04B3 App Shell host 验收](#m-04b3-app-shell-host-验收)
+- [M-04B4 Modal AI Drawer host 验收](#m-04b4-modal-ai-drawer-host-验收)
+- [M-04B5 Primary destination presentation 验收](#m-04b5-primary-destination-presentation-验收)
+- [M-04B6 Software Home 验收](#m-04b6-software-home-验收)
+- [M-04B7 residual Browser Search 验收](#m-04b7-residual-browser-search-验收)
+- [M-04C Operit navigation integration 验收](#m-04c-operit-navigation-integration-验收)
+- [M-04D1 MainActivity pending-request owner 验收](#m-04d1-mainactivity-pending-request-owner-验收)
+- [M-04D2 MainActivity Intent decoder 验收](#m-04d2-mainactivity-intent-decoder-验收)
+- [M-04D3 MainActivity display coordinator 验收](#m-04d3-mainactivity-display-coordinator-验收)
+- [M-04D4 MainActivity shared-content coordinator 验收](#m-04d4-mainactivity-shared-content-coordinator-验收)
+- [M-04D5 MainActivity task-visibility coordinator 验收](#m-04d5-mainactivity-task-visibility-coordinator-验收)
+- [M-04D6 MainActivity orientation coordinator 验收](#m-04d6-mainactivity-orientation-coordinator-验收)
+- [M-04D7 MainActivity startup notification permission coordinator 验收](#m-04d7-mainactivity-startup-notification-permission-coordinator-验收)
+- [M-04E 与 M-04 总封板完成证据](#m-04e-与-m-04-总封板完成证据)
+- [停止条件](#停止条件)
+- [2026-08-20 启动分段、AI 加载提示与动态导航合同增量](#2026-08-20-启动分段ai-加载提示与动态导航合同增量)
+- [2026-08-28 设置法律路由增量](#2026-08-28-设置法律路由增量)
+
+</details>
+<!-- doc-toc:end -->
+
 ## 当前结论
 
 M-04 是 M-03 之后的根组合与宿主职责拆分，不是一次性把 `ui/main` 整体移动到

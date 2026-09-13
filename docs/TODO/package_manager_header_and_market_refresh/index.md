@@ -28,8 +28,8 @@ status: verification_pending
 ```text
 package_manager_header_and_market_refresh/
     index.md
-    1_interaction_and_visual.md
-    2_state_and_validation.md
+    01_interaction_and_visual.md
+    02_state_and_validation.md
 ```
 
 ## 完成标准

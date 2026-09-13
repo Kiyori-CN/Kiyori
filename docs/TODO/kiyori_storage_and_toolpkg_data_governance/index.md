@@ -18,10 +18,10 @@ Kiyori 新建的公共数据只进入 `Download/Kiyori` 与 `Pictures/Kiyori`。
 ```text
 kiyori_storage_and_toolpkg_data_governance/
 ├── index.md
-├── 1_storage_domains_and_paths.md
-├── 2_toolpkg_storage_and_migration.md
-├── 3_artifact_pipeline_and_install_transaction.md
-└── 4_validation_and_rollout.md
+├── 01_storage_domains_and_paths.md
+├── 02_toolpkg_storage_and_migration.md
+├── 03_artifact_pipeline_and_install_transaction.md
+└── 04_validation_and_rollout.md
 ```
 
 ## 目标
@@ -177,7 +177,7 @@ bundle 与工作区逐字节一致。没有安装 APK、修改设备权限或执
 
 详细合同见：
 
-- [存储域与路径](1_storage_domains_and_paths.md)
-- [ToolPkg 存储与显式迁移](2_toolpkg_storage_and_migration.md)
-- [制品流水线与安装事务](3_artifact_pipeline_and_install_transaction.md)
-- [验证、上线与完成标准](4_validation_and_rollout.md)
+- [存储域与路径](01_storage_domains_and_paths.md)
+- [ToolPkg 存储与显式迁移](02_toolpkg_storage_and_migration.md)
+- [制品流水线与安装事务](03_artifact_pipeline_and_install_transaction.md)
+- [验证、上线与完成标准](04_validation_and_rollout.md)

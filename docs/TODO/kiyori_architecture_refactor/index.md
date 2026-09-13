@@ -14,6 +14,28 @@ last_reviewed: 2026-09-05
 
 # Kiyori 项目架构与 Operit 命名重构
 
+<!-- doc-toc:start -->
+<details>
+<summary>本页导航</summary>
+
+- [2026-09-06 仓库结构与开发规范整理](#2026-09-06-仓库结构与开发规范整理)
+- [v4 全项目重构当前计划](#v4-全项目重构当前计划)
+- [v3 历史设计与实施记录](#v3-历史设计与实施记录)
+- [当前结论](#当前结论)
+- [已确认边界](#已确认边界)
+- [现状证据](#现状证据)
+- [候选方案比较](#候选方案比较)
+- [目标结构概览](#目标结构概览)
+- [总体实施原则](#总体实施原则)
+- [与现有正式架构文档的关系](#与现有正式架构文档的关系)
+- [计划文档](#计划文档)
+- [已批准的设计决策](#已批准的设计决策)
+- [v2 到 v3 的纠正](#v2-到-v3-的纠正)
+- [当前状态](#当前状态)
+
+</details>
+<!-- doc-toc:end -->
+
 ## 2026-09-06 仓库结构与开发规范整理
 
 本轮起点为 `main@3bf5015b11bc7603f8ecd543cad1d05f888debc1`，父仓库与 terminal
@@ -199,7 +221,7 @@ app/src/main/java/
 ```
 
 详细目录与依赖方向见
-[目标包结构与依赖规则](2_target_package_architecture.md)。
+[目标包结构与依赖规则](02_target_package_architecture.md)。
 
 ## 总体实施原则
 
@@ -228,15 +250,15 @@ Back、presentation 和 Surface lease 规则。
 
 ## 计划文档
 
-1. [当前架构与命名分类账](1_current_architecture_and_naming_ledger.md)
-2. [目标包结构与依赖规则](2_target_package_architecture.md)
-3. [分阶段迁移顺序](3_migration_sequence.md)
-4. [Operit AI 上游同步策略](4_upstream_sync_strategy.md)
-5. [开发数据、备份与回滚](5_data_backup_and_rollback.md)
-6. [验证矩阵与批准门禁](6_validation_and_approval_gate.md)
-7. [源码所有权与文件迁移矩阵](7_file_ownership_and_migration_matrix.md)
-8. [兼容合同与稳定标识清单](8_compatibility_contract_inventory.md)
-9. [工作区、基线与备份作战手册](9_workspace_preflight_and_backup_runbook.md)
+1. [当前架构与命名分类账](01_current_architecture_and_naming_ledger.md)
+2. [目标包结构与依赖规则](02_target_package_architecture.md)
+3. [分阶段迁移顺序](03_migration_sequence.md)
+4. [Operit AI 上游同步策略](04_upstream_sync_strategy.md)
+5. [开发数据、备份与回滚](05_data_backup_and_rollback.md)
+6. [验证矩阵与批准门禁](06_validation_and_approval_gate.md)
+7. [源码所有权与文件迁移矩阵](07_file_ownership_and_migration_matrix.md)
+8. [兼容合同与稳定标识清单](08_compatibility_contract_inventory.md)
+9. [工作区、基线与备份作战手册](09_workspace_preflight_and_backup_runbook.md)
 10. [里程碑执行模板与首批规格](10_milestone_execution_template.md)
 11. [风险登记与停止条件](11_risk_register_and_stop_conditions.md)
 12. [最终批准与实施就绪清单](12_approval_and_implementation_readiness.md)

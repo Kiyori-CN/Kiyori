@@ -1,9 +1,68 @@
 ---
-status: completed
-updated: 2026-09-12
+status: in_progress
+updated: 2026-09-14
 ---
 
 # 文档体系整理与开发入口优化
+
+## 2026-09-14 全仓文档治理与排版完善
+
+### 任务契约与基线
+
+- 目标：审阅父仓自有文档，规范职责、命名、目录和排版，纠正有源码依据的事实错误，防止 README 再次堆积内部进度或逐控件说明。
+- 范围：父仓全部 Markdown 的结构与导航检查，根入口、用户指南、正式协议/架构、专项与历史引用，以及必要的文档检查器和 CI。
+- 非目标：修改产品运行时、重写第三方许可证或协议夹具、设备安装、正式发行、改变远端设置。子模块保留独立文档所有权。
+- 基线：`main@9f2c1fb92e83f073c2662c80ad3552fdabc8ce76`；工作区干净，terminal 固定 `bc4aeed3e791f0a6157496f3859f70357766f90f`。
+- 授权与恢复：用户明确要求全部提交推送；交付仅包含本轮审阅的文件。按基线和 Git 重命名记录恢复，不执行破坏性重置。
+
+### README 变更说明
+
+- 目标读者：首次获取 Kiyori 的用户，以及需要了解当前能力与限制的新贡献者。
+- 变更理由：用户明确要求文档深度整理；README 已重复积累文件、终端和审计操作细节，且把未实现的统一风险确认设计写成现有保证，需要精简与纠错。
+- 权威来源：`ToolPermissionSystem.checkToolPermission`、`KiyoriFileManagementPage`、`FileManagerHistoryStore`、Manifest/Receiver、正式用户指南与仍为 `design_required` 的授权专项；安装入口沿用当前内测预发布。
+- 排版验证：521 篇结构/导航检查为 0 问题；505 篇自有正文以 Marked GFM 和本地 Edge 在 1280/390 px 下完成 1010 次渲染结构检查，抽查根入口、指南与表格截图。复杂 Mermaid 和外部徽章不由该离线预览验证。
+- 双语核对：两版保留同一产品愿景、安装入口、关键能力与限制；同步移除历史数量与未实现的统一风险确认保证，详细中文步骤通过指南链接提供。
+
+### 阶段状态
+
+| 阶段 | 交付与证据 | 状态 |
+| --- | --- | --- |
+| 调查 | 521 篇 Markdown 基线；按自有正文、历史、协议夹具、运行时资源与子模块区分 | 已完成 |
+| 内容与结构 | README 分层、指南纠错、协议与架构核对、160 处命名迁移、45 篇长文导航 | 已完成 |
+| 自动验证 | 结构、引用、README 说明、检查器回归、CI 接线与历史正文对账 | 已完成；候选树另验 |
+| 渲染与构建 | 宽屏/窄屏预览、串行标准 Debug APK 与元数据 | 已完成 |
+| 提交推送 | 精确允许清单、候选树、fresh clone、远端 main 一致 | 待执行 |
+
+### 关键纠错与边界
+
+- 现有工具调用权限不等于统一 R0–R3 动作授权；后者仍为目标设计，未由本轮文档维护实现。
+- Intent 示例使用 Kiyori application ID 和完整 Operit Receiver 类名；兼容 Action、数据格式与类名保持不变。
+- HTTP 设置入口修正为“设置 → AI 助手 → 服务与用量 → 局域网与自动化”。
+- 流式 Markdown 主入口使用 native 分块并保留收集文本，移除旧文档的 KMP 主路径与无界低内存保证。
+- 用户指南接受内测 Debug APK 与自行构建两种来源；“尚未正式发行”不等于没有内测附件。
+- 文档命名只统一编号与描述性名称，保留稳定主题目录、公开脚本指南和历史日期；旧路径与新路径由 Git 重命名差异追溯。
+- 自动检查不证明所有 API、设备行为或外部 URL 均可用；历史验收状态与原哈希不重新背书。现场、远端 Actions 与正式发行仍分别验收。
+
+### 本轮验证与交付证据
+
+2026-09-14 本地证据：
+
+- `check_documentation.py --repository . --base 9f2c1fb92e83f073c2662c80ad3552fdabc8ce76`：521 篇，0 问题；已标记页内目录由 `--write-catalogs` 同步。
+- `python -B -m unittest ci.test.test_documentation ci.test.test_markdown_links ci.test.test_pr_check ci.test.test_formal_readiness`：68 项全部通过；包括 README 旧说明拒绝、命名碰撞、表格、围栏、中文/重复锚点和导航幂等回归。
+- formal readiness 为 PASS，`git diff --check` 通过。CI 增加同基线文档结构检查；本地审阅 YAML 差异，未运行远端 Actions 和本机不可用的 actionlint。
+- 159 篇编号迁移正文在排除路径更新和派生导航后与基线一致，另外 1 篇为重新组织的维护规范。22 篇历史记录只更新引用，原正文对账无差异；无旧文件名引用残留。
+- 全量裸源码路径核对中，5 处不在本仓的路径属于明确链接到固定旧 `kiyori-android` 提交的参考源码，保留其来源语义。
+- 本地 GFM 预览覆盖 505 篇、1010 个视口，未发现页面级横向溢出、一级标题数量错误、表格列数不一致或缺失的本地图片；宽表与代码独立横向滚动。其余 16 篇为运行时模板/内容资源或协议夹具，不按开发文档重排。
+- `:app:assembleDebug --no-daemon --console=plain`：`BUILD SUCCESSFUL in 2m 24s`，238 项任务中 22 执行、216 up-to-date；唯一 launcher、脚本代理和播放器 runtime packaging 验证通过。
+
+APK 为 `app/build/outputs/apk/debug/app-debug.apk`，488291558 bytes，SHA-256：
+`897250d95726978d0d25765d99e44577f51d68125237a2cb1b8f2ab7440ba52e`。
+本轮只改文档与检查工具，打包任务复用已有产物，文件写入时间为 2026-09-14 06:05:02 +08:00；
+不能把本轮构建结束时间写成 APK 重新生成时间。独立核对 `com.kiyori / 45 / 0.1.0`、
+minSdk 26 / targetSdk 34 / compileSdk 37、arm64、V2 单 signer 与 16 KiB ZIP 对齐通过。
+
+内测标签 `v0.1.0-internal` 经 GitHub 只读核对为 `isPrerelease=true`。本轮不更新预发布附件，
+不执行设备安装、服务调用验收或正式发行。候选树与远端交付结果在完成后回填；下文均为历史证据。
 
 ## 2026-09-12 深度整理与全仓质量审查
 

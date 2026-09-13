@@ -129,7 +129,7 @@ The browser is both an everyday browsing interface and a real environment that A
 
 - **Everyday browsing:** Multiple windows, bookmarks, history, search engines, custom or blank home pages, and configurable ordinary-session restoration.
 - **Page experience:** Per-site settings, text zoom, forced zoom, desktop/mobile access settings, context actions for links and media, and fullscreen image viewing.
-- **Content management:** Ad subscriptions, custom URL and element rules, an ad-marking workbench, userscripts, and the Browser Plugin Center.
+- **Content management:** Ad subscriptions, custom URL and element rules, an ad-marking workbench, userscripts, and the Browser Plugin Center, including AI-assisted development of compatible `.kbx` page extensions.
 - **Page tools:** Navigation, snapshots, screenshots, clicks, typing, form filling, option selection, file upload, window operations, and inspection of source, console messages, and network resources.
 - **Session continuity:** Human interaction and AI tools share WebSession state and operate on the same actual page.
 - **Website identity:** Ordinary/incognito Profile boundaries, website password management, and a built-in plugin for manually reading the current page's cookies.
@@ -156,7 +156,6 @@ See [platform, storage, and terminal contracts](docs/doc-src/contracts/platform_
 
 The file manager provides two-pane browsing, search, selection, copying, moving, a recycle bin, ZIP operations,
 bookmarks, local previews, independent confirmed filters and sorting, per-pane pull-to-refresh, and window swapping from the toolbox.
-Recent searches retain up to 20 records with 1,000 results each; task history retains up to 100 summaries across restarts without replaying operations.
 Each pane retains its directory and selection. Returning from Settings or
 minimizing within the app preserves the current session. Available operations differ between Android storage,
 Ubuntu, SAF, and network directories.
@@ -236,7 +235,7 @@ A mini-app entry does not mean a complete mini-app platform has shipped. Collabo
 | Android | Android 8.0 / API 26 or later |
 | CPU architecture | The APK currently includes only `arm64-v8a` |
 | Application ID | `com.kiyori` |
-| Version snapshot | `0.1.0`, `versionCode 45`, checked on 2026-09-06; the [build configuration](app/build.gradle.kts) and actual APK are authoritative |
+| Version | See the download notes, [build configuration](app/build.gradle.kts), and actual APK. |
 | Storage | Reserve space for the APK, terminal environment, models, workspaces, and downloads; requirements vary with usage |
 | Acquisition | Download the Debug APK from this repository's [internal pre-release](https://github.com/Kiyori-CN/Kiyori/releases/tag/v0.1.0-internal), or build from source as described below |
 
@@ -385,7 +384,10 @@ Kiyori does not provide an LLM inference relay and does not connect to Operit's 
 
 Android system permissions, permission to invoke a tool, and the risk of a specific action are different control layers. Grant permissions as needed and establish targets and scope before batch file operations, privileged device access, account changes, or external actions.
 
-AI actions in the application distinguish read-only, low-impact, high-impact, and critical operations. Allowing a tool does not automatically remove the confirmation requirements of a high-risk action. See the [tool authorization contract](docs/doc-src/contracts/extensions_workspace.md#应用内-ai-动作授权).
+Current tool permissions support Allow, Ask each time, and Forbid, with per-tool overrides. Risk tiers and
+confirmation for individual actions are a further design goal; a separate confirmation is not yet guaranteed
+for every high-impact operation inside an allowed tool. Configure permissions according to the tool's capabilities
+and actual prompts. See the distinction between implementation and design in the [tool authorization contract](docs/doc-src/contracts/extensions_workspace.md#应用内-ai-动作授权).
 
 ### Backups, migration, and diagnostics
 

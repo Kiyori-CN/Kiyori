@@ -38,8 +38,7 @@
 | 工具箱 | `ui/features/toolbox/screens/*`、`ui/features/toolbox/components/*` | 工具入口、状态卡、日志、权限、Shell、SQL、语音、调试覆盖层 | `AUDITED LOCALLY` |
 | 扩展/插件/市场 | `ui/features/packages/*`、market、MCP、ToolPkg/脚本/Skill 页面 | Tab、搜索、筛选、卡片、安装/发布/环境变量/权限对话框 | `AUDITED LOCALLY` |
 | 记忆/工作流 | `ui/features/memory/*`、`ui/features/workflow/*` | 图表/列表、编辑器、筛选、计划与连接菜单 | `AUDITED LOCALLY` |
-| 协议/权限/首启 | `ui/features/agreement/*`、`ui/features/startup/*`、`KiyoriOnboardingScreen.kt`、
-  `KiyoriPermissionsSettingsPage.kt` | 首帧、分组状态、权限动作、长文、错误和返回链 | `AUDITED LOCALLY` |
+| 协议/权限/首启 | `ui/features/agreement/*`、`ui/features/startup/*`、`KiyoriOnboardingScreen.kt`、`KiyoriPermissionsSettingsPage.kt` | 首帧、分组状态、权限动作、长文、错误和返回链 | `AUDITED LOCALLY` |
 | 关于/帮助/恢复 | `ui/features/about/*`、`ui/features/help/*`、`ui/recovery/*`、Crash report | 品牌、链接、长文、恢复操作和异常提示 | `AUDITED LOCALLY` |
 | 悬浮/系统 overlay | `ui/floating/*`、`services/floating/*`、`ui/common/displays/*`、permission overlay | 小窗口、球、OCR、系统安全区、触摸目标和透明层 | `AUDITED LOCALLY` |
 | 共用渲染组件 | `ui/common/markdown/*`、`ui/components/*`、主题/动画/图标 | Markdown/代码/公式、图片/媒体、共享弹窗、抽屉、错误和颜色对比度 | `AUDITED LOCALLY` |

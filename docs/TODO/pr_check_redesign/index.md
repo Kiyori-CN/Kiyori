@@ -39,9 +39,9 @@ Issue 自动整理、发布签名、业务代码和仓库 ruleset 不在本次�
 
 ## 步骤
 
-1. [候选树与作用域契约](./1_CandidateAndScopes.md)
-2. [差异归责与检查器](./2_AttributionAndChecks.md)
-3. [工作流与构建分层](./3_WorkflowAndBuildLanes.md)
+1. [候选树与作用域契约](./01_candidate_and_scopes.md)
+2. [差异归责与检查器](./02_attribution_and_checks.md)
+3. [工作流与构建分层](./03_workflow_and_build_lanes.md)
 
 ## 完成情况
 

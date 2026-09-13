@@ -7,7 +7,7 @@
 2026-08-21 用户再次调整当前方案：彻底删除“API 协议自动识别”，将当前仓库全部底部
 `ModalBottomSheet` 统一为浏览器书签、历史和下载共用的三态抽屉，并修复 DeepSeek 及其他
 Responses 供应商的工具调用结果关联。当前任务的唯一详细设计、12 处迁移矩阵和验收边界见
-[`9_auto_detection_removal_drawer_unification_and_responses_tools.md`](9_auto_detection_removal_drawer_unification_and_responses_tools.md)。
+[`09_auto_detection_removal_drawer_unification_and_responses_tools.md`](09_auto_detection_removal_drawer_unification_and_responses_tools.md)。
 本文件下方关于自动识别“保留并修复”的描述只属于上一轮历史实现，不再代表当前目标。
 
 2026-08-21 用户复核后纠正了分组和协议范围：不设置“主流供应商”独立分类；OpenAI、
@@ -24,7 +24,7 @@ Anthropic 应位于国际供应商顶部，DeepSeek 应位于国内供应商顶�
 
 本轮 DeepSeek/多协议/长上下文后续方案不在本专项创建第二份协议架构；provider/protocol
 能力边界、DeepSeek Responses replay-only 约束、canonical request 和 usage 语义统一见
-[`../unified_model_capability_and_resumable_execution/6_deepseek_long_context_cache_and_usage_plan.md`](../unified_model_capability_and_resumable_execution/6_deepseek_long_context_cache_and_usage_plan.md)。
+[`../unified_model_capability_and_resumable_execution/06_deepseek_long_context_cache_and_usage_plan.md`](../unified_model_capability_and_resumable_execution/06_deepseek_long_context_cache_and_usage_plan.md)。
 
 范围包括：
 
@@ -93,10 +93,10 @@ Anthropic 应位于国际供应商顶部，DeepSeek 应位于国内供应商顶�
 各阶段的文件范围和验收命令见下列分项文档。
 
 本轮后续需求、根因、方案取舍、里程碑和验收矩阵见
-[`8_followup_interaction_and_reasoning_design.md`](8_followup_interaction_and_reasoning_design.md)。
+[`08_followup_interaction_and_reasoning_design.md`](08_followup_interaction_and_reasoning_design.md)。
 
 本轮新决策与当前实施状态见
-[`9_auto_detection_removal_drawer_unification_and_responses_tools.md`](9_auto_detection_removal_drawer_unification_and_responses_tools.md)。
+[`09_auto_detection_removal_drawer_unification_and_responses_tools.md`](09_auto_detection_removal_drawer_unification_and_responses_tools.md)。
 
 上一轮后续范围如下；其中自动识别已被本轮新决策删除：
 

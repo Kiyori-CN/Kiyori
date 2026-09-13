@@ -41,9 +41,9 @@ status: verification_pending
 
 ## 实施顺序
 
-1. [身份与兼容边界](1_identity_and_compatibility.md)
-2. [Node 工具链首装契约](2_node_toolchain_setup.md)
-3. [验证与 APK 交付](3_validation.md)
+1. [身份与兼容边界](01_identity_and_compatibility.md)
+2. [Node 工具链首装契约](02_node_toolchain_setup.md)
+3. [验证与 APK 交付](03_validation.md)
 
 ## 完成标准
 

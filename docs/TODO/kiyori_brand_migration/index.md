@@ -6,7 +6,7 @@ status: verification_pending
 
 # Kiyori 品牌迁移
 
-本页保留 2026-07-22 品牌迁移的范围与验证记录。下文的起点和权限只描述原任务；当前规则见 [品牌与兼容性](../formal_development_readiness/1_brand_and_compatibility.md)，设备验收仍待完成。
+本页保留 2026-07-22 品牌迁移的范围与验证记录。下文的起点和权限只描述原任务；当前规则见 [品牌与兼容性](../formal_development_readiness/01_brand_and_compatibility.md)，设备验收仍待完成。
 
 ## 迁移基线
 
@@ -40,4 +40,4 @@ status: verification_pending
 | Debug APK 可构建 | `assembleDebug` 通过，包为 `com.kiyori / 45 / 0.1.0` |
 | 启动器、关于页、分享图片、通知和助手选择 | 待 Android 真机验收 |
 
-资产与入口细节见 [身份、渠道与资产](1_IdentityChannelsAndAssets.md)。历史构建通过不代表当前提交或当前设备已验收。
+资产与入口细节见 [身份、渠道与资产](01_identity_channels_and_assets.md)。历史构建通过不代表当前提交或当前设备已验收。

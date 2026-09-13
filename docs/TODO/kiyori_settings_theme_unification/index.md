@@ -33,9 +33,9 @@ Kiyori 浅色、深色和跟随系统三种主题模式。AI 对话继续允许�
 
 ## 设计文档
 
-- [主题状态与个性化边界](1_theme_boundary.md)
-- [设置视觉系统与语义配色](2_settings_visual_system.md)
-- [实施顺序、反向检查与验收](3_implementation_and_validation.md)
+- [主题状态与个性化边界](01_theme_boundary.md)
+- [设置视觉系统与语义配色](02_settings_visual_system.md)
+- [实施顺序、反向检查与验收](03_implementation_and_validation.md)
 
 ## 串行里程碑
 

@@ -27,7 +27,7 @@ ADB、ToolPkg、示例包、Shower、Compose DSL 与 native-ripgrep 的分类迁
 
 ## 步骤
 
-1. [分类布局与入口迁移](./1_CategoryLayoutAndEntrypoints.md)
+1. [分类布局与入口迁移](./01_category_layout_and_entrypoints.md)
 
 本轮源码与命令验证统一记录在 [仓库规范化实施记录](../kiyori_architecture_refactor/23_repository_structure_and_build_logic.md)。
 本专项只描述工具目录整理；未运行设备、真实服务、翻译或发布，不把入口归位等同这些操作验收。

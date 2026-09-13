@@ -1,6 +1,6 @@
 # 首次使用
 
-本指南适用于从本仓库构建的 Kiyori 开发版。当前尚无公开发行渠道；APK 构建方法见 [构建指南](../doc-src/dev-core/BUILDING.md)。
+本指南适用于 Kiyori 开发版。可从本仓库的 [内测预发布](https://github.com/Kiyori-CN/Kiyori/releases/tag/v0.1.0-internal) 获取 Debug APK，或按 [构建指南](../doc-src/dev-core/BUILDING.md) 自行编译。项目尚未正式发行；安装前核对发布说明、下载日期与 SHA-256。
 
 ## 安装前
 
@@ -46,3 +46,10 @@ AI 菜单的“扩展 / 工具箱 / 工作流”分别管理包与工具入口�
 ## 出现问题时
 
 先保存设备型号、Android 版本、Kiyori 版本或源码提交、操作步骤和实际错误。浏览器诊断与 AI 对话详情提供不同领域的证据；导出后检查私人内容，再通过 [Issues](https://github.com/Kiyori-CN/Kiyori/issues) 反馈。
+
+## 查看对话记录与诊断
+
+在“时间线”搜索错误、工具返回或正文，可查找整段聊天的已记录文本；空格分隔多个关键词。
+“对话”查看和修订当前消息，“原始事件”检查事件 JSON。“备注”用于保存排障说明，不发送给 AI。
+导出保存到 `Download/Kiyori/exports/conversation-audit`：Markdown 便于阅读，签名审计包便于验证和导入，
+两种文件都不加密。工具箱的“应用运行日志”用于启动、网络与服务排障，与单次聊天审计互补。

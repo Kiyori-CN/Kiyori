@@ -8,6 +8,21 @@ release_scope: excluded
 
 # Stage 4 前质量债务与开发就绪精确清单
 
+<!-- doc-toc:start -->
+<details>
+<summary>本页导航</summary>
+
+- [目标](#目标)
+- [可恢复基线](#可恢复基线)
+- [当前 Lint 债务](#当前-lint-债务)
+- [分批实施](#分批实施)
+- [本地最终验证证据](#本地最终验证证据)
+- [Stage 4 启动门禁](#stage-4-启动门禁)
+- [提交和回滚](#提交和回滚)
+
+</details>
+<!-- doc-toc:end -->
+
 ## 目标
 
 本清单在 M-05 design/theme/platform 完成后、阶段 4 Browser 产品域开始前执行。目标是把

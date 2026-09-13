@@ -1,5 +1,24 @@
 # 脚本开发指南
 
+<!-- doc-toc:start -->
+<details>
+<summary>本页导航</summary>
+
+- [1. 简介](#1-简介)
+- [2. 先确定开发场景](#2-先确定开发场景)
+- [发布到插件市场](#发布到插件市场)
+- [3. 核心概念](#3-核心概念)
+- [4. 编写第一个脚本 (TypeScript)](#4-编写第一个脚本-typescript)
+- [5. 深入学习：示例脚本解析](#5-深入学习示例脚本解析)
+- [6. UI自动化详解](#6-ui自动化详解)
+- [7. 调试](#7-调试)
+- [8. 编译](#8-编译)
+- [9. 在设备上运行和测试脚本](#9-在设备上运行和测试脚本)
+- [10. VS Code 配置 (可选)](#10-vs-code-配置-可选)
+
+</details>
+<!-- doc-toc:end -->
+
 ## 1. 简介
 
 本文档面向 Kiyori 内置 Operit AI 工具体系的脚本作者，说明如何编写、构建和维护自动化脚本。脚本可由 AI 在用户授权下调用，用于设备控制、UI 自动化、网络请求和文件操作。
@@ -253,6 +272,7 @@ npm install
 ```
 
 **关键配置解释:**
+
 -   `"target": "es2020"`: 将代码编译为 ES2020 版本的 JavaScript，以匹配 QuickJS 运行时可用的现代语法能力。
 -   `"module": "commonjs"`: 使用 CommonJS 模块系统，这是脚本执行环境所要求的。
 -   `"lib": ["es2020"]`: 以 ECMAScript 标准库为基础，不默认引入浏览器 DOM 类型。Operit 的脚本运行在 QuickJS 宿主中，不是网页环境；`console`、timer 等宿主能力由平台兼容层单独提供。
@@ -793,6 +813,7 @@ UI自动化是许多脚本的核心。
 ### `UINode` 对象
 
 `Tools.UI.getPageInfo()` 返回的页面结构是一个 `UINode` 对象树。每个 `UINode` 代表一个屏幕上的UI元素，你可以通过它来：
+
 -   查找子元素 (`findById`, `findByText`, `findByClass`, `findAllBy...`)
 -   获取元素属性 (`text`, `contentDesc`, `bounds`, `resourceId`)
 -   执行操作 (`click()`)

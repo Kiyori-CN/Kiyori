@@ -92,16 +92,16 @@ legacy_design_reference: 24a2dfa91f0a4166dc58e5c4732d11861173f766
 ```text
 kiyori_browser_ui_refactor/
 	index.md
-	1_source_mapping_and_architecture.md
-	2_ui_navigation_and_adaptive_layout.md
-	3_drawer_tabs_motion_and_back.md
-	4_runtime_ai_validation_and_handoff.md
+	01_source_mapping_and_architecture.md
+	02_ui_navigation_and_adaptive_layout.md
+	03_drawer_tabs_motion_and_back.md
+	04_runtime_ai_validation_and_handoff.md
 ```
 
-1. [源映射与目录架构](1_source_mapping_and_architecture.md)
-2. [页面、按钮与自适应布局](2_ui_navigation_and_adaptive_layout.md)
-3. [抽屉、标签、转场与 Back](3_drawer_tabs_motion_and_back.md)
-4. [共享运行时、验证与交付](4_runtime_ai_validation_and_handoff.md)
+1. [源映射与目录架构](01_source_mapping_and_architecture.md)
+2. [页面、按钮与自适应布局](02_ui_navigation_and_adaptive_layout.md)
+3. [抽屉、标签、转场与 Back](03_drawer_tabs_motion_and_back.md)
+4. [共享运行时、验证与交付](04_runtime_ai_validation_and_handoff.md)
 
 ## 非目标
 
@@ -120,7 +120,7 @@ kiyori_browser_ui_refactor/
 - 标签总览继续覆盖原 `AndroidView`，工具与详情页继续调用现有 WebSession callback；共享 runtime、presentation coordinator 和 AI `browser_*` 工具路径未修改
 - 历史、收藏、下载和 Userscripts 已按固定抽屉高度获得受约束滚动区域
 - 旧 `WebSessionBottomToolbar.kt`、`WebSessionMenuSheet.kt` 和 `WebSessionTabSheet.kt` 已删除，源码与测试中无残留引用
-- 项目 `.venv` 正式准备门禁、`git diff --check` 和两次串行 `:app:assembleDebug` 均通过；最终 APK 证据记录在 [共享运行时、验证与交付](4_runtime_ai_validation_and_handoff.md)
+- 项目 `.venv` 正式准备门禁、`git diff --check` 和两次串行 `:app:assembleDebug` 均通过；最终 APK 证据记录在 [共享运行时、验证与交付](04_runtime_ai_validation_and_handoff.md)
 - 用户于 `2026-07-24` 完成本轮实测并反馈“测试没什么问题”，当前沉浸式 Browser Home 切片转为 `completed`
 
 ## 完成定义

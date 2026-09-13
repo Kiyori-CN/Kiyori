@@ -6,6 +6,28 @@ last_updated: 2026-08-29
 
 # OpenAI 搜索架构
 
+<!-- doc-toc:start -->
+<details>
+<summary>本页导航</summary>
+
+- [1. 文档职责](#1-文档职责)
+- [2. 产品定义](#2-产品定义)
+- [3. 唯一状态所有者](#3-唯一状态所有者)
+- [4. 固定不变量](#4-固定不变量)
+- [5. 能力分层](#5-能力分层)
+- [6. ToolPkg 合同](#6-toolpkg-合同)
+- [7. 配置来源](#7-配置来源)
+- [8. 请求与响应](#8-请求与响应)
+- [9. 凭据策略](#9-凭据策略)
+- [10. 中转站合同](#10-中转站合同)
+- [11. UI 证据](#11-ui-证据)
+- [12. 安全](#12-安全)
+- [13. 与 Kiyori 现有架构的关系](#13-与-kiyori-现有架构的关系)
+- [14. 兼容和发布](#14-兼容和发布)
+
+</details>
+<!-- doc-toc:end -->
+
 ## 1. 文档职责
 
 本文定义 Kiyori 将 OpenAI 官方 Responses hosted `web_search` 作为“OpenAI 搜索”独立工具提供给
@@ -314,7 +336,7 @@ compatibility
 把整套状态清空后只显示笼统“配置未完成”。
 
 完整环境变量合同记录在
-[中转站与环境变量配置](../../TODO/openai_hosted_web_search/5_relay_and_environment_configuration.md)。
+[中转站与环境变量配置](../../TODO/openai_hosted_web_search/05_relay_and_environment_configuration.md)。
 
 ## 8. 请求与响应
 

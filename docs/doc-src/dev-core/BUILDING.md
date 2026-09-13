@@ -7,6 +7,26 @@ Windows、Linux 与 macOS 开发者；仓库当前不提供公开 Release/AAB �
 > 常规构建只初始化 `terminal` 子模块。不要使用 `git clone --recurse-submodules`，
 > 否则 Git 还会尝试访问不属于常规 Debug 构建的可选私有夜间构建子模块。
 
+<!-- doc-toc:start -->
+<details>
+<summary>本页导航</summary>
+
+- [构建输出](#构建输出)
+- [工具链基线](#工具链基线)
+- [1. 克隆源码](#1-克隆源码)
+- [2. 安装基础工具](#2-安装基础工具)
+- [3. 安装 Android SDK、NDK 与 CMake](#3-安装-android-sdkndk-与-cmake)
+- [4. 配置本地属性](#4-配置本地属性)
+- [5. 准备大型 Android 输入](#5-准备大型-android-输入)
+- [6. 生成 WebChat 与示例输入](#6-生成-webchat-与示例输入)
+- [7. 运行开发门禁](#7-运行开发门禁)
+- [8. 构建 Debug APK](#8-构建-debug-apk)
+- [9. 独立核验 APK](#9-独立核验-apk)
+- [常见问题](#常见问题)
+
+</details>
+<!-- doc-toc:end -->
+
 ## 构建输出
 
 根目录、运行时包与构建代码职责分别见 [仓库布局](REPOSITORY_LAYOUT.md)、

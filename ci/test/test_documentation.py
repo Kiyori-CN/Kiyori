@@ -13,9 +13,90 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "ci" / "script"))
 
 import check_documentation as docs
+from markdown_structure import heading_anchors, local_reference_issues, table_cells
 
 
 class DocumentationTest(unittest.TestCase):
+    def test_portable_names_reject_case_collisions_and_unpadded_steps(self) -> None:
+        self.assertEqual(docs.naming_issues(["docs/TODO/example/01_readme.md", "docs/doc-src/dev-core/BUILDING.md"]), [])
+        issues = docs.naming_issues(["docs/Guide/a.md", "docs/guide/b.md", "docs/TODO/example/1_Readme.md"])
+        self.assertTrue(any("碰撞" in issue for issue in issues))
+        self.assertTrue(any("两位编号" in issue for issue in issues))
+
+    def test_toc_marker_examples_inside_fences_are_not_generated(self) -> None:
+        text = "# Guide\n\n```markdown\n<!-- doc-toc:start -->\n<!-- doc-toc:end -->\n```\n\n## Section\n"
+        self.assertEqual(docs.refresh_toc(text), text)
+
+    def test_toc_refresh_preserves_body_and_duplicate_heading_links(self) -> None:
+        text = "# Guide\n\nIntroduction.\n\n<!-- doc-toc:start -->\nold\n<!-- doc-toc:end -->\n\n## 使用\n\nA.\n\n## 使用\n\nB.\n"
+        updated = docs.refresh_toc(text)
+        self.assertIn("(#使用-1)", updated)
+        self.assertTrue(updated.endswith("## 使用\n\nA.\n\n## 使用\n\nB.\n"))
+        self.assertEqual(docs.refresh_toc(updated), updated)
+
+    def test_table_columns_and_escaped_code_pipes(self) -> None:
+        self.assertEqual(table_cells(r"| `a\|b` | value |"), [r"`a\|b`", "value"])
+        valid = "# Table\n\n| A | B |\n| --- | --- |\n| `a\\|b` | value |\n"
+        self.assertEqual(docs.style_issues("guide.md", valid), [])
+        invalid = valid.replace(r"a\|b", "a|b")
+        self.assertTrue(any("实际 3" in issue for issue in docs.style_issues("guide.md", invalid)))
+
+    def test_unclosed_fence_is_not_silently_accepted(self) -> None:
+        self.assertTrue(any("未闭合" in issue for issue in docs.style_issues("guide.md", "# Guide\n\n```python\nx = 1\n")))
+        self.assertTrue(any("缺少语言" in issue for issue in docs.style_issues("guide.md", "# Guide\n\n```\noutput\n```\n")))
+
+    def test_chinese_duplicate_heading_anchors_and_encoded_destinations(self) -> None:
+        hs = [(1, 1, "Guide"), (3, 2, "数据、隐私与权限"), (5, 2, "数据、隐私与权限")]
+        anchors = {"guide.md": {anchor for _, _, _, anchor in heading_anchors(hs)}}
+        self.assertIn("数据隐私与权限-1", anchors["guide.md"])
+        prose = [(7, "[正确](#%E6%95%B0%E6%8D%AE%E9%9A%90%E7%A7%81%E4%B8%8E%E6%9D%83%E9%99%90-1)"),
+                 (8, "[错误](#missing)")]
+        issues = local_reference_issues("guide.md", prose, anchors, {"guide.md"})
+        self.assertEqual(len(issues), 1)
+        self.assertIn("guide.md:8", issues[0])
+
+    def test_cross_document_html_and_reference_links_are_checked(self) -> None:
+        anchors = {"docs/guide.md": {"usage"}, "README.md": {"project"}}
+        prose = [(1, '<a href="docs/guide.md#usage">Use</a>'),
+                 (2, '<img src="missing.svg" alt="Diagram">'),
+                 (3, '[guide]: docs/guide.md#no-such-section'),
+                 (4, '`<img src="ignored.svg">`'),
+                 (5, '<!-- <a href="ignored.md"> -->')]
+        issues = local_reference_issues("README.md", prose, anchors, set(anchors))
+        self.assertEqual(len(issues), 2)
+        self.assertTrue(any("missing.svg" in issue for issue in issues))
+        self.assertTrue(any("no-such-section" in issue for issue in issues))
+
+    def test_list_spacing_ignores_nested_items_and_code(self) -> None:
+        text = "# Guide\n\nText.\n- First\n  continuation\n- Second\n  - Nested\n\n```text\nNo space\n- example\n```\n"
+        issues = docs.style_issues("guide.md", text)
+        self.assertEqual(len(issues), 1)
+        self.assertIn("guide.md:4", issues[0])
+
+    def test_protocol_fixture_is_not_reformatted(self) -> None:
+        self.assertEqual(docs.style_issues(next(iter(docs.CONTENT_FIXTURES)), "```\n# fixture"), [])
+
+    def test_readme_review_requires_new_evidence_not_old_notes(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            def git(*args):
+                return subprocess.run(["git", "-C", directory, *args], check=True, capture_output=True)
+            git("init", "--quiet")
+            git("config", "user.name", "Test")
+            git("config", "user.email", "test@example.invalid")
+            (root / "README.md").write_text("# Project\n", encoding="utf-8")
+            note = root / "docs/TODO/example/index.md"
+            note.parent.mkdir(parents=True)
+            old = "# Work\n\n" + "\n".join(f"- {field}：旧记录" for field in docs.README_REVIEW_FIELDS) + "\n"
+            note.write_text(old, encoding="utf-8")
+            git("add", ".")
+            git("commit", "--quiet", "-m", "baseline")
+            self.assertEqual(docs.readme_review_issues(root, "HEAD"), [])
+            (root / "README.md").write_text("# Project\n\nNew user guidance.\n", encoding="utf-8")
+            self.assertTrue(docs.readme_review_issues(root, "HEAD"))
+            note.write_text(old + "\n" + "\n".join(f"- {field}：本轮已核对说明" for field in docs.README_REVIEW_FIELDS) + "\n", encoding="utf-8")
+            self.assertEqual(docs.readme_review_issues(root, "HEAD"), [])
+
     def test_nested_fence_and_frontmatter_do_not_leak_into_headings(self) -> None:
         text = "---\n# metadata\n---\n# Document\n\n````markdown\n```\n# Example\n<h1>Example</h1>\n````\n\n## Body\n\nText.\n"
         self.assertEqual([value for _, _, value in docs.headings(text)], ["Document", "Body"])

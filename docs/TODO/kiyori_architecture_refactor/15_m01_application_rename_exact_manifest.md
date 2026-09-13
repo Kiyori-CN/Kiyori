@@ -203,7 +203,7 @@ G-00 应复用
   在本清单中命中 Manifest、lint baseline、`ToolPkgHookBridgeSupport.kt` 和
   `MainActivity.kt` 4 个未来同步热点；
   本里程碑未执行 upstream merge，逐文件处理规则见
-  [Operit AI 上游同步策略](4_upstream_sync_strategy.md)
+  [Operit AI 上游同步策略](04_upstream_sync_strategy.md)
 
 额外执行的 `:app:lintDebug` 报告 27 个 error，全部位于 3 个未修改文件，
 与 M-01 允许文件交集为 0，且没有 Application 类名相关诊断。该既有 lint 债务不在本里程碑

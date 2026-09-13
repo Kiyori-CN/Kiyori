@@ -28,10 +28,10 @@ Operit `1.12.0+8` 对应 `3f146057`，`1.12.0+9` 对应 `4bf0138b`，同日后�
 
 ## 分项
 
-1. [上游与市场兼容审计](1_upstream_and_market_audit.md)
-2. [ToolPkg 与市场运行时](2_toolpkg_and_market_runtime.md)
-3. [AI 对话更新](3_ai_chat_updates.md)
-4. [验证与交付](4_verification_and_delivery.md)
+1. [上游与市场兼容审计](01_upstream_and_market_audit.md)
+2. [ToolPkg 与市场运行时](02_toolpkg_and_market_runtime.md)
+3. [AI 对话更新](03_ai_chat_updates.md)
+4. [验证与交付](04_verification_and_delivery.md)
 
 ## 非目标
 

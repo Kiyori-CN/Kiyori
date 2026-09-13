@@ -21,11 +21,11 @@ status: verification_pending
 ```text
 formal_development_readiness/
 ├── index.md
-├── 1_brand_and_compatibility.md
-├── 2_reproducible_development.md
-├── 3_ci_and_security_gates.md
-├── 4_identity_and_data_migration.md
-├── 5_release_and_device_acceptance.md
+├── 01_brand_and_compatibility.md
+├── 02_reproducible_development.md
+├── 03_ci_and_security_gates.md
+├── 04_identity_and_data_migration.md
+├── 05_release_and_device_acceptance.md
 └── 06_historical_evidence.md
 ```
 
@@ -41,11 +41,11 @@ formal_development_readiness/
 
 | 领域 | 状态与权威入口 |
 | --- | --- |
-| 品牌与兼容性 | 源码契约由正式检查验证；启动器、通知与 OEM 展示保持待真机验收，见 [品牌清单](1_brand_and_compatibility.md) |
-| 可复现开发 | 使用固定工具链、native 输入与 terminal gitlink；新候选提交需按 [可复现开发](2_reproducible_development.md) 验证 |
-| CI 与安全 | 本地检查与远端 Actions 分别记录；过去的 Actions 禁用观察不能当作当前实时状态，见 [CI 清单](3_ci_and_security_gates.md) |
-| 身份与数据 | Kiyori 是独立 application ID，旧 Operit 通过显式备份导入，见 [迁移清单](4_identity_and_data_migration.md) |
-| 发布与设备 | 未发布；Debug 通过不关闭设备、签名与正式发行边界，见 [验收清单](5_release_and_device_acceptance.md) |
+| 品牌与兼容性 | 源码契约由正式检查验证；启动器、通知与 OEM 展示保持待真机验收，见 [品牌清单](01_brand_and_compatibility.md) |
+| 可复现开发 | 使用固定工具链、native 输入与 terminal gitlink；新候选提交需按 [可复现开发](02_reproducible_development.md) 验证 |
+| CI 与安全 | 本地检查与远端 Actions 分别记录；过去的 Actions 禁用观察不能当作当前实时状态，见 [CI 清单](03_ci_and_security_gates.md) |
+| 身份与数据 | Kiyori 是独立 application ID，旧 Operit 通过显式备份导入，见 [迁移清单](04_identity_and_data_migration.md) |
+| 发布与设备 | 未发布；Debug 通过不关闭设备、签名与正式发行边界，见 [验收清单](05_release_and_device_acceptance.md) |
 
 ## 证据归档
 

@@ -7,6 +7,44 @@ last_verified: 2026-08-17
 
 # Kiyori FFmpeg 架构与开发指南
 
+<!-- doc-toc:start -->
+<details>
+<summary>本页导航</summary>
+
+- [1. 文档目标、范围与权威边界](#1-文档目标范围与权威边界)
+- [2. 核心结论](#2-核心结论)
+- [3. 术语](#3-术语)
+- [4. 总体架构](#4-总体架构)
+- [5. 进程、组件与所有权矩阵](#5-进程组件与所有权矩阵)
+- [6. Ubuntu `/usr/bin/ffmpeg`](#6-ubuntu-usrbinffmpeg)
+- [7. Android `:ffmpeg` 执行面](#7-android-ffmpeg-执行面)
+- [8. Android `:player` 与 mpv FFmpeg 执行面](#8-android-player-与-mpv-ffmpeg-执行面)
+- [9. AI FFmpeg 工具语义](#9-ai-ffmpeg-工具语义)
+- [10. Binder 请求与回调合同](#10-binder-请求与回调合同)
+- [11. 线程、并发、取消与超时](#11-线程并发取消与超时)
+- [12. 日志、statistics 与诊断](#12-日志statistics-与诊断)
+- [13. 失败分类与用户可见语义](#13-失败分类与用户可见语义)
+- [14. 双 Android native closure](#14-双-android-native-closure)
+- [15. 当前 FFmpegKit 构建合同](#15-当前-ffmpegkit-构建合同)
+- [16. r3 现场故障与证据纠正](#16-r3-现场故障与证据纠正)
+- [17. r4/r5 修复与 r6 真实 AI 使用合同升级](#17-r4r5-修复与-r6-真实-ai-使用合同升级)
+- [18. OpenH264 独立缺陷](#18-openh264-独立缺陷)
+- [19. 开发设计不变量](#19-开发设计不变量)
+- [20. 构建、审计与 promotion](#20-构建审计与-promotion)
+- [21. 16 KiB、ELF 与 Android 打包](#21-16-kibelf-与-android-打包)
+- [22. 自动验证矩阵](#22-自动验证矩阵)
+- [23. 目标设备 FFmpegKit 验收](#23-目标设备-ffmpegkit-验收)
+- [24. 目标设备播放器验收](#24-目标设备播放器验收)
+- [25. Ubuntu FFmpeg 验收](#25-ubuntu-ffmpeg-验收)
+- [26. 开发变更清单](#26-开发变更清单)
+- [27. 故障诊断决策树](#27-故障诊断决策树)
+- [28. 当前已知缺口与开发顺序](#28-当前已知缺口与开发顺序)
+- [29. 相关源码与文档](#29-相关源码与文档)
+- [30. 维护规则](#30-维护规则)
+
+</details>
+<!-- doc-toc:end -->
+
 ## 1. 文档目标、范围与权威边界
 
 本文是 Kiyori 中 FFmpeg 相关执行角色、进程/API 合同、失败语义、开发约束、构建供应链和验证策略的

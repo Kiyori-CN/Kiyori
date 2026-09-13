@@ -68,10 +68,10 @@ status: verification_pending
 
 详细证据、状态机、按钮接线、自问自答和验证顺序见：
 
-- [1_source_mapping_and_capability_matrix.md](1_source_mapping_and_capability_matrix.md)
-- [2_search_chrome_and_window_state.md](2_search_chrome_and_window_state.md)
-- [3_toolbox_actions_and_runtime_boundaries.md](3_toolbox_actions_and_runtime_boundaries.md)
-- [4_self_qa_and_validation.md](4_self_qa_and_validation.md)
+- [01_source_mapping_and_capability_matrix.md](01_source_mapping_and_capability_matrix.md)
+- [02_search_chrome_and_window_state.md](02_search_chrome_and_window_state.md)
+- [03_toolbox_actions_and_runtime_boundaries.md](03_toolbox_actions_and_runtime_boundaries.md)
+- [04_self_qa_and_validation.md](04_self_qa_and_validation.md)
 
 ## 当前状态
 

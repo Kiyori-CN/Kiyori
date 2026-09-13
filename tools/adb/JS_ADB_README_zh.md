@@ -530,6 +530,7 @@ exports.myFunction = myFunction;
 
 `files/` 是 Android app-specific external storage 的必需层级。不要把调试文件写到
 `/sdcard/Android/data/com.kiyori/js_temp`；该路径不属于应用的标准外部文件目录。
+
 7. 执行结果写入设备侧 JSON 文件
 8. 执行器等待这个结果文件并输出
 

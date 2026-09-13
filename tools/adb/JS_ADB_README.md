@@ -166,7 +166,7 @@ When multiple devices are connected:
 3. All ADB operations will be performed on the selected device
 
 Example:
-```
+```text
 Checking connected devices...
 1: emulator-5554
 2: 192.168.1.100:5555

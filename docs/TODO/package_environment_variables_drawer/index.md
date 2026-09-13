@@ -28,8 +28,8 @@ status: verification_pending
 ```text
 package_environment_variables_drawer/
 	index.md
-	1_interaction_and_state.md
-	2_implementation_and_validation.md
+	01_interaction_and_state.md
+	02_implementation_and_validation.md
 ```
 
 ## 完成标准
@@ -72,5 +72,5 @@ package_environment_variables_drawer/
 - 本轮未安装 APK、未执行 ADB/MuMu/真机操作，未创建提交或推送
 
 详细交互见
-[`1_interaction_and_state.md`](1_interaction_and_state.md)，实施与验证见
-[`2_implementation_and_validation.md`](2_implementation_and_validation.md)。
+[`01_interaction_and_state.md`](01_interaction_and_state.md)，实施与验证见
+[`02_implementation_and_validation.md`](02_implementation_and_validation.md)。

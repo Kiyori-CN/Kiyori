@@ -96,18 +96,18 @@ legacy_design_reference: 24a2dfa91f0a4166dc58e5c4732d11861173f766
 ```text
 kiyori_product_shell/
 ├── index.md
-├── 1_app_shell_and_home_navigation.md
-├── 2_modal_ai_drawer_and_settings_ownership.md
-├── 3_web_search_and_adaptive_layout.md
-├── 4_capability_authorization_and_audit.md
-└── 5_browser_source_port.md
+├── 01_app_shell_and_home_navigation.md
+├── 02_modal_ai_drawer_and_settings_ownership.md
+├── 03_web_search_and_adaptive_layout.md
+├── 04_capability_authorization_and_audit.md
+└── 05_browser_source_port.md
 ```
 
-1. [Kiyori App Shell 与首页导航](1_app_shell_and_home_navigation.md)
-2. [模态 AI 左抽屉与设置归属](2_modal_ai_drawer_and_settings_ownership.md)
-3. [网页搜索与自适应布局](3_web_search_and_adaptive_layout.md)
-4. [AI 能力授权与操作记录](4_capability_authorization_and_audit.md)
-5. [浏览器 source-port](5_browser_source_port.md)
+1. [Kiyori App Shell 与首页导航](01_app_shell_and_home_navigation.md)
+2. [模态 AI 左抽屉与设置归属](02_modal_ai_drawer_and_settings_ownership.md)
+3. [网页搜索与自适应布局](03_web_search_and_adaptive_layout.md)
+4. [AI 能力授权与操作记录](04_capability_authorization_and_audit.md)
+5. [浏览器 source-port](05_browser_source_port.md)
 
 浏览器首页首期共享运行时与 App Shell 适配见 [浏览器首页与 WebSession 共用计划](../kiyori_browser_home_websession/index.md)。
 

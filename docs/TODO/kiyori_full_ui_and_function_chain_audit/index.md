@@ -31,9 +31,9 @@ deadline: 2026-07-30 10:00 Asia/Shanghai
 
 ## 文档
 
-- [UI 覆盖矩阵与设计规则](1_ui_inventory_and_design.md)
-- [功能逻辑链路矩阵](2_function_chain_inventory.md)
-- [实施阶段与验证门禁](3_implementation_and_validation.md)
+- [UI 覆盖矩阵与设计规则](01_ui_inventory_and_design.md)
+- [功能逻辑链路矩阵](02_function_chain_inventory.md)
+- [实施阶段与验证门禁](03_implementation_and_validation.md)
 
 ## 串行里程碑
 

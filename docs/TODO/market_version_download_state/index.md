@@ -13,4 +13,4 @@ Kiyori 使用独立的 Operit 市场兼容版本和最新插件版本的范围�
 - `ui/features/packages/market/`
 - `ui/features/packages/screens/UnifiedMarketDetailEntryScreen.kt`
 
-关联实现：[版本范围按钮状态](1_VersionRangeButtonState.md)
+关联实现：[版本范围按钮状态](01_version_range_button_state.md)

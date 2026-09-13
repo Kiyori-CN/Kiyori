@@ -27,20 +27,20 @@ last_reviewed: 2026-08-14
 
 ## 步骤
 
-1. [基线与构建契约](./1_BaselineAndContracts.md)：记录现状，确定清单格式、工具版本和用户接口不变量
-2. [pnpm workspace 与锁文件](./2_JsWorkspaceAndLockfile.md)：统一仓库自有 JavaScript 包的依赖输入
-3. [外部制品清单](./3_ExternalArtifactManifest.md)：登记 AAR、JAR、JNI、models 和 subpack 的来源与所有者
-4. [Gradle 输入规范化](./4_GradleInputNormalization.md)：移除宽泛依赖扫描与不明确的 `.so` 选择规则
-5. [工具目录迁移](./5_ToolingDirectoryMigration.md)：将脚本、宿主工具和应用内置工具迁入职责明确的目录
-6. [pixi 与资产准备入口](./6_PixiAndAssetPreparation.md)：统一 JS assets、制品校验和环境报告入口
-7. [Android 能力契约](./7_AndroidCapabilityContracts.md)：在现有 `:app` 内收束媒体、语音和导出边界
-8. [Feature 模块隔离](./8_FeatureModuleIsolation.md)：将能力实现与制品移动到唯一 Android library 所有者
-9. [变体、调试边界、签名与版本身份](./9_VariantsSigningAndVersioning.md)：建立受控组合并隔离 debug 与 release 能力
-10. [调试接口注册与数据救援 Shell](./10_DebugInterfaceRegistryAndDataRescueShell.md)：移除外部通用执行并补充可扩展的内部调试入口
-11. [APK 审计与补丁链](./11_ApkAuditAndPatch.md)：建立 APK 身份审计和补丁发布硬约束
-12. [QA ADB 离线模拟](./12_QaAdbOfflineSimulation.md)：验证插件市场、差量更新和应用内弹窗通知推送
-13. [构建流水线契约与平台适配](./13_BuildPipelineContractAndAdapters.md)：为可视化 CI 和 GitHub Actions 提供稳定阶段边界
-14. [文档同步与旧路径清理](./14_DocumentationAndCleanup.md)：更新正式开发文档并删除迁移期入口
+1. [基线与构建契约](./01_baseline_and_contracts.md)：记录现状，确定清单格式、工具版本和用户接口不变量
+2. [pnpm workspace 与锁文件](./02_js_workspace_and_lockfile.md)：统一仓库自有 JavaScript 包的依赖输入
+3. [外部制品清单](./03_external_artifact_manifest.md)：登记 AAR、JAR、JNI、models 和 subpack 的来源与所有者
+4. [Gradle 输入规范化](./04_gradle_input_normalization.md)：移除宽泛依赖扫描与不明确的 `.so` 选择规则
+5. [工具目录迁移](./05_tooling_directory_migration.md)：将脚本、宿主工具和应用内置工具迁入职责明确的目录
+6. [pixi 与资产准备入口](./06_pixi_and_asset_preparation.md)：统一 JS assets、制品校验和环境报告入口
+7. [Android 能力契约](./07_android_capability_contracts.md)：在现有 `:app` 内收束媒体、语音和导出边界
+8. [Feature 模块隔离](./08_feature_module_isolation.md)：将能力实现与制品移动到唯一 Android library 所有者
+9. [变体、调试边界、签名与版本身份](./09_variants_signing_and_versioning.md)：建立受控组合并隔离 debug 与 release 能力
+10. [调试接口注册与数据救援 Shell](./10_debug_interface_registry_and_data_rescue_shell.md)：移除外部通用执行并补充可扩展的内部调试入口
+11. [APK 审计与补丁链](./11_apk_audit_and_patch.md)：建立 APK 身份审计和补丁发布硬约束
+12. [QA ADB 离线模拟](./12_qa_adb_offline_simulation.md)：验证插件市场、差量更新和应用内弹窗通知推送
+13. [构建流水线契约与平台适配](./13_build_pipeline_contract_and_adapters.md)：为可视化 CI 和 GitHub Actions 提供稳定阶段边界
+14. [文档同步与旧路径清理](./14_documentation_and_cleanup.md)：更新正式开发文档并删除迁移期入口
 
 ## 构建流水线段落
 

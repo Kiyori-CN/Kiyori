@@ -1,14 +1,13 @@
 # 外部 HTTP 对话接口
 
-本文档描述 Operit 新增的局域网 HTTP 聊天接口。它与现有 `EXTERNAL_CHAT` Intent 接口语义一致，只是入口从广播改成了 HTTP。
+本文档描述 Kiyori 提供的局域网 HTTP 聊天接口。它与现有 `EXTERNAL_CHAT` Intent 接口语义一致，只是入口从广播改成了 HTTP。
 
 ## 1. 启用方式
 
 在应用内进入：
 
-- 设置
-- 数据和权限
-- 外部 HTTP 调用
+- 设置 → AI 助手
+- 服务与用量 → 局域网与自动化
 
 然后：
 

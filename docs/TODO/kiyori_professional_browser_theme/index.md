@@ -38,13 +38,13 @@ Browser Home、浏览器 overlay、全屏搜索和浏览器子页使用固定中
 ```text
 kiyori_professional_browser_theme/
 	index.md
-	1_visual_language_and_palette.md
-	2_theme_architecture_and_migration.md
-	3_ai_browser_shell_integration.md
-	4_validation_and_device_acceptance.md
-	5_home_browser_control_alignment.md
-	6_ai_accent_and_static_home_pages.md
-	7_ai_theme_settings_and_browser_settings_removal.md
+	01_visual_language_and_palette.md
+	02_theme_architecture_and_migration.md
+	03_ai_browser_shell_integration.md
+	04_validation_and_device_acceptance.md
+	05_home_browser_control_alignment.md
+	06_ai_accent_and_static_home_pages.md
+	07_ai_theme_settings_and_browser_settings_removal.md
 ```
 
 ## 实施顺序
@@ -85,9 +85,9 @@ kiyori_professional_browser_theme/
 - [DONE] 三处产品 chrome 已统一为 Kiyori 自有空心描边 Vector；菜单已删除固定高度和五槽空位，按旧版紧凑四行结构排列
 - [DONE] 图标与四行菜单迭代的聚焦测试 `14/14`、`git diff --check`、正式准备门禁和 Debug 构建通过
 - [DONE] 最新 APK 为 `449500501` 字节，SHA-256 `88779DDF0C88C2D55C1B94EACC407334D5438531B7A289BBB753412A9B4158C3`，包名 `com.kiyori`，版本 `45 / 0.1.0`，V2 Debug 签名与 16 KB ZIP 对齐通过
-- [DONE] 蓝色应用强调域、浏览器中性保护域、AI 语音按钮和旧版三页面静态复刻已按 [第六阶段](6_ai_accent_and_static_home_pages.md) 实施；最终聚焦测试 `50/50`、`git diff --check`、正式准备门禁和 Debug 构建通过
+- [DONE] 蓝色应用强调域、浏览器中性保护域、AI 语音按钮和旧版三页面静态复刻已按 [第六阶段](06_ai_accent_and_static_home_pages.md) 实施；最终聚焦测试 `50/50`、`git diff --check`、正式准备门禁和 Debug 构建通过
 - [DONE] 最新 APK 为 `449500158` 字节，SHA-256 `B7DE438B955CEC01962AEFCE08B90E07C038DDED672C97ED1AAFCF80A6384309`，包名 `com.kiyori`，版本 `45 / 0.1.0`，V2 Debug 签名与 16 KB ZIP 对齐通过
-- [DONE] [第七阶段](7_ai_theme_settings_and_browser_settings_removal.md)：AI 色板精调、真实存储容量、AI 设置入口和浏览器设置实现移除已完成；第四行设置按钮原样保留为空占位
+- [DONE] [第七阶段](07_ai_theme_settings_and_browser_settings_removal.md)：AI 色板精调、真实存储容量、AI 设置入口和浏览器设置实现移除已完成；第四行设置按钮原样保留为空占位
 - [DONE] 第七阶段聚焦 JVM 测试 `37/37`、`git diff --check`、正式开发准备门禁和 Debug 构建通过
 - [DONE] 最新 APK 为 `449485670` 字节，SHA-256 `F33D327D840F4D45BDE5167A1A2FCCC8E4F393A3CCE643D004C5AA1DFF3C6B9E`，包名 `com.kiyori`，版本 `45 / 0.1.0`，V2 Debug 签名与 16 KB ZIP 对齐通过
 - [DONE-local] [设置 UI、主题边界与现代化配色统一](../kiyori_settings_theme_unification/index.md)：固定应用主题、设置语义色板和 AI 局部个性化边界已完成本地实施与构建验收

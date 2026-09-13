@@ -91,7 +91,7 @@ jobs:
         continue-on-error: true
         run: python3 ci/script/normalize_lint_baseline.py --check
 
-      - name: Check Markdown links
+      - name: Check documentation structure and Markdown links
         id: markdown
         continue-on-error: true
         env:
@@ -108,6 +108,8 @@ jobs:
           python3 ci/script/check_markdown_links.py \
             --base "$BASE_SHA" \
             --candidate "$CANDIDATE_SHA"
+          python3 -B ci/script/check_documentation.py \
+            --repository "$GITHUB_WORKSPACE" --base "$BASE_SHA"
 
       - name: Check localization changes
         id: localization

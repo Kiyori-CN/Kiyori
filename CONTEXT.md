@@ -12,7 +12,7 @@
 | 产品版本 | 由 `app/build.gradle.kts` 声明；与市场兼容版本独立 |
 | 仓库 | `Kiyori-CN/Kiyori`；持续开发分支为 `main` |
 | 终端 | `terminal/` 是 KiyoriTerminalCore 子模块，父仓库锁定 gitlink |
-| 当前发行状态 | 未发布；不接收 Operit 更新、补丁或远程公告 |
+| 当前发行状态 | 开发阶段，尚未正式发行；内测 Debug APK 由 Kiyori 仓库预发布提供，不接收 Operit 更新、补丁或远程公告 |
 
 协作愿景不表示已经实现通用智能，也不改变下列唯一运行时与兼容边界。
 定位演进见 [设计决策](docs/doc-src/decisions/0001_kiyori_product_positioning.md)。
@@ -48,7 +48,7 @@
 9. **敏感信息先脱敏再持久化或导出。** API Key、Authorization、Cookie、密码、私钥、令牌和签名不进入日志、审计明文或仓库。
 10. **构建通过不等于现场通过。** 设备交互、真实服务、发行签名和远端 CI 分别验收；专项 TODO 中的 `verification_pending` 保持原义。
 11. **文件管理器会话由 Shell 保留。** 设置往返与应用内最小化复用同一个 `FileManagerViewModel`；网络环境只经标准文件工具分流，未实现操作明确失败。目录工作区列表不自动改写 AI 对话绑定。
-12. **文件管理显示偏好只有一份。** 设置与双栏的系统/手动隐藏开关、按环境与路径隔离的手动隐藏清单、列表大小共用 `FileManagerPreferences`；隐藏不修改文件本体。启动目录与排序偏好只定义新会话默认值，当前目录/排序/过滤归各窗格；列表行数、时间精度、目录统计、刷新和侧栏显示也由同一偏好持有。桌面入口只携带记录标识，由 Shell 重新解析并交给保留的文件会话。搜索与任务历史由私有 `FileManagerHistoryStore` 保存，不保存权限或执行第二套任务。
+12. **文件管理显示偏好只有一份。** `FileManagerPreferences` 持有跨页面偏好；启动目录与初始排列只定义新会话默认值，当前目录、排序、过滤和选择归各窗格。隐藏不改变文件本体；桌面入口交给 Shell 解析，`FileManagerHistoryStore` 只保存历史，不执行任务。详细行为见 [文件管理器架构](docs/doc-src/architecture/kiyori_file_manager.md)。
 
 ## 包结构与兼容性
 

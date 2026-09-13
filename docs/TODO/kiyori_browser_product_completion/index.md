@@ -10,6 +10,38 @@ hikerview_reference: 5de8809049e4710471f9f42642e54550ecf5dbe3
 
 # 浏览器产品能力连续完善
 
+<!-- doc-toc:start -->
+<details>
+<summary>本页导航</summary>
+
+- [2026-09-14 内测预发布更新](#2026-09-14-内测预发布更新)
+- [2026-09-14 新建下载弹窗](#2026-09-14-新建下载弹窗)
+- [2026-09-14 扩展抽屉标题补充](#2026-09-14-扩展抽屉标题补充)
+- [2026-09-14 抽屉标题与扩展选项条](#2026-09-14-抽屉标题与扩展选项条)
+- [2026-09-13 浏览器与文件首页补丁整合](#2026-09-13-浏览器与文件首页补丁整合)
+- [2026-09-06 广告拦截初始化与悬浮窗 Compose 约束崩溃修复](#2026-09-06-广告拦截初始化与悬浮窗-compose-约束崩溃修复)
+- [2026-09-05 浏览器重复刷新、触摸回吸与 UA 生效稳定性](#2026-09-05-浏览器重复刷新触摸回吸与-ua-生效稳定性)
+- [2026-08-28 最新日志复核：runtime readiness 与诊断噪声](#2026-08-28-最新日志复核runtime-readiness-与诊断噪声)
+- [2026-08-28 Android 16 播放器关闭与重复交接修复](#2026-08-28-android-16-播放器关闭与重复交接修复)
+- [2026-08-27 日志驱动的浏览器、播放器与代理链路修复](#2026-08-27-日志驱动的浏览器播放器与代理链路修复)
+- [2026-08-27 浏览器运行时诊断与菜单优化](#2026-08-27-浏览器运行时诊断与菜单优化)
+- [任务定位](#任务定位)
+- [用户目标](#用户目标)
+- [依赖顺序](#依赖顺序)
+- [里程碑门禁](#里程碑门禁)
+- [全局状态所有权](#全局状态所有权)
+- [全局交互合同](#全局交互合同)
+- [当前优先级](#当前优先级)
+- [2026-07-28 方案 A 正式实现计划](#2026-07-28-方案-a-正式实现计划)
+- [2026-07-28 首轮真机 presentation 修正](#2026-07-28-首轮真机-presentation-修正)
+- [2026-07-28 播放入口必现闪退纠正](#2026-07-28-播放入口必现闪退纠正)
+- [2026-08-03 页面源码工作台](#2026-08-03-页面源码工作台)
+- [2026-08-20 页面源码工作台交互与长源码性能增量](#2026-08-20-页面源码工作台交互与长源码性能增量)
+- [完成定义](#完成定义)
+
+</details>
+<!-- doc-toc:end -->
+
 ## 2026-09-14 内测预发布更新
 
 - 用户授权将当前本地全部改动审计后提交推送到 `main`，再替换现有 `v0.1.0-internal` 预发布；包含下方新建下载弹窗与扩展标题补充，替代这两轮原先的“不提交、不推送”交付边界。
@@ -236,15 +268,15 @@ Kiyori 尚未发布，因此默认模式与工作台按钮属于现有方案迭�
 ```text
 kiyori_browser_product_completion/
 	index.md
-	1_overlay_back_insets_and_ai_adoption.md
-	2_software_home_and_fullscreen_search.md
-	3_incognito_profiles_and_window_thumbnails.md
-	4_settings_home_and_browser_settings.md
-	5_download_center_and_settings.md
-	6_minus_one_browser_library.md
-	7_browser_menu_capabilities.md
-	8_media_intent_and_player_foundation.md
-	9_browser_sniffer_and_floating_playback.md
+	01_overlay_back_insets_and_ai_adoption.md
+	02_software_home_and_fullscreen_search.md
+	03_incognito_profiles_and_window_thumbnails.md
+	04_settings_home_and_browser_settings.md
+	05_download_center_and_settings.md
+	06_minus_one_browser_library.md
+	07_browser_menu_capabilities.md
+	08_media_intent_and_player_foundation.md
+	09_browser_sniffer_and_floating_playback.md
 	10_validation_build_git_and_device_acceptance.md
 	11_player_runtime_ui_and_browser_completion.md
 	12_player_process_crash_isolation.md
@@ -585,7 +617,7 @@ Android Debug v2 和 16 KB ZIP 对齐通过。原 vivo Android 16 复测前仍�
 下载、文本选择和媒体观察助手；不创建新 WebView、历史项、网络源码仓库或持久网页副本。
 `browser_page_source` 为 AI 提供 `live/editor` 两种显式读取范围，大源码进入既有浏览器临时输出
 目录；人工工作台的应用确认不交给 AI 静默执行。完整 UI、状态、AI 与验收合同见
-[`7_browser_menu_capabilities.md`](7_browser_menu_capabilities.md)。
+[`07_browser_menu_capabilities.md`](07_browser_menu_capabilities.md)。
 
 本地实现已完成：定向 `22/22`、完整 Debug JVM `853/853`、Kotlin 编译、formal readiness、
 七语种资源、ARCH041 契约测试和 `git diff --check` 通过；Debug APK 的 V2 签名、16 KB 对齐、

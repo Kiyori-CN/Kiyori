@@ -19,9 +19,9 @@ status: complete
 
 | 分项 | 原记录状态 |
 | --- | --- |
-| [存储与迁移](1_StorageAndMigration.md) | DONE |
-| [提示词与工具](2_PromptAndTools.md) | DONE |
-| [Markdown 设置界面](3_MarkdownSettingsUi.md) | DONE |
-| [记忆空间清理](4_MemorySpaceCleanup.md) | DONE |
+| [存储与迁移](01_storage_and_migration.md) | DONE |
+| [提示词与工具](02_prompt_and_tools.md) | DONE |
+| [Markdown 设置界面](03_markdown_settings_ui.md) | DONE |
+| [记忆空间清理](04_memory_space_cleanup.md) | DONE |
 
 当时只完成静态源码和调用点验证，未编译、构建或执行测试。`complete` 描述上述限定范围，不扩大为设备验收通过。

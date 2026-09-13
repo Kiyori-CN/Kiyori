@@ -234,7 +234,7 @@ revision `6` 历史 APK 为 `472492653` bytes，SHA-256
 逐字节一致。APK 为 `com.kiyori / 45 / 0.1.0`、arm64-only、Debug V2 单 signer，
 16 KB ZIP 对齐通过；`51` 个 `.so` 加 `operit_shell_exec` 共 `52/52` 个 `ELF64 AArch64`，
 所有 `PT_LOAD >= 0x4000`。严格凭据扫描为零；完整证据见
-[实施、测试与验收](4_implementation_and_validation.md)。
+[实施、测试与验收](04_implementation_and_validation.md)。
 
 revision `7` 当前 Debug APK 已完成独立签名、zipalign、ABI、ELF 和敏感内容审计；真实 relay、
 设备和用户验收仍不在当前授权范围内。
@@ -251,15 +251,15 @@ evidence_parse_invalid code=REQUIRED_FIELD_INVALID field=all_sources
 
 ## 6. 文档导航
 
-- [官方合同与可行性](1_official_contract_and_feasibility.md)
-- [插件与宿主架构](2_plugin_and_host_architecture.md)
-- [请求、响应、凭据与安全](3_request_response_credentials_and_security.md)
-- [实施、测试与验收](4_implementation_and_validation.md)
-- [中转站与环境变量配置](5_relay_and_environment_configuration.md)
-- [2026-08-12 日志深度分析](6_log_deep_analysis_20260812.md)
-- [2026-08-12 后续修复计划](7_log_followup_fix_plan_20260812.md)
-- [2026-08-13 优化调查检查点](8_20260813_readonly_analysis_checkpoint.md)
-- [2026-08-13 优化实施计划](9_20260813_optimization_implementation_plan.md)
+- [官方合同与可行性](01_official_contract_and_feasibility.md)
+- [插件与宿主架构](02_plugin_and_host_architecture.md)
+- [请求、响应、凭据与安全](03_request_response_credentials_and_security.md)
+- [实施、测试与验收](04_implementation_and_validation.md)
+- [中转站与环境变量配置](05_relay_and_environment_configuration.md)
+- [2026-08-12 日志深度分析](06_log_deep_analysis_20260812.md)
+- [2026-08-12 后续修复计划](07_log_followup_fix_plan_20260812.md)
+- [2026-08-13 优化调查检查点](08_20260813_readonly_analysis_checkpoint.md)
+- [2026-08-13 优化实施计划](09_20260813_optimization_implementation_plan.md)
 - [2026-08-13 现场矩阵深度分析与 revision 7 实施计划](10_20260813_field_matrix_deep_analysis_and_revision_7_plan.md)
 - [正式架构](../../doc-src/architecture/openai_hosted_web_search.md)
 

@@ -2,6 +2,28 @@
 
 `toolpkg.d.ts` 描述的是工具包插件注册系统。它的核心目标不是“调用工具”，而是**向宿主注册模块、钩子和插件**，让一个 tool package 可以在应用生命周期、消息处理、XML 渲染、输入菜单和提示词流水线中插入自己的行为。
 
+<!-- doc-toc:start -->
+<details>
+<summary>本页导航</summary>
+
+- [作用](#作用)
+- [类型命名空间与运行时对象](#类型命名空间与运行时对象)
+- [基础类型](#基础类型)
+- [事件分类](#事件分类)
+- [事件对象](#事件对象)
+- [各类 payload](#各类-payload)
+- [返回值类型](#返回值类型)
+- [注册定义对象](#注册定义对象)
+- [`ToolPkg.Registry`](#toolpkgregistry)
+- [AssemblyScript WASM 模块](#assemblyscript-wasm-模块)
+- [示例](#示例)
+- [关于 `registerToolPkg()` 入口](#关于-registertoolpkg-入口)
+- [开发调试安装](#开发调试安装)
+- [相关文件](#相关文件)
+
+</details>
+<!-- doc-toc:end -->
+
 ## 作用
 
 当前类型定义覆盖：

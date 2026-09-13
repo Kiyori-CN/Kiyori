@@ -40,8 +40,8 @@ status: verification_pending
 
 ## 子任务
 
-- [x] [工具链对齐](1_toolchain_alignment.md)
-- [x] [16 KB native 依赖审计与处理](2_native_16kb_dependencies.md)
+- [x] [工具链对齐](01_toolchain_alignment.md)
+- [x] [16 KB native 依赖审计与处理](02_native_16kb_dependencies.md)
 
 ## 当前边界
 

@@ -31,4 +31,4 @@
 - 插件与存储修复：源码已接入生产 ToolPkg 生成任务、插件/脚本包市场分类、独立的 Operit `1.12.1+3` 市场兼容版本和 `Download/Kiyori` 路径所有者。当前合同在原 `+9` 能力上补齐资源型 ToolPkg logo、市场 owner 撤回后按原 entry ID 续发、contributor 说明 partial patch、损坏安装 marker 单条隔离、Compose DSL 六模式 picker 和 `ChatInfo` 角色卡/群组 ID；Kiyori 的 `com.kiyori / 45 / 0.1.0` 产品版本轴不变。实时市场资产的下载、SHA 与 ToolPkg 结构已验证；Android 市场动态写入、真实插件 logo、六类 picker、抽屉/输入框插件与 AI 首页快速点击仍待真机验证
 - 真机验收：待验证，不由静态检查或 Debug 构建代替
 
-详细约束见：[品牌与兼容性](1_brand_and_compatibility.md)、[可复现开发](2_reproducible_development.md)、[CI 与安全门禁](3_ci_and_security_gates.md)、[身份与数据迁移](4_identity_and_data_migration.md)、[发布与真机验收](5_release_and_device_acceptance.md)。
+详细约束见：[品牌与兼容性](01_brand_and_compatibility.md)、[可复现开发](02_reproducible_development.md)、[CI 与安全门禁](03_ci_and_security_gates.md)、[身份与数据迁移](04_identity_and_data_migration.md)、[发布与真机验收](05_release_and_device_acceptance.md)。
