@@ -1,5 +1,25 @@
 # Kiyori 内置文件管理器开发
 
+## 2026-09-15 首页数量文字回归修复
+
+状态：本地实现、定向回归和最终 Debug 构建通过；设备 `verification_pending`。
+基线 `main / b2663ac5a4c5a7f542bf9521accbbb67b06a2eaf`，初始工作区干净。
+用户截图中的名称均可见，数量行则全部显示破折号；根因是上一轮将 `count` 改为 null 后替换为“—”，
+不是字体裁切。撤回该项范围外显示改动，恢复原有 `0项` 文字及非空字段，保持图标、间距和顺序。
+按用户最终更正，四个存储行名称恢复 `bodyMedium`（默认 14 sp），网格名称保持 `bodySmall`（默认 12 sp），不统一字号。
+本轮只修正显示回归，不新增真实统计或扫描后端；验证已有顺序与数量回归、文档检查和串行 Debug 构建。
+沿用本任务提交推送授权，精确审计后交付；设备显示复测保持 `verification_pending`。
+
+验证（2026-09-15，Asia/Shanghai）：
+
+- `:app:testDebugUnitTest --tests 'com.ai.assistance.operit.ui.main.shell.KiyoriSettingsPagesTest' --no-daemon --console=plain`：
+  27 项通过，0 失败、错误或跳过；最后仅存储字号从 `bodySmall` 恢复 `bodyMedium`，由最终构建验证。
+- 文档检查 522 份、0 问题，`git diff --check` 通过。
+- 最终串行 `:app:assembleDebug --no-daemon --console=plain` 成功（1m 38s），单启动器、脚本代理和播放器打包通过。
+  APK `app/build/outputs/apk/debug/app-debug.apk` 生成于 `2026-09-15 00:17:49 +08:00`，481645788 字节；
+  V2 单签名、16 KiB ZIP 对齐通过。SHA-256：`727EBF38356F9F772546F0F74E68E7DA99B49F214888CF9B92A7E955A408ADB9`。
+- `0项` 是恢复原有初始显示，不是已完成真实扫描；现场显示仍需使用本轮 APK 复测。
+
 ## 2026-09-14 文件首页与存储位置精修
 
 状态：实现、定向回归和 Debug 构建完成，设备 `verification_pending`。

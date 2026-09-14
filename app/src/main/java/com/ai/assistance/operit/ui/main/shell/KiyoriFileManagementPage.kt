@@ -109,31 +109,31 @@ import kotlinx.coroutines.withContext
 
 internal data class KiyoriFileEntryItem(
     val title: String,
-    val count: String?,
+    val count: String,
     val tone: KiyoriSemanticTone,
     val icon: ImageVector,
 )
 
 internal val kiyoriFileCategoryItems =
     listOf(
-        KiyoriFileEntryItem("图片", null, KiyoriSemanticTone.PINK, Icons.Default.Image),
-        KiyoriFileEntryItem("视频", null, KiyoriSemanticTone.RED, Icons.Default.PlayCircle),
-        KiyoriFileEntryItem("音频", null, KiyoriSemanticTone.PURPLE, Icons.Default.MusicNote),
-        KiyoriFileEntryItem("文档", null, KiyoriSemanticTone.ORANGE, Icons.Default.Description),
-        KiyoriFileEntryItem("安装包", null, KiyoriSemanticTone.GREEN, Icons.Default.Android),
-        KiyoriFileEntryItem("压缩包", null, KiyoriSemanticTone.ORANGE, Icons.Default.Folder),
+        KiyoriFileEntryItem("图片", "0项", KiyoriSemanticTone.PINK, Icons.Default.Image),
+        KiyoriFileEntryItem("视频", "0项", KiyoriSemanticTone.RED, Icons.Default.PlayCircle),
+        KiyoriFileEntryItem("音频", "0项", KiyoriSemanticTone.PURPLE, Icons.Default.MusicNote),
+        KiyoriFileEntryItem("文档", "0项", KiyoriSemanticTone.ORANGE, Icons.Default.Description),
+        KiyoriFileEntryItem("安装包", "0项", KiyoriSemanticTone.GREEN, Icons.Default.Android),
+        KiyoriFileEntryItem("压缩包", "0项", KiyoriSemanticTone.ORANGE, Icons.Default.Folder),
     )
 
 internal val kiyoriFileQuickAccessItems =
     listOf(
-        KiyoriFileEntryItem("应用集", null, KiyoriSemanticTone.BLUE, Icons.Default.Apps),
-        KiyoriFileEntryItem("下载", null, KiyoriSemanticTone.GREEN, Icons.Outlined.Download),
-        KiyoriFileEntryItem("浏览器", null, KiyoriSemanticTone.CYAN, Icons.Default.Public),
-        KiyoriFileEntryItem("WPS Office", null, KiyoriSemanticTone.RED, Icons.Default.Description),
-        KiyoriFileEntryItem("QQ", null, KiyoriSemanticTone.BLUE, Icons.AutoMirrored.Filled.Chat),
-        KiyoriFileEntryItem("微信", null, KiyoriSemanticTone.GREEN, Icons.Default.Forum),
-        KiyoriFileEntryItem("截屏", null, KiyoriSemanticTone.CYAN, Icons.Default.Crop),
-        KiyoriFileEntryItem("蓝牙", null, KiyoriSemanticTone.BLUE, Icons.Default.Bluetooth),
+        KiyoriFileEntryItem("应用集", "0项", KiyoriSemanticTone.BLUE, Icons.Default.Apps),
+        KiyoriFileEntryItem("下载", "0项", KiyoriSemanticTone.GREEN, Icons.Outlined.Download),
+        KiyoriFileEntryItem("浏览器", "0项", KiyoriSemanticTone.CYAN, Icons.Default.Public),
+        KiyoriFileEntryItem("WPS Office", "0项", KiyoriSemanticTone.RED, Icons.Default.Description),
+        KiyoriFileEntryItem("QQ", "0项", KiyoriSemanticTone.BLUE, Icons.AutoMirrored.Filled.Chat),
+        KiyoriFileEntryItem("微信", "0项", KiyoriSemanticTone.GREEN, Icons.Default.Forum),
+        KiyoriFileEntryItem("截屏", "0项", KiyoriSemanticTone.CYAN, Icons.Default.Crop),
+        KiyoriFileEntryItem("蓝牙", "0项", KiyoriSemanticTone.BLUE, Icons.Default.Bluetooth),
     )
 
 /** 首页"存储位置"四个入口的种类；内部存储与回收站固定常驻，Linux 与工作区可在管理页开关。 */
@@ -445,12 +445,9 @@ private fun KiyoriFileEntryTile(item: KiyoriFileEntryItem, modifier: Modifier = 
             overflow = TextOverflow.Ellipsis,
         )
         Text(
-            item.count ?: "—",
+            item.count,
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.62f),
-            modifier = Modifier.semantics {
-                if (item.count == null) contentDescription = "数量尚未统计"
-            },
         )
     }
 }
@@ -482,7 +479,7 @@ private fun KiyoriFileStorageRow(
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 item.title,
-                style = MaterialTheme.typography.bodySmall,
+                style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurface,
             )

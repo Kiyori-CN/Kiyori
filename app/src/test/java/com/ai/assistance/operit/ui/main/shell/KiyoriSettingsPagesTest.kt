@@ -1497,7 +1497,7 @@ class KiyoriSettingsPagesTest {
             kiyoriFileQuickAccessItems.map(KiyoriFileEntryItem::title),
         )
         assertTrue(
-            (kiyoriFileCategoryItems + kiyoriFileQuickAccessItems).all { item -> item.count == null },
+            (kiyoriFileCategoryItems + kiyoriFileQuickAccessItems).all { item -> item.count == "0项" },
         )
     }
 
