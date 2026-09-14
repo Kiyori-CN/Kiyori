@@ -7691,6 +7691,7 @@ Kini anda boleh menggunakan mod AutoGLM di antara muka perbualan.</string>
     <string name="conversation_audit_export_short">Eksport</string>
     <string name="conversation_audit_text_page">Halaman %1$d / %2$d · %3$d aksara (eksport merangkumi semua teks)</string>
     <string name="message_responses_submission_unknown">Penyelesaian pelayan belum dapat disahkan. Penghantaran semula automatik dihentikan untuk mengelakkan permintaan atau pelaksanaan alat berganda. Semak butiran perbualan dan keadaan jauh sebelum meneruskan.</string>
+    <string name="message_responses_stream_interrupted">Respons pelayan telah bermula, tetapi sambungan terputus sebelum penyelesaian disahkan. Permintaan ini tidak boleh disambung semula secara automatik dengan selamat dan tidak dihantar semula bagi mengelakkan permintaan atau pelaksanaan alat berganda. Semak butiran perbualan dan hubungi penyedia perkhidmatan jika perlu.</string>
     <string name="conversation_audit_previous_page">Halaman sebelumnya</string>
     <string name="conversation_audit_next_page">Halaman seterusnya</string>
     <string name="conversation_audit_note_short">Nota</string>

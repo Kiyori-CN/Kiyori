@@ -5488,6 +5488,7 @@
     <string name="conversation_audit_export_short">导出</string>
     <string name="conversation_audit_text_page">第 %1$d / %2$d 页 · 全文 %3$d 字符（导出保留全文）</string>
     <string name="message_responses_submission_unknown">无法确认服务端是否完成，已停止自动重发以避免重复请求或工具执行。请在「对话详情」查看记录，确认远端状态后再继续。</string>
+    <string name="message_responses_stream_interrupted">已开始接收服务端响应，但连接在确认完成前中断。本次请求无法安全自动续接，也未重新发送，以免重复请求或工具执行。请在「对话详情」查看记录，必要时联系服务提供方核对。</string>
     <string name="conversation_audit_previous_page">上一页</string>
     <string name="conversation_audit_next_page">下一页</string>
     <string name="conversation_audit_note_short">备注</string>

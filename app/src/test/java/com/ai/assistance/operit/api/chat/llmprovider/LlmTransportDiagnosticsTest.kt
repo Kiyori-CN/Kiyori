@@ -142,6 +142,21 @@ class LlmTransportDiagnosticsTest {
     }
 
     @Test
+    fun normalProgressIsNotReportedAsATransportFailure() {
+        val state = LlmRequestTraceState()
+        assertEquals("LLM_TRANSPORT_IN_PROGRESS", state.snapshot().diagnosticCode)
+        state.markRequestBody()
+        state.markRequestBodyCompleted(100)
+        assertEquals("LLM_TRANSPORT_IN_PROGRESS", state.snapshot().diagnosticCode)
+        state.markResponseHeadersCompleted(200, null)
+        state.markResponseBodyStarted()
+        assertEquals("LLM_TRANSPORT_IN_PROGRESS", state.snapshot().diagnosticCode)
+        assertEquals("LLM_TRANSPORT_RESPONSE_BODY_INTERRUPTED", state.snapshot(IOException()).diagnosticCode)
+        state.markCallCompleted()
+        assertEquals("LLM_TRANSPORT_COMPLETED", state.snapshot().diagnosticCode)
+    }
+
+    @Test
     fun correlationIdIsHashedAndBounded() {
         val first = LlmTransportDiagnostics.redactCorrelationId("response-id")
         val second = LlmTransportDiagnostics.redactCorrelationId("response-id")

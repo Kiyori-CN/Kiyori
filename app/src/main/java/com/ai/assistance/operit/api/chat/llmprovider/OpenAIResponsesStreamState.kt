@@ -343,14 +343,21 @@ internal class OpenAIResponsesSubmissionUnknownException(
     val localExecutionId: String?,
     cause: IOException,
     val transportDiagnostics: LlmTransportDiagnostics? = null,
+    val responseId: String? = null,
 ) : IOException(
     buildSubmissionUnknownMessage(
         localExecutionId = localExecutionId,
         cause = cause,
         transportDiagnostics = transportDiagnostics,
+        responseId = responseId,
     ),
     cause,
 ), MessageFailureDiagnosticSource {
+    // 仅用于解释已观察到的状态，不赋予兼容端点 GET 续接或重新 POST 的能力。
+    val responseStarted: Boolean
+        get() = responseId != null || (transportDiagnostics?.responseBodyStarted == true &&
+            transportDiagnostics.responseStatusCode in 200..299)
+
     override val messageFailureExecutionId: String?
         get() = localExecutionId
 
@@ -369,6 +376,7 @@ private fun buildSubmissionUnknownMessage(
     localExecutionId: String?,
     cause: IOException,
     transportDiagnostics: LlmTransportDiagnostics?,
+    responseId: String?,
 ): String {
     val executionText =
         localExecutionId
@@ -379,7 +387,12 @@ private fun buildSubmissionUnknownMessage(
         transportDiagnostics
             ?.let { " [${it.diagnosticCode}, stage=${it.stage.name}]" }
             .orEmpty()
-    return "Responses submission state is unknown$executionText$diagnosticText: " +
+    val stateText = if (responseId != null) {
+        "Responses stream interrupted before completion for response ${LlmLogPrivacy.sanitizeDiagnostic(responseId, 192)}"
+    } else {
+        "Responses submission state is unknown"
+    }
+    return "$stateText$executionText$diagnosticText: " +
         (cause.message?.take(512) ?: "transport failure")
 }
 

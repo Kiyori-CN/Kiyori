@@ -41,6 +41,9 @@ internal object ConversationAuditProviderAttemptRecorder {
         receivedCharacters: Int? = null,
         reasoningCharacters: Int? = null,
         visibleCharacters: Int? = null,
+        lastEventType: String? = null,
+        lastSequenceNumber: Long? = null,
+        completedEventReceived: Boolean? = null,
         rollbackCharacters: Int? = null,
         failureCode: String? = null,
         throwable: Throwable? = null,
@@ -83,6 +86,9 @@ internal object ConversationAuditProviderAttemptRecorder {
                 .put("receivedCharacters", receivedCharacters ?: JSONObject.NULL)
                 .put("reasoningCharacters", reasoningCharacters ?: JSONObject.NULL)
                 .put("visibleCharacters", visibleCharacters ?: JSONObject.NULL)
+                .put("lastEventType", lastEventType?.let { bounded(it, 96) } ?: JSONObject.NULL)
+                .put("lastSequenceNumber", lastSequenceNumber ?: JSONObject.NULL)
+                .put("completedEventReceived", completedEventReceived ?: JSONObject.NULL)
                 .put("rollbackCharacters", rollbackCharacters ?: JSONObject.NULL)
 
         transport?.let { diagnostics ->

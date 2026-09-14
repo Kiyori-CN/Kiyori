@@ -156,6 +156,8 @@ internal class LlmRequestTraceState {
             when {
                 failure == null && stage == LlmTransportStage.COMPLETED ->
                     "LLM_TRANSPORT_COMPLETED"
+                failure == null && !connectionFailed ->
+                    "LLM_TRANSPORT_IN_PROGRESS"
                 connectionFailed ->
                     "LLM_TRANSPORT_CONNECT_FAILED"
                 responseBodyStarted ->

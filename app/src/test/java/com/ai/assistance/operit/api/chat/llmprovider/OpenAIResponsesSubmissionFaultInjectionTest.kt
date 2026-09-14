@@ -11,9 +11,7 @@ import com.ai.assistance.operit.data.model.ProviderExecutionStatus
 import com.ai.assistance.operit.data.model.ToolPrompt
 import com.ai.assistance.operit.data.repository.ProviderExecutionRepository
 import com.ai.assistance.operit.util.AppLogger
-import java.io.BufferedReader
 import java.io.IOException
-import java.io.InputStreamReader
 import java.net.InetAddress
 import java.net.ServerSocket
 import java.net.Socket
@@ -37,6 +35,8 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import okhttp3.mockwebserver.SocketPolicy
+import okio.buffer
+import okio.source
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -53,6 +53,58 @@ import org.mockito.kotlin.verifyNoMoreInteractions
 import org.mockito.kotlin.whenever
 
 class OpenAIResponsesSubmissionFaultInjectionTest {
+    @Test
+    fun astraCompatibleRequestsKeepFiveLevelsAndCompleteLongStreamsAcrossRelayFraming() = runTest {
+        Mockito.mockStatic(AppLogger::class.java).use {
+            val fullText = "中文回答🙂".repeat(2048)
+            val profile = ModelCapabilityResolver.resolve(
+                ApiProviderType.OPENAI_RESPONSES, "gpt-6-astra", "https://sub2api.example.test/v1/responses",
+            )
+            assertEquals(ExecutionPersistenceCapability.RESPONSES_AT_MOST_ONCE, profile.executionPersistence)
+            for ((level, effort) in listOf("low", "medium", "high", "xhigh", "max").withIndex()) {
+                // JSON 的换行与 HTTP chunk 收尾分别变化；不靠长超时或自动重发掩盖失败。
+                val ending = listOf("", "\n", "\r", "\r\n", "\n\n")[level]
+                val stream = ": heartbeat\n\n" +
+                    "data: {\"type\":\"response.created\",\"sequence_number\":1,\"response\":{\"id\":\"resp_astra\"}}\n\n" +
+                    fullText.chunked(192).joinToString("") { responsesTextDeltaSse(it) } +
+                    "data: " + org.json.JSONObject(completedResponsesEventJson(fullText)).apply {
+                        getJSONObject("response").put("id", "resp_astra")
+                    }.toString() + ending
+                LocalHttpResponseServer(200, stream, brokenChunked = true).use { server ->
+                    val repository = mock<ProviderExecutionRepository>()
+                    val provider = FaultInjectionResponsesProvider(
+                        endpoint = server.responsesEndpoint,
+                        persistence = RepositoryOpenAIResponsesExecutionPersistence(repository),
+                        providerType = ApiProviderType.OPENAI,
+                        capabilityProviderType = ApiProviderType.OPENAI_RESPONSES,
+                        supportsStreamResumption = false,
+                        requestModel = "gpt-6-astra",
+                        astraQualityLevel = level + 1,
+                    )
+                    val output = StringBuilder()
+                    provider.sendMessage(
+                        context = createContext(), chatHistory = testHistory("Astra 连续回答"),
+                        modelParameters = emptyList(), enableThinking = true, stream = true,
+                        providerRequestContext = requestContext("astra-$level"),
+                        onTokensUpdated = { _, _, _ -> }, onNonFatalError = {}, enableRetry = true,
+                    ).collect(output::append)
+                    assertEquals(fullText, output.toString())
+                    assertEquals(1, server.requests.size)
+                    assertTrue(server.requests.single().startsWith("POST "))
+                    val body = org.json.JSONObject(server.requestBodies.single())
+                    assertEquals("gpt-6-astra", body.getString("model"))
+                    assertEquals(effort, body.getJSONObject("reasoning").getString("effort"))
+                    assertEquals("auto", body.getJSONObject("reasoning").getString("summary"))
+                    assertTrue(body.getBoolean("stream"))
+                    assertTrue(body.has("input"))
+                    assertTrue(!body.has("messages"))
+                    assertTrue(!body.has("background"))
+                    verifyNoInteractions(repository)
+                }
+            }
+        }
+    }
+
     @Test
     fun dnsFailureRetriesOnlyBeforeSubmissionAndRespectsRetrySetting() = runTest {
         Mockito.mockStatic(AppLogger::class.java).use {
@@ -108,13 +160,15 @@ class OpenAIResponsesSubmissionFaultInjectionTest {
     @Test
     fun brokenChunkedTransportDeliversTheLastCompleteEventWithoutResubmission() = runTest {
         Mockito.mockStatic(AppLogger::class.java).use {
-            for (mode in listOf("delta", "terminal", "malformed")) {
+            for ((mode, ending) in listOf("delta", "terminal", "malformed").flatMap { mode ->
+                listOf("", "\n", "\r", "\r\n").map { mode to it }
+            }) {
                 val data = when (mode) {
                     "terminal" -> completedResponsesSse("final answer")
                     "malformed" -> "data: {\"type\":\"response.output_text.delta\",\"delta\":\n"
                     else -> responsesTextDeltaSse("last buffered text")
                 }
-                LocalHttpResponseServer(200, data.trimEnd('\n') + "\n", brokenChunked = true).use { server ->
+                LocalHttpResponseServer(200, data.trimEnd('\n') + ending, brokenChunked = true).use { server ->
                     val repository = mock<ProviderExecutionRepository>()
                     val provider = FaultInjectionResponsesProvider(
                         endpoint = server.responsesEndpoint,
@@ -143,6 +197,52 @@ class OpenAIResponsesSubmissionFaultInjectionTest {
                     verifyNoInteractions(repository)
                 }
             }
+        }
+    }
+
+    @Test
+    fun knownResponseIdentityIsRetainedWhenCompatibleStreamDisconnects() = runTest {
+        Mockito.mockStatic(AppLogger::class.java).use {
+            MockWebServer().use { server ->
+                server.start()
+                server.enqueue(MockResponse().setHeader("Content-Type", "text/event-stream").setBody(
+                    "data: {\"type\":\"response.created\",\"sequence_number\":1,\"response\":{\"id\":\"resp_test_interrupted\"}}\n\n" +
+                        responsesTextDeltaSse("保留已收到的回答")))
+                val repository = mock<ProviderExecutionRepository>()
+                val received = StringBuilder()
+                val failure = runCatching {
+                    createDeepSeekResponsesProvider(server, repository).sendMessage(
+                        context = createContext(), chatHistory = testHistory("known response EOF"),
+                        modelParameters = emptyList(), enableThinking = true, stream = true,
+                        providerRequestContext = requestContext("known-response-eof"),
+                        onTokensUpdated = { _, _, _ -> }, onNonFatalError = {}, enableRetry = true,
+                    ).collect(received::append)
+                }.exceptionOrNull()
+                assertTrue("failure=$failure", failure is OpenAIResponsesSubmissionUnknownException)
+                failure as OpenAIResponsesSubmissionUnknownException
+                assertEquals("resp_test_interrupted", failure.responseId)
+                assertTrue(failure.responseStarted)
+                assertEquals("known-response-eof", failure.localExecutionId)
+                assertTrue(failure.cause is OpenAIResponsesMissingTerminalException)
+                assertEquals("保留已收到的回答", received.toString())
+                assertEquals(1, server.requestCount)
+                assertEquals("POST", server.takeRequest().method)
+                verifyNoInteractions(repository)
+            }
+        }
+    }
+
+    @Test
+    fun errorResponseBodyIsNotPresentedAsGenerationStarting() {
+        for (status in listOf(200, 502)) {
+            val state = LlmRequestTraceState()
+            state.markResponseHeadersCompleted(status, null)
+            state.markResponseBodyStarted()
+            val failure = OpenAIResponsesSubmissionUnknownException(
+                localExecutionId = "response-status", cause = IOException("interrupted"),
+                transportDiagnostics = state.snapshot(IOException()),
+            )
+            assertEquals(status == 200, failure.responseStarted)
         }
     }
 
@@ -920,6 +1020,8 @@ class OpenAIResponsesSubmissionFaultInjectionTest {
         capabilityProviderType: ApiProviderType = providerType,
         private val supportsStreamResumption: Boolean = true,
         dns: Dns = Dns.SYSTEM,
+        private val requestModel: String = "gpt-5.6-sol",
+        private val astraQualityLevel: Int? = null,
     ) : OpenAIProvider(
         apiEndpoint = endpoint,
         apiKeyProvider =
@@ -928,7 +1030,7 @@ class OpenAIResponsesSubmissionFaultInjectionTest {
 
                 override suspend fun getCandidateKeyCount(): Int = 1
             },
-        modelName = "gpt-5.6-sol",
+        modelName = requestModel,
         client =
             LlmHttpClientProtocolPolicy.responsesPolicy
                 .applyTo(
@@ -960,9 +1062,18 @@ class OpenAIResponsesSubmissionFaultInjectionTest {
             stream: Boolean,
             availableTools: List<ToolPrompt>?,
             preserveThinkInHistory: Boolean,
-        ): RequestBody =
-            """{"model":"gpt-5.6-sol","stream":$stream}"""
+        ): RequestBody {
+            val level = astraQualityLevel
+            if (level == null) return """{"model":"$requestModel","stream":$stream}"""
                 .toRequestBody("application/json".toMediaType())
+            // 只用固定档位替代 Android 偏好读取；历史、Responses 编译和特性约束均使用生产代码。
+            val body = org.json.JSONObject(createRequestBodyInternal(
+                context, chatHistory, modelParameters, stream, availableTools, preserveThinkInHistory,
+            ))
+            OpenAIResponsesRequestFeatureCompiler.apply(body,
+                ModelRequestCompiler.compile(modelCapabilityProfile, UserExecutionIntent(enableThinking, level)), stream)
+            return createJsonRequestBody(body.toString())
+        }
     }
 
     private class LocalHttpResponseServer(
@@ -1000,20 +1111,16 @@ class OpenAIResponsesSubmissionFaultInjectionTest {
             Collections.synchronizedList(mutableListOf())
         val requestLines: MutableList<String> =
             Collections.synchronizedList(mutableListOf())
+        val requestBodies: MutableList<String> =
+            Collections.synchronizedList(mutableListOf())
         val responsesEndpoint: String =
             "http://127.0.0.1:${serverSocket.localPort}/v1/responses#"
 
         private fun handle(socket: Socket) {
             socket.use { accepted ->
                 accepted.soTimeout = 5_000
-                val reader =
-                    BufferedReader(
-                        InputStreamReader(
-                            accepted.getInputStream(),
-                            StandardCharsets.US_ASCII,
-                        )
-                    )
-                val requestLine = requireNotNull(reader.readLine())
+                val reader = accepted.getInputStream().source().buffer()
+                val requestLine = reader.readUtf8LineStrict()
                 val requestParts = requestLine.split(' ')
                 require(requestParts.size >= 2) { "Malformed request line: $requestLine" }
                 requestLines += requestLine
@@ -1021,20 +1128,15 @@ class OpenAIResponsesSubmissionFaultInjectionTest {
 
                 var contentLength = 0
                 while (true) {
-                    val header = reader.readLine() ?: break
+                    val header = reader.readUtf8LineStrict()
                     if (header.isEmpty()) break
                     if (header.startsWith("Content-Length:", ignoreCase = true)) {
                         contentLength = header.substringAfter(':').trim().toInt()
                     }
                 }
                 if (contentLength > 0) {
-                    val body = CharArray(contentLength)
-                    var offset = 0
-                    while (offset < body.size) {
-                        val read = reader.read(body, offset, body.size - offset)
-                        if (read < 0) break
-                        offset += read
-                    }
+                    // Content-Length 是字节数；先按字节读取，再解码中文和补充平面字符。
+                    requestBodies += reader.readUtf8(contentLength.toLong())
                 }
 
                 val responseBytes = responseBody.toByteArray(StandardCharsets.UTF_8)

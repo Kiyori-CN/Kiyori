@@ -7695,6 +7695,7 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="conversation_audit_export_short">Ekspor</string>
     <string name="conversation_audit_text_page">Halaman %1$d / %2$d · %3$d karakter (ekspor mencakup seluruh teks)</string>
     <string name="message_responses_submission_unknown">Penyelesaian server belum dapat dipastikan. Pengiriman ulang otomatis dihentikan untuk mencegah permintaan atau eksekusi alat ganda. Periksa detail percakapan dan status jarak jauh sebelum melanjutkan.</string>
+    <string name="message_responses_stream_interrupted">Respons server telah dimulai, tetapi koneksi terputus sebelum penyelesaian dapat dikonfirmasi. Permintaan ini tidak dapat dilanjutkan otomatis dengan aman dan tidak dikirim ulang untuk mencegah permintaan atau eksekusi alat ganda. Periksa detail percakapan dan hubungi penyedia layanan jika perlu.</string>
     <string name="conversation_audit_previous_page">Halaman sebelumnya</string>
     <string name="conversation_audit_next_page">Halaman berikutnya</string>
     <string name="conversation_audit_note_short">Catatan</string>

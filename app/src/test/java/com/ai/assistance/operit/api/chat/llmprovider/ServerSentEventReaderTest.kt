@@ -9,15 +9,31 @@ import java.io.EOFException
 import java.io.StringReader
 
 class ServerSentEventReaderTest {
+    @Test fun largeUnicodeTailAndMultilineDataSurviveAllLineEndings() {
+        for (separator in listOf("\n", "\r", "\r\n")) {
+            val text = "中文🙂".repeat(4096)
+            val raw = "data: {${separator}data: \"text\":\"$text\"$separator" + "data: }"
+            val failure = EOFException("truncated framing")
+            val transport = object : BufferedReader(StringReader(raw), 17) {
+                override fun read(): Int {
+                    val next = super.read()
+                    if (next < 0) throw failure
+                    return next
+                }
+            }
+            val reader = ServerSentEventReader(transport)
+            assertEquals("{\n\"text\":\"$text\"\n}", reader.readData())
+            assertSame(failure, runCatching { reader.readData() }.exceptionOrNull())
+        }
+    }
+
     @Test fun interruptedTransportDeliversBufferedDataThenTheOriginalFailure() {
         val failure = EOFException("missing HTTP chunk terminator")
         val transport = object : BufferedReader(StringReader("")) {
-            private var first = true
-            override fun readLine(): String {
-                if (first) {
-                    first = false
-                    return "data: {\"type\":\"response.output_text.delta\",\"delta\":\"last text\"}"
-                }
+            private val text = "data: {\"type\":\"response.output_text.delta\",\"delta\":\"last text\"}\n"
+            private var offset = 0
+            override fun read(): Int {
+                if (offset < text.length) return text[offset++].code
                 throw failure
             }
         }

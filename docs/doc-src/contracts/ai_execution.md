@@ -70,6 +70,15 @@
 
 ## 请求、终态与重放
 
+- SSE 读取器保留 HTTP 断流前已消费的尾行，包括未带换行符的尾部；只交付实际字符，
+  由 Provider 校验 JSON 与语义终态。真实完成事件可以结束等待，残缺 JSON 或只有正文不能
+  冒充完成，原始传输异常继续传播。兼容 Responses 中断保留已观察到的 response ID，
+  错误提示区分响应尚未确认与响应已开始；这不新增 GET 续接或自动 POST 权限。
+- Responses attempt 审计附带有界的 `lastEventType`、`lastSequenceNumber` 和
+  `completedEventReceived`，只表示本地解析事实；sequence 不作为兼容端点的恢复游标。
+  没有异常的传输阶段使用 `LLM_TRANSPORT_IN_PROGRESS`，真实失败仍按响应头/正文阶段分类。
+  “对话详情”不能证明未返回的远端结果，服务端完成状态仍需该服务提供证据。
+
 - Gemini 原生协议由 `GeminiReasoningCompiler` 编译思考参数：2.5 Flash/Flash-Lite 关闭时
   显式发送 `thinkingBudget=0`，开启五档为 `1024/4096/8192/16384/24576`；
   2.5 Pro 最后一档为 `32768` 且不能关闭。已识别 Gemini 3 使用 `thinkingLevel`：

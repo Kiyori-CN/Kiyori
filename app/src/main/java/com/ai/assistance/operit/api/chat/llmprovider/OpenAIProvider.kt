@@ -1612,6 +1612,7 @@ open class OpenAIProvider(
         onNonFatalError: suspend (String) -> Unit,
         providerRequestContext: ProviderRequestContext?,
         transportDiagnostics: LlmTransportDiagnostics?,
+        responseId: String?,
     ): Int {
         if (exception is UserCancellationException || exception is CancellationException) {
             throw exception
@@ -1669,6 +1670,7 @@ open class OpenAIProvider(
                             IOException(exception.message, exception)
                         },
                     transportDiagnostics = transportDiagnostics,
+                    responseId = responseId,
                 )
         }
     }
@@ -2116,6 +2118,9 @@ open class OpenAIProvider(
                     },
                     reasoningCharacters = streamingState?.reasoningCharacterCount,
                     visibleCharacters = streamingState?.visibleCharacterCount,
+                    lastEventType = streamingState?.lastResponsesEventType,
+                    lastSequenceNumber = streamingState?.lastResponsesSequenceNumber,
+                    completedEventReceived = streamingState?.hasCompletedResponsesTerminal?.takeIf { useResponsesApi },
                     rollbackCharacters = rollbackCharacters,
                     failureCode = failureCode,
                     throwable = throwable,
@@ -2206,6 +2211,8 @@ open class OpenAIProvider(
         var chunkCount: Int = 0,
         var reasoningCharacterCount: Int = 0,
         var remoteResponseId: String? = null,
+        var lastResponsesEventType: String? = null,
+        var lastResponsesSequenceNumber: Long? = null,
         var visibleCharacterCount: Int = 0,
         var lastLogTime: Long = System.currentTimeMillis(),
         var isInReasoningMode: Boolean = false,
@@ -2619,6 +2626,9 @@ open class OpenAIProvider(
         onTokensUpdated: suspend (input: Int, cachedInput: Int, output: Int) -> Unit
     ) {
         val eventType = jsonResponse.optString("type", "")
+
+        state.lastResponsesEventType = eventType.takeIf { it.isNotBlank() }
+        state.lastResponsesSequenceNumber = jsonResponse.optLong("sequence_number", -1L).takeIf { it >= 0L }
 
         val observedResponseId = jsonResponse.optJSONObject("response")
             ?.optString("id", "")?.takeIf { it.isNotBlank() }
@@ -3213,6 +3223,8 @@ open class OpenAIProvider(
                     if (!useResponsesApi && state.chatFinishReason != null) break
                     throw timeout
                 } ?: break
+                // 停止可能发生在阻塞读取期间；尾行保留不能让迟到的终态覆盖主动取消。
+                checkCancellation(context, session)
                 if (data.isEmpty()) continue
                 if (data == "[DONE]") {
                     state.chatDoneReceived = true
@@ -4452,6 +4464,7 @@ open class OpenAIProvider(
                                             e is OpenAIResponsesEventProcessingException
                                     }
                                     ?.snapshot(e),
+                            responseId = attemptStreamingState.remoteResponseId,
                         )
                 } else {
                     val canRetry = isSafePreSubmissionRetry(attemptDiagnostics)

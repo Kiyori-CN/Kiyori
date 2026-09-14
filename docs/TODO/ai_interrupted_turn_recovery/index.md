@@ -11,6 +11,7 @@ observed_at: 2026-09-03 Asia/Shanghai
 <details>
 <summary>本页导航</summary>
 
+- [Responses 断流与尾事件保留（2026-09-14）](#responses-断流与尾事件保留2026-09-14)
 - [历史页图导致持续 400 与诊断重复展开（2026-09-11 第三轮）](#历史页图导致持续-400-与诊断重复展开2026-09-11-第三轮)
 - [EOF 断流与全链路稳定性复查（2026-09-11 第二轮）](#eof-断流与全链路稳定性复查2026-09-11-第二轮)
 - [多模态预览结果闭合修复（2026-09-11）](#多模态预览结果闭合修复2026-09-11)
@@ -40,6 +41,72 @@ observed_at: 2026-09-03 Asia/Shanghai
 
 </details>
 <!-- doc-toc:end -->
+
+## Responses 断流与尾事件保留（2026-09-14）
+
+本轮起点为干净 `main` / `9321a01d77657152a5f68421a1af53f2117939f5`，用户授权客户端
+修复、验证及提交推送；不操作设备或中转服务。状态：本地实现、回归及 Debug APK 已验证；
+真实中转与设备仍 `verification_pending`。
+
+诊断文件中的 148 个事件记录三次独立请求：第一次发送 22,517 字节后、响应头前发生 EOF；
+第二次收到 HTTP 200、response ID 和 482 个可见字符后发生分块 EOF；第三次正常完成。
+两次失败均使用未复用的 HTTP/1.1 连接，没有用户停止证据。日志不足以区分中转、上游与
+中间网络的关闭原因，也不能证明第二次已收到完成事件；不把猜测写成服务端根因。
+
+范围、计划与验收：
+
+1. 用本地 HTTP 分块截断复现无换行尾行丢失，修复完整尾事件的交付；残缺 JSON、缺终态、
+   明确失败及主动取消仍按真实状态失败，不伪造回答完成。
+2. 区分尚未收到响应与已开始响应后的中断；保留原始 cause、response ID 和已收到内容，
+   兼容端点没有续接合同仍不得自动 GET/POST。补充最后事件类型、sequence 与终态证据。
+3. 纠正正常传输进度快照被标为 failure 的诊断问题，同步领域契约、用户说明与专项证据。
+4. 执行流读取、HTTP 故障、诊断及相关供应商回归，串行构建核验 Debug APK，再审计候选树、
+   提交推送 `main` 并核对远端。回滚只撤销本轮差异；不迁移数据或更改协议与模型配置。
+
+官方 [Background mode](https://developers.openai.com/api/docs/guides/background) 于
+2026-09-14 实际读取：续接要求 background response、创建时 `stream=true`、同 response ID
+和 sequence cursor。公开官方合同不能证明用户中转支持这些能力。真实中转与设备复测保持
+`verification_pending`，客户端回归不能证明网络截断已消失。
+
+### Astra 与 sub2api 定向研究
+
+- 客户端生产策略为连接超时 60 秒、读取/写入超时 1000 秒；诊断失败发生在几秒到十几秒内，
+  原异常为 EOF 而非 timeout。延长等待窗口没有针对性证据；不更改已有连接隔离策略。
+- Astra 由同一能力编译器处理五档 `low / medium / high / xhigh / max`，工具使用 Responses。
+  2026-09-14 实际读取的 [官方模型页](https://developers.openai.com/api/docs/models/gpt-6-astra)
+  列出相同五档。
+  新增本地 HTTP 回归使用生产历史编译和特性编译，仅用固定档位替代 Android 偏好读取；覆盖
+  五档、长中文及补充平面字符、心跳、增量与完整快照去重、无换行和不同换行下的分块 EOF。
+- 2026-09-14 获取的 sub2api 公开源码树为
+  `bdb42e22f81fcb633ff0a060961211dd2bcb515b`，下载文件已按 Git blob hash 核对。
+  [路由](https://github.com/Wei-Shaw/sub2api/blob/bdb42e22f81fcb633ff0a060961211dd2bcb515b/backend/internal/server/routes/gateway.go)
+  注册 `POST /v1/responses` 与 WebSocket `GET /v1/responses`，未注册按 response ID 的恢复 GET。
+  [流转发](https://github.com/Wei-Shaw/sub2api/blob/bdb42e22f81fcb633ff0a060961211dd2bcb515b/backend/internal/service/openai_gateway_response_handling.go)
+  对缺终态的结束、上游读取错误、下游断开分别处理；成功完成后再读到错误不推翻终态。
+  这些证据不证明用户站点部署了该提交，不能归因到它或假设 WebSocket 就能恢复旧响应。
+- 明确不采用自动换模型/账号/协议、重复 POST、凭 response ID 猜测续接或以增加超时掩盖 EOF。
+  请求能够成功与间歇性断流并不矛盾；现场确认需要同一失败请求的中转/上游日志。
+
+### 本地验证与交付记录
+
+- 回归先证实旧实现丢失无换行尾行，再验证修复；首次定向 27 项通过。
+- 扩展回归 `:app:testDebugUnitTest` 选择 `ServerSentEventReaderTest`、
+  `OpenAIResponses*Test`、`LlmTransportDiagnosticsTest`、`OpenAIProviderAttemptBoundaryTest`、
+  `NativeProtocolAttemptBoundaryTest`、`ProviderStreamSessionGateTest`、`MessageProcessingDelegateTest`、
+  `CrossProtocolReasoningTest`、`ModelRequestCompilerTest`、`ModelCapabilityResolverTest`，
+  共 16 组、114 项，failure/error/skipped 均为 0。
+- Astra 五档分别经过生产历史/特性编译和真实本地 HTTP，长文本逐字一致，成功终态不因
+  分块尾截断而报错；缺终态、残缺 JSON、服务端失败与取消均不产生自动重复请求。
+- 文档检查 521 文件、0 问题；七种语言资源 XML 可解析；正式开发准备和 `git diff --check`
+  通过。根 README 未修改，派生目录无额外变更。
+- 串行 `./gradlew.bat :app:assembleDebug --no-daemon --console=plain` 通过，耗时 1 分 35 秒。
+  单一启动入口、脚本代理与播放器运行时打包检查通过。标准 `app/build/outputs/apk/debug/app-debug.apk`
+  于 2026-09-14 12:38:36（Asia/Shanghai）生成，485,557,435 bytes；SHA-256：
+  `e6f781701ec82971fa5a1a63d05e94597aea64e8d40633e58957f89316ccfa3f`。
+  `aapt dump badging` 确认 `com.kiyori / 45 / 0.1.0`，`apksigner verify --verbose` 通过 v2 签名验证。
+- 交付仅包含 19 个相关源码、资源、测试与文档文件；原诊断、公开源码下载、日志和 APK 均不进入
+  Git。`terminal` 保持干净且 gitlink 不变。候选提交按正式入口检查新鲜克隆与文档链接，
+  推送目标为 `origin/main`，最终 ref 以交付时的本地和远端核对为准。
 
 ## 历史页图导致持续 400 与诊断重复展开（2026-09-11 第三轮）
 

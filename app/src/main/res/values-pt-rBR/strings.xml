@@ -7578,6 +7578,7 @@ Agora é possível usar o modo AutoGLM na interface de diálogo.</string>
     <string name="conversation_audit_export_short">Exportar</string>
     <string name="conversation_audit_text_page">Página %1$d / %2$d · %3$d caracteres (a exportação inclui todo o texto)</string>
     <string name="message_responses_submission_unknown">Não foi possível confirmar a conclusão no servidor. O reenvio automático foi interrompido para evitar solicitações ou ferramentas duplicadas. Confira os detalhes da conversa e o estado remoto antes de continuar.</string>
+    <string name="message_responses_stream_interrupted">A resposta do servidor começou, mas a conexão foi interrompida antes da confirmação de conclusão. Esta solicitação não pode ser retomada automaticamente com segurança e não foi reenviada, para evitar solicitações ou execuções de ferramentas duplicadas. Confira os detalhes da conversa e, se necessário, contate o provedor do serviço.</string>
     <string name="conversation_audit_previous_page">Página anterior</string>
     <string name="conversation_audit_next_page">Próxima página</string>
     <string name="conversation_audit_note_short">Nota</string>

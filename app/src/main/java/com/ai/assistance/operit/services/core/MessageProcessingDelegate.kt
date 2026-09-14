@@ -2415,10 +2415,14 @@ class MessageProcessingDelegate(
     ) {
         val failureKind = AssistantTurnFailurePolicy.classify(error)
         val failureExecutionId = extractMessageFailureExecutionId(error)
+        val responsesFailure = generateSequence<Throwable>(error) { it.cause }.take(8)
+            .filterIsInstance<com.ai.assistance.operit.api.chat.llmprovider.OpenAIResponsesSubmissionUnknownException>()
+            .firstOrNull()
         val causeMessage =
-            if (generateSequence<Throwable>(error) { it.cause }.take(8).any {
-                    it is com.ai.assistance.operit.api.chat.llmprovider.OpenAIResponsesSubmissionUnknownException
-                }) context.getString(R.string.message_responses_submission_unknown)
+            if (responsesFailure != null) context.getString(
+                if (responsesFailure.responseStarted) R.string.message_responses_stream_interrupted
+                else R.string.message_responses_submission_unknown
+            )
             else error.message
                 ?.takeIf { it.isNotBlank() }
                 ?: error::class.java.simpleName

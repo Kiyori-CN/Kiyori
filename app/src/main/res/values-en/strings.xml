@@ -8535,6 +8535,7 @@
     <string name="conversation_audit_export_short">Export</string>
     <string name="conversation_audit_text_page">Page %1$d / %2$d · Characters: %3$d (exports contain all text)</string>
     <string name="message_responses_submission_unknown">Server completion could not be confirmed. Automatic resubmission was stopped to avoid duplicate requests or tool execution. Review Conversation details and confirm remote state before continuing.</string>
+    <string name="message_responses_stream_interrupted">The server response started, but the connection was interrupted before completion was confirmed. This request cannot be resumed automatically with confidence and was not resent, to avoid duplicate requests or tool execution. Review Conversation details and contact your service provider if needed.</string>
     <string name="conversation_audit_previous_page">Previous page</string>
     <string name="conversation_audit_next_page">Next page</string>
     <string name="conversation_audit_note_short">Note</string>
