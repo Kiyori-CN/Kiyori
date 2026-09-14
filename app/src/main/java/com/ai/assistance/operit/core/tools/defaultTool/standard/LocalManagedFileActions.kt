@@ -28,10 +28,38 @@ private fun sameEntry(a: BasicFileAttributes, b: BasicFileAttributes): Boolean =
         a.creationTime() == b.creationTime() && a.size() == b.size() && a.lastModifiedTime() == b.lastModifiedTime()
 
 internal fun sameManagedDirectoryIdentity(before: BasicFileAttributes, now: BasicFileAttributes): Boolean =
-    now.isDirectory && now.fileKey() == before.fileKey() &&
+    before.isDirectory && now.isDirectory && now.fileKey() == before.fileKey() &&
         // Android libcore 在不支持 birthtime 时以 mtime 返回 creationTime。删除子项会改变它，
         // 不能把自己的写入当作目录被替换；真实 birthtime 存在时仍复核，inode 始终复核。
-        (before.creationTime() == before.lastModifiedTime() || now.creationTime() == before.creationTime())
+        (now.creationTime() == before.creationTime() ||
+            (before.creationTime() == before.lastModifiedTime() && now.creationTime() == now.lastModifiedTime()))
+
+/** 移动前仍使用完整确认指纹；这里只放行 rename 自身导致的根目录时间变化。 */
+internal fun managedTreeChangeAfterMove(before: ManagedSnapshot, after: ManagedSnapshot): String? {
+    if (before.entries.size != after.entries.size) return "子项数量变化"
+    for (index in before.entries.indices) {
+        val old = before.entries[index]
+        val moved = after.entries[index]
+        val name = old.relative.ifEmpty { "根项目" }
+        if (old.relative != moved.relative) return "子项路径变化：$name"
+        val a = old.attributes
+        val b = moved.attributes
+        if (sameEntry(a, b)) continue
+        // F2FS 跨父目录移动会写入 .. 并更新根目录 mtime；libcore 无 birthtime 时
+        // creationTime 也随之变化。子项未被 rename，仍须完整校验；无 inode 时不能放宽。
+        if (old.relative.isEmpty() && a.fileKey() != null &&
+            sameManagedDirectoryIdentity(a, b) && a.size() == b.size()) continue
+        val reason = when {
+            a.isDirectory != b.isDirectory || a.isRegularFile != b.isRegularFile -> "类型变化"
+            a.fileKey() != b.fileKey() -> "文件身份变化"
+            a.size() != b.size() -> "大小变化"
+            a.lastModifiedTime() != b.lastModifiedTime() -> "修改时间变化"
+            else -> "创建时间变化"
+        }
+        return "$name：$reason"
+    }
+    return null
+}
 
 /** 只统计真实文件树，不跟随链接。超限失败，不能把不完整扫描作为删除确认依据。 */
 internal fun inspectManagedTree(root: Path, checkActive: () -> Unit = {}): ManagedSnapshot {
@@ -82,7 +110,8 @@ internal fun managedSha256(path: Path, checkActive: () -> Unit = {}): String {
 internal fun deleteManagedEntry(source: Path, fingerprint: String, commit: (Path, Path) -> Unit) {
     val from = source.toAbsolutePath().normalize()
     require(from.parent != null && fingerprint.isNotBlank()) { "不能删除根目录或未确认项目" }
-    check(inspectManagedTree(from).fingerprint == fingerprint) { "项目在确认后发生变化，请重新检查" }
+    val confirmed = inspectManagedTree(from)
+    check(confirmed.fingerprint == fingerprint) { "项目在确认后发生变化，请重新检查" }
     val staging = Files.createTempDirectory(from.parent, ".kiyori-delete-")
     val payload = staging.resolve("payload")
     try {
@@ -94,12 +123,14 @@ internal fun deleteManagedEntry(source: Path, fingerprint: String, commit: (Path
         throw failure
     }
     val snapshot = try {
-        inspectManagedTree(payload).also { check(it.fingerprint == fingerprint) { "隔离前项目已变化" } }
+        inspectManagedTree(payload).also { moved ->
+            managedTreeChangeAfterMove(confirmed, moved)?.let { throw IOException(it) }
+        }
     } catch (failure: Exception) {
         try { commit(payload, from); Files.delete(staging) } catch (restore: Exception) {
-            throw LocalCopyException(FileCopyErrorCode.SOURCE_CHANGED, "项目发生变化，未删除；原路径无法恢复，请检查隔离位置", staging.toString(), restore)
+            throw LocalCopyException(FileCopyErrorCode.SOURCE_CHANGED, "隔离后复核失败（${failure.message}），未删除；原路径无法恢复，请检查隔离位置", staging.toString(), restore)
         }
-        throw IOException("项目发生变化，已恢复原位置，未删除", failure)
+        throw IOException("隔离后复核失败（${failure.message}），已恢复原位置，未删除", failure)
     }
     try {
         snapshot.entries.sortedByDescending { it.relative.count { c -> c == '/' } * 2 + if (it.relative.isEmpty()) 0 else 1 }

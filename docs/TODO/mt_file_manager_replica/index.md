@@ -1,5 +1,50 @@
 # Kiyori 内置文件管理器开发
 
+## 2026-09-14 文件夹回收与永久删除修复
+
+状态：实现、定向回归与 Debug APK 构建完成；设备 `verification_pending`。基线 `main / 0b1bc919a1f4171b0ea61e43eb676cb1379e8d5d`，初始工作区干净。
+本轮授权修复、验证、Debug APK 构建、提交与推送；保留原文件后端、回收记录格式和不覆盖提交，不操作设备或 terminal。
+
+1. 追踪确认快照、回收移动、删除隔离、失败恢复及批量结果链路，核对 Android/F2FS 属性语义。
+2. 先以跨父目录移动更新时间的故障注入复现，再区分移动前完整校验和移动后根目录身份校验。
+3. 回归普通文件、空目录、嵌套目录、真实变化、恢复冲突和失败保留路径，完善必要诊断。
+4. 同步正式删除契约，执行定向回归、文档检查及串行 Debug 构建，核对 APK。
+5. 审计本轮精确差异、候选提交和子模块，提交推送并核对远端 main。
+
+主要风险是放宽时间比较后误接受被替换内容；只允许移动根目录的预期属性变化，子项仍完整比较，缺失身份不得放宽。
+回滚使用本轮提交差异；不迁移用户文件和回收记录。目标手机真实共享存储删除、恢复及永久删除需单独复测。
+
+根因证据（2026-09-14）：
+
+- 截图提示唯一对应 `LocalFileRecycleBin` 移动后完整指纹不一致、成功恢复原位置的分支；
+  永久删除的隔离后复核存在相同比较问题。
+- [Linux v6.6 F2FS rename](https://github.com/torvalds/linux/blob/v6.6/fs/f2fs/namei.c#L1108-L1111)
+  跨父目录时更新 `..`，[f2fs_set_link](https://github.com/torvalds/linux/blob/v6.6/fs/f2fs/dir.c#L447-L459)
+  同时更新被移动目录的 mtime；
+  [Android UnixFileAttributes](https://android.googlesource.com/platform/libcore/+/refs/heads/main/ojluni/src/main/java/sun/nio/fs/UnixFileAttributes.java)
+  在不支持 birthtime 时以 mtime 返回 creationTime。该机制与截图吻合，具体设备的文件系统和属性差异尚未采集。
+- 旧实现运行两个底层测试类：31 项中新增的回收、隔离删除两项均因仅修改根目录 mtime 而失败，
+  其余 29 项通过，完成修改前的确定性复现。
+- 新比较保留原确认指纹和完整相对路径清单；移动后仅放行有非空稳定身份的根目录时间变化。
+  目录身份比较同时要求两次创建时间均为修改时间别名，避免旧判断把真实创建时间变化也放行。
+  比较按索引线性遍历，不额外分配整树成对列表；没有新增目录扫描或第二状态存储。
+
+本地验证（2026-09-14，Asia/Shanghai）：
+
+- `:app:testDebugUnitTest --tests 'com.ai.assistance.operit.core.tools.defaultTool.standard.Local*Test' --tests 'com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.*' --no-daemon --console=plain`
+  27 套、268 项通过，0 失败/错误/跳过；回收与受保护操作两套共 41 项。覆盖普通文件、空目录、嵌套目录、Android 时间别名、空身份保护、真实创建时间变化、
+  子项增删改名和改写、回滚冲突、复核异常、原路径新项目保护，以及文件管理器批量状态与刷新。
+- Windows NIO 实测 `fileKey()` 为 null；故障注入夹具仅在测试作用域统一投影 Android 稳定身份及
+  创建时间别名，兼容目录流缓存属性，真实文件 IO 全部保留。生产代码不因测试平台而放宽校验。
+- `check_formal_readiness.py --repository . --require-main`、`git diff --check` 通过。
+- 串行 `:app:assembleDebug --no-daemon --console=plain` 成功（47s）；单启动器、脚本代理与播放器打包检查通过。
+  APK 为 `app/build/outputs/apk/debug/app-debug.apk`，生成于 `2026-09-14 23:06:02 +08:00`，
+  `481645788` 字节，`com.kiyori / 45 / 0.1.0 / arm64-v8a`；V2 单签名和 16 KiB ZIP 对齐通过，
+  `libkiyori_fileops.so` 已打包。
+  SHA-256：`8A4DDB6F72778FE1F03A7A0DD0E78401C3CAE136AADB6E675AD6ED2697E59772`。
+- 未运行 Lint、Release、设备安装或真实手机存储验收；自动化文件 IO 和 Android 属性模拟不替代
+  截图设备的原目录回收、恢复及永久删除复测。远端 CI 单独验收。
+
 ## 2026-09-13 首页密度与 HTML 浏览入口
 
 本轮与浏览器共同交付，方案、验证结果及设备边界统一记录在

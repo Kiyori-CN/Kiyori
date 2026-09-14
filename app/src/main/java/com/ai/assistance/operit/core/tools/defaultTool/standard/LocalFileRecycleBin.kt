@@ -20,7 +20,8 @@ internal object LocalFileRecycleBin {
         require(!actualRoot.startsWith(actualSource) && !actualSource.startsWith(actualRoot)) { "不能回收根目录、回收站或包含回收站的目录" }
         Files.createDirectories(root)
         check(root.toRealPath() == actualRoot) { "回收站位置已经变化，请重新检查" }
-        check(inspectManagedTree(source).fingerprint == fingerprint) { "项目已经变化，请重新检查" }
+        val confirmed = inspectManagedTree(source)
+        check(confirmed.fingerprint == fingerprint) { "项目已经变化，请重新检查" }
         val entry = Files.createDirectory(root.resolve(UUID.randomUUID().toString()))
         val metadata = Properties().apply {
             setProperty("path", source.toAbsolutePath().normalize().toString())
@@ -30,16 +31,16 @@ internal object LocalFileRecycleBin {
             java.io.FileOutputStream(entry.resolve("record.properties").toFile()).use { metadata.store(it, null); it.fd.sync() }
             commit(source, entry.resolve("payload"))
             // 移动后读取本身失败也必须报告保留位置，不能把已移走的源当作普通未执行失败。
-            val verified = try { inspectManagedTree(entry.resolve("payload")).fingerprint == fingerprint }
+            val change = try { managedTreeChangeAfterMove(confirmed, inspectManagedTree(entry.resolve("payload"))) }
             catch (failure: Exception) {
                 throw LocalCopyException(FileCopyErrorCode.FAILED, "项目已移入回收站，但复核失败，请检查回收内容", entry.toString(), failure)
             }
-            if (!verified) {
+            if (change != null) {
                 try { commit(entry.resolve("payload"), source) }
                 catch (restore: Exception) {
-                    throw LocalCopyException(FileCopyErrorCode.SOURCE_CHANGED, "项目发生变化，内容保留在回收站，请检查", entry.toString(), restore)
+                    throw LocalCopyException(FileCopyErrorCode.SOURCE_CHANGED, "项目发生变化（$change），内容保留在回收站，请检查", entry.toString(), restore)
                 }
-                throw IllegalStateException("项目发生变化，已恢复原位置，请重新检查")
+                throw IllegalStateException("项目发生变化（$change），已恢复原位置，请重新检查")
             }
         } catch (failure: Exception) {
             // 只有确认 payload 未产生才允许清理空记录，不删除状态不明的用户内容。

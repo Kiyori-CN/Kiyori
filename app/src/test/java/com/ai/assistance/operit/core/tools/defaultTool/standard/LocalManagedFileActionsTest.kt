@@ -7,6 +7,37 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
 
+/** Windows NIO 不提供 fileKey；只在故障注入中投影 Android 的稳定身份和 mtime 别名。
+ * 真实目录遍历、读写、移动与删除继续执行，Linux 使用原 key，Windows 用稳定 birthtime 作为夹具身份。
+ */
+internal fun withAndroidManagedAttributes(block: () -> Unit) {
+    fun androidAttributes(attributes: java.nio.file.attribute.BasicFileAttributes) =
+        object : java.nio.file.attribute.BasicFileAttributes by attributes {
+            override fun fileKey(): Any = attributes.fileKey() ?: attributes.creationTime()
+            override fun creationTime() = attributes.lastModifiedTime()
+        }
+    var walking = false
+    org.mockito.Mockito.mockStatic(Files::class.java) { invocation ->
+        if (invocation.method.name == "walkFileTree" && invocation.arguments.size == 4 && !walking) {
+            val visitor = invocation.getArgument<FileVisitor<Path>>(3)
+            // Windows 目录流可直接提供缓存属性，绕过 Files.readAttributes；两种读取路径须一致。
+            val androidVisitor = object : FileVisitor<Path> by visitor {
+                override fun preVisitDirectory(dir: Path, attrs: java.nio.file.attribute.BasicFileAttributes) =
+                    visitor.preVisitDirectory(dir, androidAttributes(attrs))
+                override fun visitFile(file: Path, attrs: java.nio.file.attribute.BasicFileAttributes) =
+                    visitor.visitFile(file, androidAttributes(attrs))
+            }
+            walking = true
+            try { Files.walkFileTree(invocation.getArgument(0), invocation.getArgument(1), invocation.getArgument(2), androidVisitor) }
+            finally { walking = false }
+        } else {
+            val result = invocation.callRealMethod()
+            if (invocation.method.name == "readAttributes" && result is java.nio.file.attribute.BasicFileAttributes)
+                androidAttributes(result) else result
+        }
+    }.use { block() }
+}
+
 class LocalManagedFileActionsTest {
 
     @Test fun `Android directory creation time alias does not reject own child deletions`() {
@@ -26,9 +57,96 @@ class LocalManagedFileActionsTest {
     @get:Rule val folder = TemporaryFolder()
     private val root get() = folder.root.toPath()
     private val commit: (Path, Path) -> Unit = { from, to -> Files.move(from, to) }
+    private fun attributes(directory: Boolean = true, key: String? = "inode", modified: Long = 10,
+        created: Long = modified, size: Long = 0): java.nio.file.attribute.BasicFileAttributes =
+        org.mockito.kotlin.mock<java.nio.file.attribute.BasicFileAttributes>().also {
+            org.mockito.kotlin.whenever(it.isDirectory).thenReturn(directory)
+            org.mockito.kotlin.whenever(it.isRegularFile).thenReturn(!directory)
+            org.mockito.kotlin.whenever(it.fileKey()).thenReturn(key)
+            org.mockito.kotlin.whenever(it.lastModifiedTime()).thenReturn(java.nio.file.attribute.FileTime.fromMillis(modified))
+            org.mockito.kotlin.whenever(it.creationTime()).thenReturn(java.nio.file.attribute.FileTime.fromMillis(created))
+            org.mockito.kotlin.whenever(it.size()).thenReturn(size)
+        }
+
+    private fun snapshot(vararg entries: Pair<String, java.nio.file.attribute.BasicFileAttributes>) =
+        ManagedSnapshot(entries.map { ManagedEntry(it.first, it.second) }.sortedBy { it.relative }, "unused")
+
+    @Test fun `moved root accepts Android mtime alias and stable true birth time`() {
+        assertNull(managedTreeChangeAfterMove(snapshot("" to attributes()), snapshot("" to attributes(modified = 20))))
+        assertNull(managedTreeChangeAfterMove(snapshot("" to attributes(created = 1)), snapshot("" to attributes(modified = 20, created = 1))))
+    }
+
+    @Test fun `moved root rejects replacement missing identity size type and true birth time changes`() {
+        val before = snapshot("" to attributes())
+        listOf(attributes(key = "replacement", modified = 20), attributes(size = 1, modified = 20),
+            attributes(directory = false), attributes(created = 2, modified = 20)).forEach { changed ->
+            assertNotNull(managedTreeChangeAfterMove(before, snapshot("" to changed)))
+        }
+        assertNotNull(managedTreeChangeAfterMove(snapshot("" to attributes(key = null)), snapshot("" to attributes(key = null, modified = 20))))
+        // 无 fileKey 的兼容读取仍可完整比较；只有时间变化时不能套用根目录豁免。
+        assertNull(managedTreeChangeAfterMove(snapshot("" to attributes(key = null)), snapshot("" to attributes(key = null))))
+        assertNotNull(managedTreeChangeAfterMove(snapshot("" to attributes(created = 1)), snapshot("" to attributes(created = 2))))
+    }
+
+    @Test fun `root regular files and descendant directories retain strict timestamps`() {
+        assertNotNull(managedTreeChangeAfterMove(snapshot("" to attributes(directory = false)),
+            snapshot("" to attributes(directory = false, modified = 20))))
+        assertNotNull(managedTreeChangeAfterMove(snapshot("" to attributes(), "child" to attributes()),
+            snapshot("" to attributes(modified = 20), "child" to attributes(modified = 20))))
+    }
+
+    @Test fun `moved tree compares every relative path and entry count`() {
+        val before = snapshot("" to attributes(), "old" to attributes(directory = false))
+        assertNotNull(managedTreeChangeAfterMove(before, snapshot("" to attributes())))
+        assertNotNull(managedTreeChangeAfterMove(before, snapshot("" to attributes(), "renamed" to attributes(directory = false))))
+        assertNotNull(managedTreeChangeAfterMove(before, snapshot("" to attributes(), "old" to attributes(directory = false), "new" to attributes())))
+    }
+
     private fun tree(): Path = Files.createDirectories(root.resolve("资料/empty")).parent.also {
         Files.write(it.resolve("内容.txt"), "abc".toByteArray())
     }
+    @Test fun `permanent directory delete tolerates F2FS root mtime update during isolation`() = withAndroidManagedAttributes {
+        val source = tree()
+        deleteManagedEntry(source, inspectManagedTree(source).fingerprint) { from, to ->
+            commit(from, to)
+            Files.setLastModifiedTime(to, java.nio.file.attribute.FileTime.fromMillis(1234567890000))
+        }
+        assertFalse(Files.exists(source))
+        assertTrue(folder.root.list()!!.isEmpty())
+    }
+
+    @Test fun `real descendant changes during directory isolation are restored without deleting bytes`() = withAndroidManagedAttributes {
+        val source = tree()
+        var first = true
+        val error = assertThrows(java.io.IOException::class.java) {
+            deleteManagedEntry(source, inspectManagedTree(source).fingerprint) { from, to ->
+                commit(from, to)
+                if (first) {
+                    first = false
+                    Files.writeString(to.resolve("内容.txt"), "changed bytes")
+                    Files.setLastModifiedTime(to, java.nio.file.attribute.FileTime.fromMillis(1234567890000))
+                }
+            }
+        }
+        assertTrue(error.message!!.contains("内容.txt"))
+        assertEquals("changed bytes", Files.readString(source.resolve("内容.txt")))
+        assertTrue(Files.isDirectory(source.resolve("empty")))
+        assertEquals(listOf("资料"), folder.root.list()!!.toList())
+    }
+
+    @Test fun `replacement created at original path survives successful directory deletion`() = withAndroidManagedAttributes {
+        val source = tree()
+        deleteManagedEntry(source, inspectManagedTree(source).fingerprint) { from, to ->
+            commit(from, to)
+            Files.createDirectory(source)
+            Files.writeString(source.resolve("new.txt"), "new owner")
+            Files.setLastModifiedTime(to, java.nio.file.attribute.FileTime.fromMillis(1234567890000))
+        }
+        assertEquals("new owner", Files.readString(source.resolve("new.txt")))
+        assertEquals(listOf("new.txt"), source.toFile().list()!!.toList())
+        assertEquals(listOf("资料"), folder.root.list()!!.toList())
+    }
+
     @Test fun `inspection counts full tree and metadata changes invalidate fingerprint`() {
         val source = tree()
         val before = inspectManagedTree(source)
