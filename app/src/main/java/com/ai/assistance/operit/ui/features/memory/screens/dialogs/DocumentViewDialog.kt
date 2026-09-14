@@ -24,7 +24,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -49,16 +49,28 @@ fun DocumentViewDialog(
     onDismiss: () -> Unit,
     onSave: () -> Unit,
     onDelete: () -> Unit,
+    isSaving: Boolean = false,
+    error: String? = null,
     folderPath: String = "" // 添加文件夹路径参数
 ) {
+    var confirmDelete by remember { mutableStateOf(false) }
+    if (confirmDelete) {
+        AlertDialog(onDismissRequest = { confirmDelete = false },
+            title = { Text(stringResource(R.string.memory_delete_document)) },
+            text = { Text(stringResource(R.string.library_delete_confirm)) },
+            confirmButton = { Button(onClick = onDelete) { Text(stringResource(R.string.memory_delete)) } },
+            dismissButton = { OutlinedButton(onClick = { confirmDelete = false }) { Text(stringResource(R.string.memory_cancel)) } })
+        return
+    }
     val keyboardController = LocalSoftwareKeyboardController.current
 
     AlertDialog(
         modifier = Modifier.fillMaxHeight(0.85f),
-        onDismissRequest = onDismiss,
+        onDismissRequest = { if (!isSaving) onDismiss() },
         shape = KiyoriUiShapes.dialog,
         title = {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                 OutlinedTextField(
                     value = memoryTitle,
                     onValueChange = onTitleChange,
@@ -127,7 +139,7 @@ fun DocumentViewDialog(
             }
         },
         dismissButton = {
-             OutlinedButton(onClick = onDismiss, shape = KiyoriUiShapes.control) {
+             OutlinedButton(onClick = onDismiss, enabled = !isSaving, shape = KiyoriUiShapes.control) {
                 Text(stringResource(R.string.memory_close))
             }
         },
@@ -136,11 +148,12 @@ fun DocumentViewDialog(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.Start)
             ) {
-                Button(onClick = onSave, shape = KiyoriUiShapes.control) {
+                Button(onClick = onSave, enabled = !isSaving, shape = KiyoriUiShapes.control) {
                     Text(stringResource(R.string.memory_save_all))
                 }
                 Button(
-                    onClick = onDelete,
+                    onClick = { confirmDelete = true },
+                    enabled = !isSaving,
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                     , shape = KiyoriUiShapes.control
                 ) {

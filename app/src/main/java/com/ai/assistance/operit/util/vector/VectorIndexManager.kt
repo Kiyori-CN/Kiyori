@@ -7,6 +7,8 @@ import java.io.File
 import java.io.ObjectInputStream
 import java.io.ObjectOutputStream
 import java.io.IOException
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 
 /**
  * 精简的HNSW向量索引管理器，支持初始化、添加、查询、保存、加载。
@@ -25,17 +27,8 @@ class VectorIndexManager<T : Item<Id, FloatArray>, Id : Any>(
     /** 初始化索引（新建或加载） */
     fun initIndex() {
         index = if (indexFile != null && indexFile.exists()) {
-            try {
-                readPersistedIndex(indexFile)
-            } catch (e: Exception) {
-                com.ai.assistance.operit.util.AppLogger.e("VectorIndexManager", "Failed to load index, creating new one.", e)
-                // 如果加载失败，删除可能已损坏的文件并创建一个新的
-                indexFile.delete()
-                HnswIndex
-                    .newBuilder(dimensions, DistanceFunctions.FLOAT_COSINE_DISTANCE, maxElements)
-                    .withRemoveEnabled()
-                    .build()
-            }
+            // 损坏必须被调用者看到；空索引不能伪装成成功加载。
+            readPersistedIndex(indexFile)
         } else {
             HnswIndex
                 .newBuilder(dimensions, DistanceFunctions.FLOAT_COSINE_DISTANCE, maxElements)
@@ -86,12 +79,13 @@ class VectorIndexManager<T : Item<Id, FloatArray>, Id : Any>(
     /** 保存索引到文件 */
     fun save() {
         if (indexFile != null && index != null) {
+            indexFile.parentFile?.mkdirs()
+            val temporary = File.createTempFile("vector-", ".tmp", indexFile.parentFile)
             try {
-                // 确保父目录存在
-                indexFile.parentFile?.mkdirs()
-                ObjectOutputStream(indexFile.outputStream()).use { it.writeObject(index) }
-            } catch (e: IOException) {
-                com.ai.assistance.operit.util.AppLogger.e("VectorIndexManager", "Failed to save index to ${indexFile.absolutePath}", e)
+                ObjectOutputStream(temporary.outputStream()).use { it.writeObject(index) }
+                Files.move(temporary.toPath(), indexFile.toPath(), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING)
+            } finally {
+                temporary.delete()
             }
         }
     }
@@ -100,4 +94,4 @@ class VectorIndexManager<T : Item<Id, FloatArray>, Id : Any>(
     fun close() {
         index = null
     }
-} 
+}

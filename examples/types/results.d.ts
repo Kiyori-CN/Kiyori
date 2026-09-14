@@ -1964,6 +1964,11 @@ export interface ChatMessagesResult extends BaseResult {
  * Single memory item returned by memory query
  */
 export interface MemoryQueryResultMemoryInfo {
+    uuid?: string;
+    libraryKind?: "memory" | "knowledge";
+    category?: string;
+    updatedAt?: string;
+    archived?: boolean;
     /** Memory title */
     title: string;
     /** Memory content or formatted document chunk summary */

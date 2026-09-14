@@ -1447,7 +1447,12 @@ data class MemoryQueryResultData(
         val tags: List<String>,
         val createdAt: String,
         val chunkInfo: String? = null,
-        val chunkIndices: List<Int>? = null
+        val chunkIndices: List<Int>? = null,
+        val uuid: String = "",
+        val libraryKind: String = "memory",
+        val category: String = "other",
+        val updatedAt: String = "",
+        val archived: Boolean = false
     )
 
     override fun toString(): String {
@@ -1472,6 +1477,9 @@ data class MemoryQueryResultData(
         }
         val memoryText = memories.joinToString("\n---\n") { memory ->
             """
+            UUID: ${memory.uuid}
+            Kind: ${memory.libraryKind}; category: ${memory.category}; archived: ${memory.archived}
+            Updated: ${memory.updatedAt}
             Title: ${memory.title}
             Content: ${memory.content}
             Source: ${memory.source}

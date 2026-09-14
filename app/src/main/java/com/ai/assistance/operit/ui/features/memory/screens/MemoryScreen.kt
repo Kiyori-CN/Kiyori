@@ -1,5 +1,8 @@
 package com.ai.assistance.operit.ui.features.memory.screens
 
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
@@ -216,7 +219,16 @@ fun MemoryScreen() {
                                 val inputStream =
                                     context.contentResolver.openInputStream(fileUri)
                                         ?: throw IOException("ContentResolver returned no input stream")
-                                inputStream.bufferedReader().use { reader -> reader.readText() }
+                                inputStream.bufferedReader().use { reader ->
+                                    val buffer = CharArray(8192)
+                                    val text = StringBuilder()
+                                    while (true) {
+                                        val count = reader.read(buffer)
+                                        if (count < 0) break
+                                        require(text.length + count <= 2_000_000) { "文档超过 200 万字符，请拆分后导入" }
+                                        text.append(buffer, 0, count)
+                                    }
+                                    text.toString() }
                             }
                             viewModel.importDocument(fileName, fileUri.toString(), content)
                         } else {
@@ -242,7 +254,15 @@ fun MemoryScreen() {
                                         ?: throw IOException("ContentResolver returned no input stream")
                                 inputStream.use { input ->
                                     FileOutputStream(tempFile).use { output ->
-                                        input.copyTo(output)
+                                        val buffer = ByteArray(8192)
+                                        var copied = 0L
+                                        while (true) {
+                                            val count = input.read(buffer)
+                                            if (count < 0) break
+                                            copied += count
+                                            require(copied <= 32L * 1024 * 1024) { "资料超过 32 MB，请拆分后导入" }
+                                            output.write(buffer, 0, count)
+                                        }
                                     }
                                 }
                             }
@@ -313,6 +333,7 @@ fun MemoryScreen() {
                     }
                 }
 
+                if (uiState.showGraph) {
                 // 框选模式切换按钮
                 FloatingActionButton(
                     onClick = {
@@ -341,27 +362,6 @@ fun MemoryScreen() {
                 ) {
                     Icon(Icons.Default.Link, contentDescription = "Toggle Linking Mode")
                 }
-                FloatingActionButton(
-                    onClick = {
-                        filePickerLauncher.launch(
-                            arrayOf(
-                                "text/*",
-                                "application/pdf",
-                                "application/msword",
-                                "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                            )
-                        )
-                    },
-                    modifier = Modifier.size(48.dp),
-                    containerColor = MaterialTheme.colorScheme.tertiaryContainer
-                ) {
-                    Icon(Icons.Outlined.UploadFile, contentDescription = "Import Document")
-                }
-                FloatingActionButton(
-                    onClick = { viewModel.startEditing(null) },
-                    modifier = Modifier.size(48.dp)
-                ) {
-                    Icon(Icons.Outlined.Add, contentDescription = "Create Memory")
                 }
             }
         }
@@ -372,44 +372,18 @@ fun MemoryScreen() {
                 .fillMaxSize()
         ) {
 
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-            ) {
-                MemorySearchBar(
-                    query = uiState.searchQuery,
-                    onQueryChange = { viewModel.onSearchQueryChange(it) },
-                    onSearch = {
-                        keyboardController?.hide()
-                        viewModel.searchMemories()
-                    },
-                    onSettingsClick = { viewModel.showSearchSettingsDialog(true) },
-                    onMenuClick = { showFolderNavigator = !showFolderNavigator }
-                )
-
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxSize()
-                ) {
-                    // 图谱区域（始终挂载，避免 isLoading 切换时重建 GraphVisualizer）
-                    GraphVisualizer(
-                        graph = uiState.graph,
-                        modifier = Modifier.fillMaxSize(),
-                        selectedNodeId = uiState.selectedNodeId,
-                        boxSelectedNodeIds = uiState.boxSelectedNodeIds, // 传递框选节点
-                        isBoxSelectionMode = uiState.isBoxSelectionMode, // 传递模式状态
-                        linkingNodeIds = uiState.linkingNodeIds,
-                        selectedEdgeId = uiState.selectedEdge?.id,
-                        onNodeClick = { node -> viewModel.selectNode(node) },
-                        onEdgeClick = { edge -> viewModel.selectEdge(edge) },
-                        onNodesSelected = { nodeIds -> viewModel.addNodesToSelection(nodeIds) } // 传递回调
-                    )
-
-                    if (uiState.isLoading) {
-                        CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
-                    }
+            MemoryLibraryContent(
+                state = uiState,
+                viewModel = viewModel,
+                spaceName = profileNameMap[selectedProfileId] ?: selectedProfileId,
+                onFolders = { showFolderNavigator = true },
+                onImport = {
+                    filePickerLauncher.launch(arrayOf("text/*", "application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"))
                 }
+            )
+            BackHandler(enabled = isCurrentScreen && showFolderNavigator) { showFolderNavigator = false }
+            if (showFolderNavigator) {
+                Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.45f)).clickable { showFolderNavigator = false })
             }
             // 左侧文件夹导航 (Overlay)
             AnimatedVisibility(
@@ -420,7 +394,7 @@ fun MemoryScreen() {
                 FolderNavigator(
                     folderPaths = uiState.folderPaths,
                     selectedFolderPath = uiState.selectedFolderPath,
-                    onFolderSelected = { folderPath -> viewModel.selectFolder(folderPath) },
+                    onFolderSelected = { folderPath -> viewModel.selectFolder(folderPath); showFolderNavigator = false },
                     onFolderRename = { oldPath, newPath ->
                         viewModel.renameFolder(
                             oldPath,
@@ -473,7 +447,10 @@ fun MemoryScreen() {
                     cloudConfig = uiState.cloudEmbeddingConfig,
                     dimensionUsage = uiState.embeddingDimensionUsage,
                     rebuildProgress = uiState.embeddingRebuildProgress,
-                    error = uiState.error,
+                    error = uiState.embeddingUsageError ?: uiState.error,
+                    isUsageLoading = uiState.isEmbeddingUsageLoading,
+                    isSaving = uiState.isSaving,
+                    onRetryUsage = viewModel::refreshEmbeddingDimensionUsage,
                     isRebuilding = uiState.isEmbeddingRebuildRunning,
                     onDismiss = { viewModel.showSearchSettingsDialog(false) },
                     onSave = {
@@ -487,7 +464,6 @@ fun MemoryScreen() {
                             autoSaveIntervalMinutes,
                             memoryExtractionCustomRules
                         )
-                        viewModel.searchMemories()
                     },
                     onRebuild = { viewModel.rebuildVectorIndex() },
                     onSimulateSearch = { viewModel.openSearchSimulationDialog() }
@@ -507,17 +483,16 @@ fun MemoryScreen() {
             }
 
             if (uiState.isDocumentViewOpen && uiState.selectedMemory != null) {
-                var memoryTitle by remember { mutableStateOf(uiState.selectedMemory!!.title) }
-                val chunkStates = remember {
+                var memoryTitle by remember(uiState.selectedMemory?.id) { mutableStateOf(uiState.selectedMemory!!.title) }
+                val chunkStates = remember(uiState.selectedMemory?.id) {
                     mutableStateMapOf<Long, String>().apply {
                         uiState.selectedDocumentChunks.forEach { put(it.id, it.content) }
                     }
                 }
                 // 当chunks列表变化时，同步状态
                 LaunchedEffect(uiState.selectedDocumentChunks) {
-                    chunkStates.clear()
                     uiState.selectedDocumentChunks.forEach { chunk ->
-                        chunkStates[chunk.id] = chunk.content
+                        if (chunk.id !in chunkStates) chunkStates[chunk.id] = chunk.content
                     }
                 }
 
@@ -531,31 +506,9 @@ fun MemoryScreen() {
                     onSearchQueryChange = { viewModel.onDocumentSearchQueryChange(it) },
                     onPerformSearch = { viewModel.performSearchInDocument() },
                     onDismiss = { viewModel.closeDocumentView() },
-                    onSave = {
-                        // 保存标题
-                        if (memoryTitle != uiState.selectedMemory!!.title) {
-                            viewModel.updateMemory(
-                                memory = uiState.selectedMemory!!,
-                                newTitle = memoryTitle,
-                                newContent = uiState.selectedMemory!!.content,
-                                newContentType = uiState.selectedMemory!!.contentType,
-                                newSource = uiState.selectedMemory!!.source,
-                                newCredibility = uiState.selectedMemory!!.credibility,
-                                newImportance = uiState.selectedMemory!!.importance,
-                                newFolderPath = uiState.selectedMemory!!.folderPath ?: "",
-                                newTags = uiState.selectedMemory!!.tags.map { it.name }
-                            )
-                        }
-                        // 保存有变动的chunks
-                        chunkStates.forEach { (id, content) ->
-                            val originalContent =
-                                uiState.selectedDocumentChunks.find { it.id == id }?.content
-                            if (content != originalContent) {
-                                viewModel.updateChunkContent(id, content)
-                            }
-                        }
-                        viewModel.closeDocumentView()
-                    },
+                    isSaving = uiState.isSaving,
+                    error = uiState.error,
+                    onSave = { viewModel.saveDocument(memoryTitle, chunkStates.toMap()) },
                     onDelete = { viewModel.deleteMemory(uiState.selectedMemory!!.id) },
                     folderPath = uiState.selectedMemory?.folderPath ?: ""
                 )
@@ -609,12 +562,15 @@ fun MemoryScreen() {
             if (uiState.isEditing) {
                 EditMemoryDialog(
                     memory = uiState.editingMemory,
+                    initialFolderPath = uiState.selectedFolderPath,
                     allFolderPaths = uiState.folderPaths,
+                    isSaving = uiState.isSaving,
+                    error = uiState.error,
                     onDismiss = { viewModel.cancelEditing() },
-                    onSave = { memory, title, content, contentType, source, credibility, importance, folderPath, tags ->
+                    onSave = { memory, title, content, contentType, source, credibility, importance, folderPath, tags, category ->
                         if (memory == null) {
                             // 创建新记忆的逻辑（如果需要的话）
-                             viewModel.createMemory(title, content, contentType)
+                             viewModel.createMemory(title, content, contentType, source, credibility, importance, folderPath, tags, category)
                         } else {
                             viewModel.updateMemory(
                                 memory = memory,
@@ -625,7 +581,8 @@ fun MemoryScreen() {
                                 newCredibility = credibility,
                                 newImportance = importance,
                                 newFolderPath = folderPath,
-                                newTags = tags
+                                newTags = tags,
+                                newCategory = category
                             )
                         }
                     }

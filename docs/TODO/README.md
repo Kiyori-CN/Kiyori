@@ -30,6 +30,7 @@
 | AI 运行 | [中断恢复](ai_interrupted_turn_recovery/index.md) · [模型能力](unified_model_capability_and_resumable_execution/index.md) | 提交、取消、重放和工具闭合 |
 | AI 渲染 | [渲染可靠性](ai_chat_rendering_reliability/index.md) | Markdown、公式和工具内容边界 |
 | AI 体验 | [对话全界面与交互优化](ai_chat_experience_refinement/index.md) | 输入、消息、历史、小窗、语音与可达子页 |
+| 记忆与知识 | [记忆与知识库重构](memory_knowledge_refinement/index.md) | 分层阅读、整理、来源、检索与索引生命周期 |
 | AI 配置 | [供应商与协议](api_provider_configuration_redesign/index.md) | 配置来源、请求编译与 UI |
 | 扩展 | [内置脚本契约](kiyori_extension_script_brand_migration/index.md) · [Bilibili](bilibili_toolkit/index.md) · [Windows 工具包](windows_toolkit_refinement/index.md) | 品牌、宿主变量与远程连接 |
 | 办公 | [办公文档套件](office_document_suite/index.md) | 多模态页图、原生对象、增量编辑与放映验收 |

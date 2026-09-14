@@ -26,6 +26,13 @@ data class Memory(
 
     // --- 元数据 (Metadata) ---
     var source: String = "unknown", // 来源 (e.g., "user_input", "chat_summary", "web_scrape")
+    // ObjectBox 为旧记录缺失的属性传入 null，不会调用 Kotlin 默认参数。
+    // 必须在持久化边界接收 null，再由 MemoryLibraryPolicy 解释，不能依赖读库后的迁移救场。
+    var libraryKind: String? = null,
+    var category: String? = null,
+    var archived: Boolean = false,
+    var embeddingModelKey: String? = null,
+    var embeddingContentHash: String? = null,
     var credibility: Float = 0.5f, // 可信度 (0.0 to 1.0)
     var importance: Float = 0.5f,  // 重要性 (0.0 to 1.0)
 
@@ -110,4 +117,4 @@ data class MemoryProperty(
     @Id var id: Long = 0,
     var key: String = "",
     var value: String = ""
-) 
+)

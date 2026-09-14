@@ -34,6 +34,7 @@
 | 扩展 | PackageManager、ToolPkgManager、SkillManager、MCPManager 各自管理所属 registry 与生命周期 | [扩展与工作区](docs/doc-src/contracts/extensions_workspace.md) |
 | 平台 | `KiyoriPaths`、`KiyoriLogger`、权限目录及终端分别持有路径、日志、权限事实和会话 | [平台与存储](docs/doc-src/contracts/platform_storage.md) |
 | AI 产物 | `KiyoriArtifactStoragePolicy` 持有默认保存偏好；`ArtifactStorageAccess` 只投影已有对话工作区，工具不复制路径状态 | [产物存储](docs/doc-src/contracts/artifact_storage.md) |
+| 记忆与知识 | `MemoryRepository` 持有同一空间内的记忆、知识、归档、关系和派生向量；`user.md` 仍由用户档案所有者维护 | [记忆与知识](docs/doc-src/architecture/memory_knowledge.md) |
 
 ## 高频不变量
 

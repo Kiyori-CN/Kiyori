@@ -16,6 +16,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -29,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.data.model.Memory
 import com.kiyori.capability.ai.memory.MemoryGraphEdge
+import androidx.compose.foundation.text.selection.SelectionContainer
 import java.text.SimpleDateFormat
 import java.util.Locale
 import com.kiyori.design.theme.KiyoriUiShapes
@@ -41,6 +43,15 @@ fun MemoryInfoDialog(
         onEdit: () -> Unit,
         onDelete: () -> Unit
 ) {
+    var confirmDelete by remember { mutableStateOf(false) }
+    if (confirmDelete) {
+        AlertDialog(onDismissRequest = { confirmDelete = false },
+            title = { Text(stringResource(R.string.memory_delete)) },
+            text = { Text(stringResource(R.string.library_delete_confirm)) },
+            confirmButton = { Button(onClick = { confirmDelete = false; onDelete() }) { Text(stringResource(R.string.memory_delete)) } },
+            dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text(stringResource(R.string.memory_cancel)) } })
+        return
+    }
     val currentLocale = LocalConfiguration.current.locales[0]
     val scrollState = rememberScrollState()
     val dateFormat = remember(currentLocale) { SimpleDateFormat("yyyy-MM-dd HH:mm:ss", currentLocale) }
@@ -57,9 +68,9 @@ fun MemoryInfoDialog(
                     Text("${stringResource(R.string.memory_title)}: ${memory.title}", style = MaterialTheme.typography.titleMedium)
                     HorizontalDivider()
                     Text(stringResource(R.string.memory_content) + ":", style = MaterialTheme.typography.titleSmall)
-                    Text(memory.content)
+                    SelectionContainer { Text(memory.content) }
                     HorizontalDivider()
-                    Text("${stringResource(R.string.memory_folder)}: ${memory.folderPath?.ifEmpty { stringResource(R.string.memory_uncategorized) }}", style = MaterialTheme.typography.bodySmall)
+                    Text("${stringResource(R.string.memory_folder)}: ${memory.folderPath?.takeIf { it.isNotEmpty() } ?: stringResource(R.string.memory_uncategorized)}", style = MaterialTheme.typography.bodySmall)
                     Text("${stringResource(R.string.memory_uuid)}: ${memory.uuid}", style = MaterialTheme.typography.bodySmall)
                     Text("${stringResource(R.string.memory_source)}: ${memory.source}", style = MaterialTheme.typography.bodySmall)
                     Text(
@@ -88,7 +99,7 @@ fun MemoryInfoDialog(
                 ) {
                     Button(onClick = onEdit, shape = KiyoriUiShapes.control) { Text(stringResource(R.string.memory_edit)) }
                     Button(
-                            onClick = onDelete,
+                            onClick = { confirmDelete = true },
                             colors =
                                     ButtonDefaults.buttonColors(
                                             containerColor = MaterialTheme.colorScheme.error

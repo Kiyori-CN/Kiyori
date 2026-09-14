@@ -1,6 +1,8 @@
 package com.ai.assistance.operit.api.chat.library
 
 import android.content.Context
+import com.ai.assistance.operit.data.preferences.ApiPreferences
+import kotlinx.coroutines.CancellationException
 import com.ai.assistance.operit.api.chat.EnhancedAIService
 import com.ai.assistance.operit.core.tools.AIToolHandler
 import com.ai.assistance.operit.data.db.AppDatabase
@@ -97,8 +99,11 @@ class MemoryAutoSaveScheduler(
             }
 
             val repository = MemoryAutoSaveCandidateRepository(context, profileId)
-            val allCandidates = repository.getPendingAndFailedCandidates()
-            if (allCandidates.size < MIN_TOTAL_CANDIDATES_TO_EXTRACT) {
+            val automaticEnabled = ApiPreferences.getInstance(context).enableMemoryAutoUpdateFlow.first()
+            val allCandidates = repository.getPendingAndFailedCandidates().filter {
+                automaticEnabled || MemoryAutoSaveCandidate.isSelectedUserMessageSource(it.sourceType)
+            }
+            if (allCandidates.size < MIN_TOTAL_CANDIDATES_TO_EXTRACT && allCandidates.none { MemoryAutoSaveCandidate.isSelectedUserMessageSource(it.sourceType) }) {
                 val nextRunAt = System.currentTimeMillis() + intervalMs
                 AppLogger.d(
                     TAG,
@@ -282,13 +287,17 @@ class MemoryAutoSaveScheduler(
                 conversationHistory = conversationHistory,
                 content = memoryContent,
                 aiService = memoryService,
-                profileIdOverride = profileId
+                profileIdOverride = profileId,
+                sourceReference = "chat:$chatId"
             )
             repository.deleteCandidates(candidateIds)
             AppLogger.d(
                 TAG,
                 "长期记忆候选处理成功: profileId=$profileId, chatId=$chatId, candidates=${candidateIds.size}"
             )
+        } catch (e: CancellationException) {
+            repository.markPending(candidateIds)
+            throw e
         } catch (e: Exception) {
             AppLogger.e(TAG, "长期记忆候选处理失败: profileId=$profileId, chatId=$chatId", e)
             repository.markFailed(candidateIds, e.message ?: e.javaClass.simpleName)

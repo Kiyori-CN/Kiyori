@@ -1,1 +1,5 @@
 /build
+# ObjectBox desktop JNI extracted by native database regression tests.
+/objectbox-jni-*.dll
+/libobjectbox-jni-*.so
+/libobjectbox-jni-*.dylib

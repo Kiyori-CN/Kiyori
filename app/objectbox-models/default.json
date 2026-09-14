@@ -5,7 +5,7 @@
   "entities": [
     {
       "id": "4:436170976169106389",
-      "lastPropertyId": "18:922202430495048179",
+      "lastPropertyId": "23:506109609816929504",
       "name": "Memory",
       "properties": [
         {
@@ -90,6 +90,31 @@
           "indexId": "11:2813254995734630837",
           "type": 9,
           "flags": 2048
+        },
+        {
+          "id": "19:5994108071576604707",
+          "name": "libraryKind",
+          "type": 9
+        },
+        {
+          "id": "20:225845795772432434",
+          "name": "category",
+          "type": 9
+        },
+        {
+          "id": "21:469704387505103901",
+          "name": "archived",
+          "type": 1
+        },
+        {
+          "id": "22:2382568757486798467",
+          "name": "embeddingModelKey",
+          "type": 9
+        },
+        {
+          "id": "23:506109609816929504",
+          "name": "embeddingContentHash",
+          "type": 9
         }
       ],
       "relations": [
@@ -208,7 +233,7 @@
     },
     {
       "id": "8:8096758593736417444",
-      "lastPropertyId": "5:7264156365493012783",
+      "lastPropertyId": "7:1264119952586819742",
       "name": "DocumentChunk",
       "properties": [
         {
@@ -239,6 +264,16 @@
           "type": 11,
           "flags": 520,
           "relationTarget": "Memory"
+        },
+        {
+          "id": "6:3797354236294728679",
+          "name": "embeddingModelKey",
+          "type": 9
+        },
+        {
+          "id": "7:1264119952586819742",
+          "name": "embeddingContentHash",
+          "type": 9
         }
       ],
       "relations": []

@@ -1,6 +1,10 @@
 package com.ai.assistance.operit.ui.features.memory.screens.dialogs
 
 import android.widget.Toast
+import com.ai.assistance.operit.data.preferences.ApiPreferences
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -27,6 +31,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -62,6 +67,9 @@ fun MemorySearchSettingsDialog(
     rebuildProgress: EmbeddingRebuildProgress,
     error: String?,
     isRebuilding: Boolean,
+    isSaving: Boolean = false,
+    isUsageLoading: Boolean = false,
+    onRetryUsage: () -> Unit = {},
     onDismiss: () -> Unit,
     onSave: (MemorySearchConfig, CloudEmbeddingConfig, Int, String) -> Unit,
     onRebuild: () -> Unit,
@@ -90,7 +98,9 @@ fun MemorySearchSettingsDialog(
     var cloudEndpointError by remember(cloudConfig) { mutableStateOf<String?>(null) }
 
     val context = LocalContext.current
-    val settingsSavedMessage = stringResource(R.string.settings_saved)
+    val apiPreferences = remember(context) { ApiPreferences.getInstance(context) }
+    val automaticEnabled by apiPreferences.enableMemoryAutoUpdateFlow.collectAsState(initial = false)
+    val settingsScope = rememberCoroutineScope()
     val endpointBlankError = stringResource(R.string.memory_embedding_cloud_endpoint_error_blank)
     val endpointSchemeError = stringResource(R.string.memory_embedding_cloud_endpoint_error_scheme)
     val endpointMultipleUrlsError = stringResource(R.string.memory_embedding_cloud_endpoint_error_multiple_urls)
@@ -121,6 +131,12 @@ fun MemorySearchSettingsDialog(
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(stringResource(R.string.library_auto_save), modifier = Modifier.weight(1f))
+                    Switch(checked = automaticEnabled, onCheckedChange = { enabled -> settingsScope.launch { apiPreferences.saveEnableMemoryAutoUpdate(enabled) } })
+                }
+                Text(stringResource(R.string.library_auto_hint), style = MaterialTheme.typography.bodySmall)
+                Text(stringResource(R.string.library_cloud_notice), style = MaterialTheme.typography.bodyMedium)
                 SettingsSection(title = stringResource(R.string.memory_search_weight_section)) {
                     SliderSettingItem(
                         title = stringResource(R.string.memory_search_keyword_weight),
@@ -267,6 +283,13 @@ fun MemorySearchSettingsDialog(
                 }
 
                 SettingsSection(title = stringResource(R.string.memory_embedding_dimension_usage)) {
+                    if (isUsageLoading) {
+                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                        Text(stringResource(R.string.library_index_usage_loading))
+                    }
+                    TextButton(onClick = onRetryUsage, enabled = !isUsageLoading && !isRebuilding) {
+                        Text(stringResource(R.string.library_refresh))
+                    }
                     DimensionUsageBlock(
                         title = stringResource(
                             R.string.memory_embedding_dimension_memory_summary,
@@ -339,6 +362,7 @@ fun MemorySearchSettingsDialog(
         },
         confirmButton = {
             Button(
+                enabled = !isSaving,
                 onClick = {
                     val endpointValidationError = validateCloudEmbeddingEndpoint(
                         endpoint = endpoint,
@@ -364,7 +388,6 @@ fun MemorySearchSettingsDialog(
                         editedAutoSaveIntervalMinutes.roundToInt(),
                         editedMemoryExtractionCustomRules
                     )
-                    Toast.makeText(context, settingsSavedMessage, Toast.LENGTH_SHORT).show()
                 }
             ) {
                 Text(stringResource(R.string.memory_save))

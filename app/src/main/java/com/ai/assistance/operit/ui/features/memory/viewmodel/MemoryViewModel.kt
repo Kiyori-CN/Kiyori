@@ -6,6 +6,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.ai.assistance.operit.data.model.Memory
+import com.ai.assistance.operit.data.model.MemoryLibraryPolicy
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.CancellationException
 import com.ai.assistance.operit.data.model.DocumentChunk
 import com.ai.assistance.operit.data.model.CloudEmbeddingConfig
 import com.ai.assistance.operit.data.model.EmbeddingDimensionUsage
@@ -34,6 +37,16 @@ import java.util.concurrent.atomic.AtomicLong
 
 /** Memory UI State Represents the current state of the Memory screen. */
 data class MemoryUiState(
+        val libraryKind: String = MemoryLibraryPolicy.MEMORY,
+        val showArchived: Boolean = false,
+        val showGraph: Boolean = false,
+        val categoryFilter: String? = null,
+        val tagFilter: String? = null,
+        val sortByTitle: Boolean = false,
+        val availableTags: List<String> = emptyList(),
+        val isSaving: Boolean = false,
+        val embeddingUsageError: String? = null,
+        val isEmbeddingUsageLoading: Boolean = false,
         val memories: List<Memory> = emptyList(), // Keep for potential list view
         val graph: Graph = Graph(emptyList(), emptyList()),
         val selectedMemory: Memory? = null,
@@ -105,83 +118,135 @@ class MemoryViewModel(
     private val searchSettingsPreferences = MemorySearchSettingsPreferences(context, profileId)
     /** 搜索、文件夹切换和刷新可能重叠；旧图谱不能覆盖最新查询结果。 */
     private val searchGeneration = AtomicLong(0)
+    private var searchJob: Job? = null
+    private var embeddingUsageJob: Job? = null
     private val simulationGeneration = AtomicLong(0)
     private val documentSearchGeneration = AtomicLong(0)
 
     init {
         loadSearchSettings()
         loadCloudEmbeddingSettings()
-        refreshEmbeddingDimensionUsage()
+        // 索引统计仅在设置打开时扫描，普通列表首屏不读取整库向量。
         // Initially load the graph
         loadMemoryGraph()
         loadFolderPaths()
     }
 
     private suspend fun refreshGraph(): Graph {
-        val selectedFolder = _uiState.value.selectedFolderPath
-        val graph = if (selectedFolder.isEmpty()) {
-            repository.getMemoryGraph()
-        } else {
-            repository.getGraphForFolder(selectedFolder)
+        val generation = searchGeneration.get()
+        val snapshot = _uiState.value
+        val config = snapshot.searchConfig
+        val scopeMemories = repository.searchMemories(
+            query = snapshot.searchQuery,
+            folderPath = snapshot.selectedFolderPath.takeIf { it.isNotBlank() },
+            scoreMode = config.scoreMode,
+            keywordWeight = config.keywordWeight,
+            tagWeight = config.tagWeight,
+            semanticWeight = config.vectorWeight,
+            edgeWeight = config.edgeWeight,
+            libraryKind = snapshot.libraryKind,
+            archived = snapshot.showArchived
+        )
+        val availableTags = withContext(Dispatchers.IO) {
+            scopeMemories.flatMap { memory -> memory.tags.map { it.name } }.distinct().sorted()
         }
+        val memories = withContext(Dispatchers.IO) { scopeMemories.filter { memory ->
+            (snapshot.categoryFilter == null || MemoryLibraryPolicy.category(memory) == snapshot.categoryFilter) &&
+                (snapshot.tagFilter == null || memory.tags.any { it.name == snapshot.tagFilter })
+        }.let { records ->
+            when {
+                snapshot.sortByTitle -> records.sortedBy { it.title.lowercase() }
+                snapshot.searchQuery.isBlank() -> records.sortedByDescending { it.updatedAt.time }
+                else -> records
+            }
+        }
+        }
+        if (searchGeneration.get() == generation && _uiState.value.searchQuery == snapshot.searchQuery &&
+            _uiState.value.selectedFolderPath == snapshot.selectedFolderPath &&
+            _uiState.value.libraryKind == snapshot.libraryKind &&
+            _uiState.value.showArchived == snapshot.showArchived) {
+            _uiState.update { it.copy(memories = memories, availableTags = availableTags) }
+        }
+        // 图谱仅在用户选择时构建，限制物理布局规模，普通列表不运行力导向计算。
+        if (!snapshot.showGraph) return Graph(emptyList(), emptyList())
+        val graph = repository.getGraphForMemories(memories.take(200))
         return withContext(Dispatchers.Default) { graph.toPresentationGraph() }
     }
 
-    /** Loads the entire memory graph from the repository. */
-    fun loadMemoryGraph() {
-        viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true) }
+    fun loadMemoryGraph() = searchMemories()
+
+    fun searchMemories() {
+        searchJob?.cancel()
+        val generation = searchGeneration.incrementAndGet()
+        searchJob = viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true, error = null) }
             try {
-                val graphData = refreshGraph()
-                _uiState.update { it.copy(graph = graphData, isLoading = false) }
+                val graph = refreshGraph()
+                if (searchGeneration.get() == generation) {
+                    _uiState.update { it.copy(graph = graph, isLoading = false) }
+                }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                _uiState.update {
-                    it.copy(isLoading = false, error = context.getString(R.string.memory_error_load_graph, e.message ?: "Unknown error"))
+                if (searchGeneration.get() == generation) _uiState.update {
+                    it.copy(isLoading = false, error = context.getString(R.string.memory_error_search, e.message ?: "Unknown error"))
                 }
             }
         }
     }
 
-    /**
-     * Searches memories and updates the graph with the results. If the query is empty, it reloads
-     * the full graph.
-     */
-    fun searchMemories() {
-        val generation = searchGeneration.incrementAndGet()
-        val querySnapshot = _uiState.value.searchQuery
-        val configSnapshot = _uiState.value.searchConfig
+    fun setLibraryKind(kind: String) {
+        if (_uiState.value.libraryKind == kind) return
+        clearSelection()
+        _uiState.update { it.copy(libraryKind = kind, categoryFilter = null, tagFilter = null, selectedMemory = null) }
+        searchMemories()
+    }
+
+    fun setArchivedFilter(archived: Boolean) {
+        clearSelection()
+        _uiState.update { it.copy(showArchived = archived) }
+        searchMemories()
+    }
+
+    fun setGraphVisible(visible: Boolean) {
+        _uiState.update { it.copy(showGraph = visible, isLinkingMode = false, isBoxSelectionMode = false, boxSelectedNodeIds = emptySet(), linkingNodeIds = emptyList()) }
+        searchMemories()
+    }
+
+    fun setCategoryFilter(category: String?) {
+        _uiState.update { it.copy(categoryFilter = category) }
+        searchMemories()
+    }
+
+    fun setTagFilter(tag: String?) {
+        _uiState.update { it.copy(tagFilter = tag) }
+        searchMemories()
+    }
+
+    fun resetFilters() {
+        clearSelection()
+        _uiState.update { it.copy(searchQuery = "", selectedFolderPath = "", categoryFilter = null, tagFilter = null, showArchived = false) }
+        searchMemories()
+    }
+
+    fun setSortByTitle(value: Boolean) {
+        _uiState.update { it.copy(sortByTitle = value) }
+        searchMemories()
+    }
+
+    fun archiveMemory(memory: Memory) {
+        if (_uiState.value.isSaving) return
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true) }
+            _uiState.update { it.copy(isSaving = true, error = null) }
             try {
-                val memories =
-                    if (querySnapshot.isBlank()) {
-                        repository.searchMemories(
-                            query = "",
-                            scoreMode = configSnapshot.scoreMode,
-                            keywordWeight = configSnapshot.keywordWeight,
-                            tagWeight = configSnapshot.tagWeight,
-                            semanticWeight = configSnapshot.vectorWeight,
-                            edgeWeight = configSnapshot.edgeWeight
-                        )
-                    } else {
-                        repository.searchMemories(
-                            query = querySnapshot,
-                            scoreMode = configSnapshot.scoreMode,
-                            keywordWeight = configSnapshot.keywordWeight,
-                            tagWeight = configSnapshot.tagWeight,
-                            semanticWeight = configSnapshot.vectorWeight,
-                            edgeWeight = configSnapshot.edgeWeight
-                        )
-                    }
-                val graph = repository.getGraphForMemories(memories)
-                val graphData = withContext(Dispatchers.Default) { graph.toPresentationGraph() }
-                if (searchGeneration.get() == generation) {
-                    _uiState.update { it.copy(graph = graphData, isLoading = false) }
-                }
+                repository.setArchived(memory.id, !memory.archived)
+                clearSelection()
+                searchMemories()
             } catch (e: Exception) {
-                if (searchGeneration.get() == generation) _uiState.update {
-                    it.copy(isLoading = false, error = context.getString(R.string.memory_error_search, e.message ?: "Unknown error"))
-                }
+                if (e is CancellationException) throw e
+                _uiState.update { it.copy(error = e.message) }
+            } finally {
+                _uiState.update { it.copy(isSaving = false) }
             }
         }
     }
@@ -234,6 +299,8 @@ class MemoryViewModel(
         val querySnapshot = _uiState.value.searchSimulationQuery
         val configSnapshot = _uiState.value.searchConfig
         val folderSnapshot = _uiState.value.selectedFolderPath.takeIf { it.isNotBlank() }
+        val kindSnapshot = _uiState.value.libraryKind
+        val archivedSnapshot = _uiState.value.showArchived
         viewModelScope.launch {
             _uiState.update {
                 it.copy(
@@ -250,7 +317,8 @@ class MemoryViewModel(
                     keywordWeight = configSnapshot.keywordWeight,
                     tagWeight = configSnapshot.tagWeight,
                     semanticWeight = configSnapshot.vectorWeight,
-                    edgeWeight = configSnapshot.edgeWeight
+                    edgeWeight = configSnapshot.edgeWeight,
+                    libraryKind = kindSnapshot, archived = archivedSnapshot
                 )
                 if (simulationGeneration.get() == generation) _uiState.update {
                     it.copy(
@@ -260,6 +328,7 @@ class MemoryViewModel(
                     )
                 }
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 if (simulationGeneration.get() == generation) _uiState.update {
                     it.copy(
                         isSearchSimulationRunning = false,
@@ -286,19 +355,27 @@ class MemoryViewModel(
                 MemorySearchSettingsPreferences.MIN_AUTO_SAVE_INTERVAL_MINUTES,
                 MemorySearchSettingsPreferences.MAX_AUTO_SAVE_INTERVAL_MINUTES
             )
-        _uiState.update {
-            it.copy(
-                searchConfig = normalizedSearchConfig,
-                cloudEmbeddingConfig = normalizedCloudConfig,
-                autoSaveIntervalMinutes = normalizedInterval,
-                memoryExtractionCustomRules = memoryExtractionCustomRules
-            )
-        }
-        viewModelScope.launch(Dispatchers.IO) {
-            searchSettingsPreferences.save(normalizedSearchConfig)
-            searchSettingsPreferences.saveAutoSaveIntervalMinutes(normalizedInterval)
-            searchSettingsPreferences.saveMemoryExtractionCustomRules(memoryExtractionCustomRules)
-            repository.saveCloudEmbeddingConfig(normalizedCloudConfig)
+        if (_uiState.value.isSaving) return
+        viewModelScope.launch {
+            _uiState.update { it.copy(isSaving = true, error = null) }
+            try {
+                withContext(Dispatchers.IO) {
+                    searchSettingsPreferences.save(normalizedSearchConfig)
+                    searchSettingsPreferences.saveAutoSaveIntervalMinutes(normalizedInterval)
+                    searchSettingsPreferences.saveMemoryExtractionCustomRules(memoryExtractionCustomRules)
+                    repository.saveCloudEmbeddingConfig(normalizedCloudConfig)
+                }
+                _uiState.update { it.copy(searchConfig = normalizedSearchConfig,
+                    cloudEmbeddingConfig = normalizedCloudConfig, autoSaveIntervalMinutes = normalizedInterval,
+                    memoryExtractionCustomRules = memoryExtractionCustomRules, isSaving = false,
+                    message = context.getString(R.string.settings_saved)) }
+                refreshEmbeddingDimensionUsage()
+                searchMemories()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _uiState.update { it.copy(isSaving = false, error = e.message ?: e.javaClass.simpleName) }
+            }
         }
     }
 
@@ -309,31 +386,52 @@ class MemoryViewModel(
 
     private fun loadSearchSettings() {
         viewModelScope.launch(Dispatchers.IO) {
-            val config = searchSettingsPreferences.load()
-            val autoSaveIntervalMinutes = searchSettingsPreferences.loadAutoSaveIntervalMinutes()
-            val memoryExtractionCustomRules =
-                searchSettingsPreferences.loadMemoryExtractionCustomRules()
-            _uiState.update {
-                it.copy(
-                    searchConfig = config,
-                    autoSaveIntervalMinutes = autoSaveIntervalMinutes,
-                    memoryExtractionCustomRules = memoryExtractionCustomRules
-                )
+            try {
+                val config = searchSettingsPreferences.load()
+                val autoSaveIntervalMinutes = searchSettingsPreferences.loadAutoSaveIntervalMinutes()
+                val memoryExtractionCustomRules =
+                    searchSettingsPreferences.loadMemoryExtractionCustomRules()
+                _uiState.update {
+                    it.copy(
+                        searchConfig = config,
+                        autoSaveIntervalMinutes = autoSaveIntervalMinutes,
+                        memoryExtractionCustomRules = memoryExtractionCustomRules
+                    )
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _uiState.update { it.copy(error = e.message ?: e.javaClass.simpleName) }
             }
         }
     }
 
     private fun loadCloudEmbeddingSettings() {
         viewModelScope.launch(Dispatchers.IO) {
-            val config = repository.loadCloudEmbeddingConfig()
-            _uiState.update { it.copy(cloudEmbeddingConfig = config) }
+            try {
+                val config = repository.loadCloudEmbeddingConfig()
+                _uiState.update { it.copy(cloudEmbeddingConfig = config) }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _uiState.update { it.copy(error = e.message ?: e.javaClass.simpleName) }
+            }
         }
     }
 
     fun refreshEmbeddingDimensionUsage() {
-        viewModelScope.launch(Dispatchers.IO) {
-            val usage = repository.getEmbeddingDimensionUsage()
-            _uiState.update { it.copy(embeddingDimensionUsage = usage) }
+        embeddingUsageJob?.cancel()
+        embeddingUsageJob = viewModelScope.launch {
+            _uiState.update { it.copy(isEmbeddingUsageLoading = true, embeddingUsageError = null) }
+            try {
+                val usage = repository.getEmbeddingDimensionUsage()
+                _uiState.update { it.copy(embeddingDimensionUsage = usage, isEmbeddingUsageLoading = false) }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _uiState.update { it.copy(isEmbeddingUsageLoading = false,
+                    embeddingUsageError = context.getString(R.string.library_index_usage_failed, e.message ?: e.javaClass.simpleName)) }
+            }
         }
     }
 
@@ -367,7 +465,8 @@ class MemoryViewModel(
                         isEmbeddingRebuildRunning = false,
                         embeddingDimensionUsage = usage,
                         embeddingRebuildProgress = finalProgress,
-                        message = if (finalProgress.total > 0) {
+                        error = if (finalProgress.failed > 0) "${finalProgress.failed} 项在构建期间发生变化或未生成向量，请重试" else null,
+                        message = if (finalProgress.failed > 0) null else if (finalProgress.total > 0) {
                             context.getString(
                                 R.string.memory_embedding_rebuild_completed,
                                 finalProgress.processed
@@ -378,6 +477,7 @@ class MemoryViewModel(
                     )
                 }
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 _uiState.update {
                     it.copy(
                         isEmbeddingRebuildRunning = false,
@@ -410,6 +510,7 @@ class MemoryViewModel(
                 _uiState.update { it.copy(folderPaths = folders) }
                 // 保持空字符串选中态表示“全部”，避免刷新目录后自动跳转到具体文件夹。
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 _uiState.update { it.copy(error = context.getString(R.string.memory_error_load_folders, e.message ?: "Unknown error")) }
             }
         }
@@ -423,6 +524,7 @@ class MemoryViewModel(
                 val folders = repository.getAllFolderPaths()
                 _uiState.update { it.copy(folderPaths = folders, isLoading = false) }
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 _uiState.update { it.copy(error = context.getString(R.string.memory_error_refresh_folders, e.message ?: "Unknown error"), isLoading = false) }
             }
         }
@@ -430,17 +532,9 @@ class MemoryViewModel(
 
     /** 选择文件夹并加载该文件夹的图谱 */
     fun selectFolder(folderPath: String) {
-        viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, selectedFolderPath = folderPath) }
-            try {
-                val graphData = refreshGraph()
-                _uiState.update { it.copy(graph = graphData, isLoading = false) }
-            } catch (e: Exception) {
-                _uiState.update {
-                    it.copy(isLoading = false, error = context.getString(R.string.memory_error_load_folder_graph, e.message ?: "Unknown error"))
-                }
-            }
-        }
+        clearSelection()
+        _uiState.update { it.copy(selectedFolderPath = folderPath) }
+        searchMemories()
     }
 
     /** 移动选中的记忆到目标文件夹 */
@@ -472,6 +566,7 @@ class MemoryViewModel(
                     _uiState.update { it.copy(isLoading = false, error = context.getString(R.string.memory_error_move_memories)) }
                 }
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 _uiState.update { it.copy(isLoading = false, error = context.getString(R.string.memory_error_move_memories_detail, e.message ?: "Unknown error")) }
             }
         }
@@ -479,13 +574,23 @@ class MemoryViewModel(
 
     /** Selects a memory to view its details. */
     fun selectMemory(memory: Memory) {
-        _uiState.update { it.copy(selectedMemory = memory) }
+        val generation = documentSearchGeneration.incrementAndGet()
+        viewModelScope.launch {
+            try {
+                val chunks = if (memory.isDocumentNode) repository.getChunksForMemory(memory.id) else emptyList()
+                if (documentSearchGeneration.get() == generation) _uiState.update {
+                    it.copy(selectedMemory = memory, isDocumentViewOpen = memory.isDocumentNode,
+                        selectedDocumentChunks = chunks, documentSearchQuery = "")
+                }
+            } catch (e: Exception) { _uiState.update { it.copy(error = e.message) } }
+        }
     }
 
     /** Selects a node in the graph. Fetches the full memory details for the selected node. */
     fun selectNode(node: Node) {
         val selectionGeneration = documentSearchGeneration.incrementAndGet()
         viewModelScope.launch {
+            try {
             if (_uiState.value.isLinkingMode) {
                 // 连接模式
                 val currentLinkingIds = _uiState.value.linkingNodeIds.toMutableList()
@@ -531,6 +636,13 @@ class MemoryViewModel(
                     if (documentSearchGeneration.get() == selectionGeneration) _uiState.update { it.copy(selectedNodeId = node.id, selectedMemory = memory, selectedEdge = null, isDocumentViewOpen = false) }
                 }
             }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                if (documentSearchGeneration.get() == selectionGeneration) _uiState.update {
+                    it.copy(error = e.message ?: e.javaClass.simpleName)
+                }
+            }
         }
     }
 
@@ -541,7 +653,8 @@ class MemoryViewModel(
 
     /** Clears any selection (node or edge). */
     fun clearSelection() {
-        _uiState.update { it.copy(selectedMemory = null, selectedNodeId = null, selectedEdge = null) }
+        documentSearchGeneration.incrementAndGet()
+        _uiState.update { it.copy(selectedMemory = null, selectedNodeId = null, selectedEdge = null, isDocumentViewOpen = false, selectedDocumentChunks = emptyList()) }
     }
 
     /** 关闭文档视图 */
@@ -559,20 +672,16 @@ class MemoryViewModel(
     fun performSearchInDocument() {
         val query = _uiState.value.documentSearchQuery
         val generation = documentSearchGeneration.incrementAndGet()
-        // 如果查询为空，则显示所有块
-        if (query.isBlank()) {
-            val memoryId = _uiState.value.selectedMemory?.id ?: return
-            viewModelScope.launch {
-                val chunks = repository.getChunksForMemory(memoryId)
-                if (documentSearchGeneration.get() == generation) _uiState.update { it.copy(selectedDocumentChunks = chunks) }
-            }
-            return
-        }
-
         val memoryId = _uiState.value.selectedMemory?.id ?: return
         viewModelScope.launch {
-            val chunks = repository.searchChunksInDocument(memoryId, query)
-            if (documentSearchGeneration.get() == generation) _uiState.update { it.copy(selectedDocumentChunks = chunks) }
+            try {
+                val chunks = if (query.isBlank()) repository.getChunksForMemory(memoryId)
+                    else repository.searchChunksInDocument(memoryId, query)
+                if (documentSearchGeneration.get() == generation) _uiState.update { it.copy(selectedDocumentChunks = chunks, error = null) }
+            } catch (e: CancellationException) { throw e
+            } catch (e: Exception) {
+                if (documentSearchGeneration.get() == generation) _uiState.update { it.copy(error = e.message ?: e.javaClass.simpleName) }
+            }
         }
     }
 
@@ -612,6 +721,7 @@ class MemoryViewModel(
                 _uiState.update { it.copy(isToolTestLoading = false, toolTestResult = resultString) }
 
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 _uiState.update { it.copy(isToolTestLoading = false, toolTestResult = "An unexpected error occurred: ${e.message}") }
             }
         }
@@ -622,6 +732,25 @@ class MemoryViewModel(
      * @param chunkId 要更新的区块ID。
      * @param newContent 新内容。
      */
+    fun saveDocument(title: String, edits: Map<Long, String>) {
+        if (_uiState.value.isSaving) return
+        val memory = _uiState.value.selectedMemory ?: return
+        viewModelScope.launch {
+            _uiState.update { it.copy(isSaving = true, error = null) }
+            try {
+                repository.updateDocument(memory, title, edits)
+                _uiState.update { it.copy(isSaving = false) }
+                closeDocumentView()
+                clearSelection()
+                searchMemories()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _uiState.update { it.copy(isSaving = false, error = e.message) }
+            }
+        }
+    }
+
     fun updateChunkContent(chunkId: Long, newContent: String) {
         viewModelScope.launch {
             repository.updateChunk(chunkId, newContent)
@@ -644,6 +773,7 @@ class MemoryViewModel(
                 loadFolderPaths()
                 _uiState.update { it.copy(graph = updatedGraph, isLoading = false) }
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 _uiState.update {
                     it.copy(isLoading = false, error = context.getString(R.string.memory_error_import_document, e.message ?: "Unknown error"))
                 }
@@ -652,20 +782,27 @@ class MemoryViewModel(
     }
 
     /** 新建记忆 */
-    fun createMemory(title: String, content: String, contentType: String = "text/plain") {
+    fun createMemory(title: String, content: String, contentType: String = "text/plain",
+        source: String = "user_input", credibility: Float = 0.8f, importance: Float = 0.5f,
+        folderPath: String = _uiState.value.selectedFolderPath, tags: List<String> = emptyList(),
+        category: String = "other") {
+        if (_uiState.value.isSaving) return
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true) }
+            _uiState.update { it.copy(isSaving = true, error = null) }
             try {
                 val currentFolder = _uiState.value.selectedFolderPath
-                repository.createMemory(title, content, contentType, folderPath = currentFolder)
-                val updatedGraph = refreshGraph()
+                repository.createMemory(title.trim(), content.trim(), contentType, source,
+                    folderPath, tags, credibility, importance, _uiState.value.libraryKind, category)
+                _uiState.update { it.copy(isEditing = false, editingMemory = null) }
+                searchMemories()
                 loadFolderPaths()
                 _uiState.update {
-                    it.copy(isLoading = false, isEditing = false, editingMemory = null, graph = updatedGraph)
+                    it.copy(isSaving = false, isEditing = false, editingMemory = null)
                 }
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 _uiState.update {
-                    it.copy(isLoading = false, error = context.getString(R.string.memory_error_create_memory, e.message ?: "Unknown error"))
+                    it.copy(isSaving = false, error = context.getString(R.string.memory_error_create_memory, e.message ?: "Unknown error"))
                 }
             }
         }
@@ -680,10 +817,12 @@ class MemoryViewModel(
         newCredibility: Float,
         newImportance: Float,
         newFolderPath: String,
-        newTags: List<String>
+        newTags: List<String>,
+        newCategory: String = MemoryLibraryPolicy.category(memory)
     ) {
+        if (_uiState.value.isSaving) return
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true) }
+            _uiState.update { it.copy(isSaving = true, error = null) }
             try {
                 // 文档节点的内容不允许自由编辑，保持固定格式
                 val contentToUpdate = if (memory.isDocumentNode) memory.content else newContent
@@ -696,17 +835,20 @@ class MemoryViewModel(
                     newCredibility = newCredibility,
                     newImportance = newImportance,
                     newFolderPath = newFolderPath.ifBlank { null }, // 空字符串视为未分类
-                    newTags = newTags
+                    newTags = newTags,
+                    newCategory = newCategory
                 )
-                val updatedGraph = refreshGraph()
+                _uiState.update { it.copy(isEditing = false, editingMemory = null) }
+                searchMemories()
                 // 刷新文件夹列表（如果记忆移动到新文件夹或从文件夹移出）
                 loadFolderPaths()
                 _uiState.update {
-                    it.copy(isLoading = false, isEditing = false, editingMemory = null, graph = updatedGraph, isDocumentViewOpen = false)
+                    it.copy(isSaving = false, isEditing = false, editingMemory = null, isDocumentViewOpen = false)
                 }
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 _uiState.update {
-                    it.copy(isLoading = false, error = context.getString(R.string.memory_error_update_memory, e.message ?: "Unknown error"))
+                    it.copy(isSaving = false, error = context.getString(R.string.memory_error_update_memory, e.message ?: "Unknown error"))
                 }
             }
         }
@@ -724,6 +866,7 @@ class MemoryViewModel(
                     it.copy(isLoading = false, selectedMemory = null, selectedNodeId = null, graph = updatedGraph, isDocumentViewOpen = false)
                 }
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 _uiState.update {
                     it.copy(isLoading = false, error = context.getString(R.string.memory_error_delete_memory, e.message ?: "Unknown error"))
                 }
@@ -773,6 +916,7 @@ class MemoryViewModel(
                     )
                 }
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 com.ai.assistance.operit.util.AppLogger.e("MemoryViewModel", "Failed to delete selected memories", e)
                 _uiState.update {
                     it.copy(isLoading = false, error = context.getString(R.string.memory_error_delete_selected, e.message ?: "Unknown error"))
@@ -790,7 +934,7 @@ class MemoryViewModel(
 
     /** 进入新建/编辑状态 */
     fun startEditing(memory: Memory? = null) {
-        _uiState.update { it.copy(isEditing = true, editingMemory = memory) }
+        _uiState.update { it.copy(isEditing = true, editingMemory = memory, error = null) }
     }
     /** 取消编辑 */
     fun cancelEditing() {
@@ -820,6 +964,7 @@ class MemoryViewModel(
                     )
                 }
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 _uiState.update { it.copy(isLoading = false, error = context.getString(R.string.memory_error_update_link, e.message ?: "Unknown error")) }
             }
         }
@@ -834,6 +979,7 @@ class MemoryViewModel(
                 val updatedGraph = refreshGraph()
                 _uiState.update { it.copy(isLoading = false, selectedEdge = null, graph = updatedGraph) }
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 _uiState.update { it.copy(isLoading = false, error = context.getString(R.string.memory_error_delete_link, e.message ?: "Unknown error")) }
             }
         }
@@ -900,6 +1046,7 @@ class MemoryViewModel(
                     _uiState.update { it.copy(isLoading = false) }
                 }
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 _uiState.update {
                     it.copy(isLoading = false, error = context.getString(R.string.memory_error_link_memories, e.message ?: "Unknown error"))
                 }
@@ -914,17 +1061,13 @@ class MemoryViewModel(
         viewModelScope.launch {
             try {
                 // 创建一个空的占位记忆，确保文件夹路径存在
-                repository.createMemory(
-                    title = ".folder_placeholder",
-                    content = context.getString(R.string.memory_folder_placeholder),
-                    contentType = "text",
-                    folderPath = folderPath
-                )
+                check(repository.createFolder(folderPath)) { "无法创建文件夹" }
                 // 重新加载文件夹列表
                 loadFolderPaths()
                 // 自动选择新创建的文件夹
                 selectFolder(folderPath)
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 _uiState.update {
                     it.copy(error = context.getString(R.string.memory_error_create_folder, e.message ?: "Unknown error"))
                 }
@@ -949,6 +1092,7 @@ class MemoryViewModel(
                     _uiState.update { it.copy(isLoading = false) }
                 }
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 _uiState.update {
                     it.copy(isLoading = false, error = context.getString(R.string.memory_error_rename_folder, e.message ?: "Unknown error"))
                 }
@@ -975,6 +1119,7 @@ class MemoryViewModel(
                     _uiState.update { it.copy(isLoading = false) }
                 }
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 AppLogger.e(TAG, "deleteFolder() 删除文件夹失败: $folderPath", e)
                 _uiState.update {
                     it.copy(isLoading = false, error = context.getString(R.string.memory_error_delete_folder, e.message ?: "Unknown error"))

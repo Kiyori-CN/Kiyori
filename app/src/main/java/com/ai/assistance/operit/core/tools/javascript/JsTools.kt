@@ -1240,6 +1240,7 @@ fun getJsToolsDefinition(): String {
                     if (options.threshold !== undefined) params.threshold = options.threshold;
                     const normalizedCallerCardId = Tools.Memory._normalizeCallerCardId(options.callerCardId);
                     if (normalizedCallerCardId !== undefined) params.caller_card_id = normalizedCallerCardId;
+                    if (options.libraryKind !== undefined) params.library_kind = options.libraryKind;
                     return toolCall("query_memory", params);
                 },
                 // 通过标题获取记忆
@@ -1262,6 +1263,7 @@ fun getJsToolsDefinition(): String {
                     if (options.limit !== undefined) params.limit = options.limit;
                     const normalizedCallerCardId = Tools.Memory._normalizeCallerCardId(options.callerCardId);
                     if (normalizedCallerCardId !== undefined) params.caller_card_id = normalizedCallerCardId;
+                    if (options.uuid !== undefined) params.uuid = options.uuid;
                     return toolCall("get_memory_by_title", params);
                 },
                 // 创建记忆
@@ -1285,6 +1287,8 @@ fun getJsToolsDefinition(): String {
                     if (options.tags) params.tags = options.tags;
                     const normalizedCallerCardId = Tools.Memory._normalizeCallerCardId(options.callerCardId);
                     if (normalizedCallerCardId !== undefined) params.caller_card_id = normalizedCallerCardId;
+                    if (options.libraryKind !== undefined) params.library_kind = options.libraryKind;
+                    if (options.category !== undefined) params.category = options.category;
                     return toolCall("create_memory", params);
                 },
                 // 更新记忆
@@ -1304,6 +1308,8 @@ fun getJsToolsDefinition(): String {
                     if (options.tags) params.tags = options.tags;
                     const normalizedCallerCardId = Tools.Memory._normalizeCallerCardId(options.callerCardId);
                     if (normalizedCallerCardId !== undefined) params.caller_card_id = normalizedCallerCardId;
+                    if (options.category !== undefined) params.category = options.category;
+                    if (options.uuid !== undefined) params.uuid = options.uuid;
                     return toolCall("update_memory", params);
                 },
                 // 删除记忆
@@ -1315,6 +1321,7 @@ fun getJsToolsDefinition(): String {
                     const params = { title: options.title };
                     const normalizedCallerCardId = Tools.Memory._normalizeCallerCardId(options.callerCardId);
                     if (normalizedCallerCardId !== undefined) params.caller_card_id = normalizedCallerCardId;
+                    if (options.uuid !== undefined) params.uuid = options.uuid;
                     return toolCall("delete_memory", params);
                 },
                 // 批量移动记忆（按标题列表和/或来源文件夹筛选）

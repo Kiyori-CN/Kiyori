@@ -130,4 +130,8 @@ Android 标准文件工具的递归复制统一调用 `copyLocalDirectory`：枚
 
 ## 记忆图谱
 
-`com.kiyori.capability.ai.memory` 持有 UUID、标题、文档/主标签分类与边的 ID/端点/权重/跨文件夹事实。MemoryRepository 继续持有 ObjectBox 与图选择；UI 后台映射颜色并复用边快照，备份统计不创建 Compose 对象，不改变 schema、搜索扩展或备份格式。
+`com.kiyori.capability.ai.memory` 持有 UUID、标题、文档/主标签分类与边的 ID/端点/权重/跨文件夹事实。
+MemoryRepository 继续持有 ObjectBox、记忆/知识分类、归档、检索与派生向量；UI 后台映射颜色，
+只在关系视图构建前 200 项图谱。空间和角色绑定不变，默认列表便于审阅与整理。
+新增 ObjectBox 元数据保持旧 ID；JSON v2 备份保留文档块和归档并接受 v1 输入，不携带向量或凭据。
+模型与内容指纹定义向量有效性，不能仅比较维度；详见[记忆与知识架构](../architecture/memory_knowledge.md)。

@@ -650,6 +650,8 @@ object SystemToolPromptsInternal {
                             name = "create_memory",
                             description = "Creates a new memory node in the library. Use this when you want to save important information for future reference.",
                             parametersStructured = listOf(
+                                ToolParameterSchema(name = "library_kind", type = "string", description = "memory = 记忆; knowledge = 知识; query also accepts all. Default: all for query, memory for create.", required = false),
+                                ToolParameterSchema(name = "category", type = "string", description = "preference, fact, decision, experience, event, other", required = false),
                                 ToolParameterSchema(name = "title", type = "string", description = "required, string", required = true),
                                 ToolParameterSchema(name = "content", type = "string", description = "required, string", required = true),
                                 ToolParameterSchema(name = "content_type", type = "string", description = "optional", required = false, default = "\"text/plain\""),
@@ -662,7 +664,9 @@ object SystemToolPromptsInternal {
                             name = "update_memory",
                             description = "Updates an existing memory node by title. Use this to modify an existing memory's content or metadata.",
                             parametersStructured = listOf(
-                                ToolParameterSchema(name = "old_title", type = "string", description = "required, string to identify the memory", required = true),
+                                ToolParameterSchema(name = "category", type = "string", description = "preference, fact, decision, experience, event, other", required = false),
+                                ToolParameterSchema(name = "uuid", type = "string", description = "Stable memory UUID; preferred over title to disambiguate. 提供 UUID 时可以省略标题。", required = false),
+                                ToolParameterSchema(name = "old_title", type = "string", description = "Title, required unless uuid is supplied", required = false),
                                 ToolParameterSchema(name = "new_title", type = "string", description = "optional, string, new title if renaming", required = false),
                                 ToolParameterSchema(name = "content", type = "string", description = "optional, string", required = false),
                                 ToolParameterSchema(name = "content_type", type = "string", description = "optional, string", required = false),
@@ -677,7 +681,8 @@ object SystemToolPromptsInternal {
                             name = "delete_memory",
                             description = "Deletes a memory node from the library by title. Use with caution as this operation is irreversible.",
                             parametersStructured = listOf(
-                                ToolParameterSchema(name = "title", type = "string", description = "required, string to identify the memory", required = true)
+                                ToolParameterSchema(name = "uuid", type = "string", description = "Stable memory UUID; preferred over title to disambiguate. 提供 UUID 时可以省略标题。", required = false),
+                                ToolParameterSchema(name = "title", type = "string", description = "Title, required unless uuid is supplied", required = false)
                             )
                         ),
                         ToolPrompt(
@@ -3684,6 +3689,8 @@ object SystemToolPromptsInternal {
                             name = "create_memory",
                             description = "在记忆库中创建新的记忆节点。当你想保存重要信息供将来参考时使用。",
                             parametersStructured = listOf(
+                                ToolParameterSchema(name = "library_kind", type = "string", description = "memory = 记忆; knowledge = 知识; query also accepts all. Default: all for query, memory for create.", required = false),
+                                ToolParameterSchema(name = "category", type = "string", description = "preference, fact, decision, experience, event, other", required = false),
                                 ToolParameterSchema(name = "title", type = "string", description = "必需, 字符串", required = true),
                                 ToolParameterSchema(name = "content", type = "string", description = "必需, 字符串", required = true),
                                 ToolParameterSchema(name = "content_type", type = "string", description = "可选", required = false, default = "\"text/plain\""),
@@ -3696,7 +3703,9 @@ object SystemToolPromptsInternal {
                             name = "update_memory",
                             description = "通过标题更新现有的记忆节点。用于修改现有记忆的内容或元数据。",
                             parametersStructured = listOf(
-                                ToolParameterSchema(name = "old_title", type = "string", description = "必需, 字符串，用于识别记忆", required = true),
+                                ToolParameterSchema(name = "category", type = "string", description = "preference, fact, decision, experience, event, other", required = false),
+                                ToolParameterSchema(name = "uuid", type = "string", description = "Stable memory UUID; preferred over title to disambiguate. 提供 UUID 时可以省略标题。", required = false),
+                                ToolParameterSchema(name = "old_title", type = "string", description = "精确标题；提供 uuid 时可省略", required = false),
                                 ToolParameterSchema(name = "new_title", type = "string", description = "可选, 字符串, 重命名时的新标题", required = false),
                                 ToolParameterSchema(name = "content", type = "string", description = "可选, 字符串", required = false),
                                 ToolParameterSchema(name = "content_type", type = "string", description = "可选, 字符串", required = false),
@@ -3711,7 +3720,8 @@ object SystemToolPromptsInternal {
                             name = "delete_memory",
                             description = "通过标题从记忆库中删除记忆节点。谨慎使用，此操作不可逆。",
                             parametersStructured = listOf(
-                                ToolParameterSchema(name = "title", type = "string", description = "必需, 字符串，用于识别记忆", required = true)
+                                ToolParameterSchema(name = "uuid", type = "string", description = "Stable memory UUID; preferred over title to disambiguate. 提供 UUID 时可以省略标题。", required = false),
+                                ToolParameterSchema(name = "title", type = "string", description = "精确标题；提供 uuid 时可省略", required = false)
                             )
                         ),
                         ToolPrompt(

@@ -8,10 +8,12 @@
  */
 export namespace Memory {
     interface CallerScopedOptions {
+        uuid?: string;
         callerCardId?: string;
     }
 
     interface QueryOptions extends CallerScopedOptions {
+        libraryKind?: "memory" | "knowledge" | "all";
         query: string;
         folderPath?: string;
         limit?: number;
@@ -30,6 +32,8 @@ export namespace Memory {
     }
 
     interface CreateOptions extends CallerScopedOptions {
+        libraryKind?: "memory" | "knowledge";
+        category?: "preference" | "fact" | "decision" | "experience" | "event" | "other";
         title: string;
         content: string;
         contentType?: string;
@@ -93,6 +97,8 @@ export namespace Memory {
      * Update options for memory update
      */
     interface UpdateOptions {
+        uuid?: string;
+        category?: "preference" | "fact" | "decision" | "experience" | "event" | "other";
         oldTitle?: string;
         newTitle?: string;
         content?: string;

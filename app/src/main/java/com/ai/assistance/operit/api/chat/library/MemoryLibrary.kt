@@ -1,6 +1,7 @@
 package com.ai.assistance.operit.api.chat.library
 
 import android.content.Context
+import com.ai.assistance.operit.data.audit.ConversationAuditRedactor
 import com.ai.assistance.operit.util.AppLogger
 import com.ai.assistance.operit.util.ChatMarkupRegex
 import com.ai.assistance.operit.R
@@ -151,6 +152,7 @@ object MemoryLibrary {
         aiService: AIService,
         profileIdOverride: String? = null,
         analysisHistoryLimit: Int = DEFAULT_ANALYSIS_HISTORY_MESSAGE_COUNT,
+        sourceReference: String = "memory_analysis",
     ) {
         require(analysisHistoryLimit > 0) { "Analysis history limit must be positive" }
         saveMemory(
@@ -161,6 +163,8 @@ object MemoryLibrary {
             aiService = aiService,
             profileIdOverride = profileIdOverride,
             analysisHistoryLimit = analysisHistoryLimit,
+            propagateAnalysisFailure = true,
+            sourceReference = sourceReference,
         )
     }
 
@@ -333,6 +337,7 @@ object MemoryLibrary {
             profileIdOverride: String? = null,
             analysisHistoryLimit: Int,
             propagateAnalysisFailure: Boolean = false,
+            sourceReference: String = "memory_analysis",
     ) {
         mutex.withLock {
             val profileId = profileIdOverride ?: preferencesManager.activeMemorySpaceIdFlow.first()
@@ -377,9 +382,9 @@ object MemoryLibrary {
             val analysis = generateAnalysis(
                 context = context,
                 aiService = aiService,
-                query = query,
-                solution = prunedContent,
-                conversationHistory = processedHistory,
+                query = ConversationAuditRedactor.redactText(query).value,
+                solution = ConversationAuditRedactor.redactText(prunedContent).value,
+                conversationHistory = processedHistory.map { (role, text) -> role to ConversationAuditRedactor.redactText(text).value },
                 memoryRepository = memoryRepository,
                 profileId = profileId,
                 analysisHistoryLimit = analysisHistoryLimit,
@@ -458,6 +463,8 @@ object MemoryLibrary {
                         AppLogger.d(TAG, "1. 创建主要问题记忆节点: '${mainProblem.title}'")
                         val memory = Memory(
                             title = mainProblem.title,
+                            source = sourceReference,
+                            category = "event",
                             content = mainProblem.content,
                             importance = 0.8f, // Main problems are highly important
                             credibility = 1.0f,
@@ -494,13 +501,21 @@ object MemoryLibrary {
                         }
                     }
 
+                    // 失败重试可再次解析同一候选；相同正文复用，不能重复插入。
+                    if (memory == null) {
+                        val safeContent = ConversationAuditRedactor.redactText(entity.content).value
+                        memory = memoryRepository.findMemoriesByTitle(entity.title).firstOrNull {
+                            !it.archived && !it.isDocumentNode && it.content == safeContent
+                        }
+                    }
+
                     // If it's not an alias, or if the original for the alias wasn't found, create a new memory.
                     if (memory == null) {
                         AppLogger.d(TAG, "   -> 创建新的记忆节点。")
                         memory = Memory(
                             title = entity.title,
                             content = entity.content,
-                            source = "memory_analysis",
+                            source = sourceReference,
                             folderPath = entity.folderPath
                         )
                         memoryRepository.saveMemory(memory)
@@ -577,7 +592,8 @@ object MemoryLibrary {
                 keywordWeight = searchConfig.keywordWeight,
                 tagWeight = searchConfig.tagWeight,
                 semanticWeight = searchConfig.vectorWeight,
-                edgeWeight = searchConfig.edgeWeight
+                edgeWeight = searchConfig.edgeWeight,
+                libraryKind = "memory"
             ).take(15)
 
             AppLogger.d(
@@ -587,26 +603,6 @@ object MemoryLibrary {
                     "keywordWeight=${searchConfig.keywordWeight}, tagWeight=${searchConfig.tagWeight}, vectorWeight=${searchConfig.vectorWeight}, edgeWeight=${searchConfig.edgeWeight}, " +
                     "searchQueryLen=${contextQuery.length}"
             )
-            AppLogger.d(TAG, "候选检索查询（截断）: ${contextQuery.take(220)}")
-            if (candidateMemories.isEmpty()) {
-                AppLogger.d(TAG, "候选记忆列表为空（通过阈值过滤后无结果）。")
-            } else {
-                candidateMemories.forEachIndexed { index, memory ->
-                    val preview = memory.content
-                        .replace("\r\n", " ")
-                        .replace("\n", " ")
-                        .replace(Regex("\\s+"), " ")
-                        .trim()
-                        .take(120)
-                    AppLogger.d(
-                        TAG,
-                        "候选记忆[$index] id=${memory.id}, title='${memory.title}', " +
-                            "folder='${memory.folderPath ?: ""}', importance=${String.format(java.util.Locale.getDefault(), "%.2f", memory.importance)}, " +
-                            "credibility=${String.format(java.util.Locale.getDefault(), "%.2f", memory.credibility)}, preview='$preview'"
-                    )
-                }
-            }
-
             // 2. Proactively find duplicates among candidates and instruct LLM to merge them
             val duplicatesPromptPart = findAndDescribeDuplicates(candidateMemories, memoryRepository, useEnglish)
 
@@ -634,7 +630,7 @@ object MemoryLibrary {
 
             val analysisMessage = buildAnalysisMessage(
                 context = context,
-                query = query,
+                query = ConversationAuditRedactor.redactText(query).value,
                 solution = solution,
                 conversationHistory = conversationHistory,
                 useEnglish = useEnglish,

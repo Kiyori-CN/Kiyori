@@ -11,6 +11,7 @@ import com.ai.assistance.operit.core.tools.ToolExecutor
 import com.ai.assistance.operit.data.model.AITool
 import com.ai.assistance.operit.data.model.CharacterCardMemoryProfileBindingMode
 import com.ai.assistance.operit.data.model.Memory
+import com.ai.assistance.operit.data.model.MemoryLibraryPolicy
 import com.ai.assistance.operit.data.model.ToolResult
 import com.ai.assistance.operit.data.model.ToolValidationResult
 import com.ai.assistance.operit.data.preferences.CharacterCardManager
@@ -272,21 +273,14 @@ class MemoryQueryToolExecutor(private val context: Context) : ToolExecutor {
             )
         }
         
-        // 如果查询是 "*" 且用户没有显式指定 limit，则返回所有结果
-        val isWildcardQuery = query.trim() == "*"
-        val defaultLimit = if (isWildcardQuery && limit == null) {
-            Int.MAX_VALUE // 使用最大值表示返回所有结果
-        } else {
-            20 // 普通查询默认返回 20 条
-        }
-        val finalLimit = limit ?: defaultLimit
-
         if (query.isBlank()) {
             return ToolResult(toolName = tool.name, success = false, result = StringResultData(""), error = "Query parameter cannot be empty.")
         }
-
-        // limit 无上限，但至少为 1
-        val validLimit = if (finalLimit < 1) 1 else finalLimit
+        val validLimit = (limit ?: 20).coerceIn(1, 100)
+        val kind = tool.parameters.find { it.name == "library_kind" }?.value?.takeIf { it != "all" }
+        if (kind != null && kind !in listOf(MemoryLibraryPolicy.MEMORY, MemoryLibraryPolicy.KNOWLEDGE)) {
+            return ToolResult(toolName = tool.name, success = false, result = StringResultData(""), error = "library_kind must be memory, knowledge or all")
+        }
         val (snapshotState, snapshotCreated) = getOrCreateQuerySnapshot(profileId, normalizedSnapshotId)
 
         AppLogger.d(
@@ -305,7 +299,8 @@ class MemoryQueryToolExecutor(private val context: Context) : ToolExecutor {
                 edgeWeight = settings.edgeWeight,
                 relevanceThreshold = threshold ?: DEFAULT_RELEVANCE_THRESHOLD,
                 createdAtStartMs = startTimeMs,
-                createdAtEndMs = endTimeMs
+                createdAtEndMs = endTimeMs,
+                libraryKind = kind
             )
 
             // Keep de-duplication stable even when multiple calls share the same snapshot in parallel.
@@ -329,7 +324,6 @@ class MemoryQueryToolExecutor(private val context: Context) : ToolExecutor {
                 snapshotCreated = snapshotCreated,
                 excludedBySnapshotCount = excludedBySnapshotCount
             )
-            AppLogger.d(TAG, "Memory query result for '$query':\n$formattedResult")
             ToolResult(toolName = tool.name, success = true, result = formattedResult)
         } catch (e: Exception) {
             AppLogger.e(TAG, "Memory query failed", e)
@@ -337,11 +331,16 @@ class MemoryQueryToolExecutor(private val context: Context) : ToolExecutor {
         }
     }
 
+    private suspend fun resolveMemory(tool: AITool, repository: MemoryRepository, title: String?): Memory? {
+        val uuid = tool.parameters.find { it.name == "uuid" }?.value?.trim()?.takeIf { it.isNotEmpty() }
+        return if (uuid != null) repository.findMemoryByUuid(uuid) else title?.let { repository.findMemoryByTitle(it) }
+    }
+
     private suspend fun executeGetMemoryByTitle(tool: AITool): ToolResult {
         val profileId = resolveActiveProfileId(tool)
         val memoryRepository = getMemoryRepository(profileId)
         val title = tool.parameters.find { it.name == "title" }?.value
-        if (title.isNullOrBlank()) {
+        if (title.isNullOrBlank() && tool.parameters.none { it.name == "uuid" && it.value.isNotBlank() }) {
             return ToolResult(
                 toolName = tool.name,
                 success = false,
@@ -359,7 +358,7 @@ class MemoryQueryToolExecutor(private val context: Context) : ToolExecutor {
         AppLogger.d(TAG, "Getting memory by title: $title, chunk_index: $chunkIndexParam, chunk_range: $chunkRangeParam, query: $queryParam, limit: $chunkLimitParam")
 
         return try {
-            val memory = memoryRepository.findMemoryByTitle(title)
+            val memory = resolveMemory(tool, memoryRepository, title)
             if (memory == null) {
                 return ToolResult(
                     toolName = tool.name,
@@ -383,8 +382,7 @@ class MemoryQueryToolExecutor(private val context: Context) : ToolExecutor {
             }
 
             // 默认行为：返回完整记忆
-            val formattedResult = buildResultData(memoryRepository, listOf(memory), title, 1)
-            AppLogger.d(TAG, "Found memory by title '$title':\n$formattedResult")
+            val formattedResult = buildResultData(memoryRepository, listOf(memory), title.orEmpty(), 1, fullContent = true)
             ToolResult(
                 toolName = tool.name,
                 success = true,
@@ -411,7 +409,7 @@ class MemoryQueryToolExecutor(private val context: Context) : ToolExecutor {
         limitParam: String?
     ): ToolResult = withContext(Dispatchers.IO) {
         val totalChunks = memoryRepository.getTotalChunkCount(memory.id)
-        val validLimit = (limitParam?.toIntOrNull() ?: 20).coerceAtLeast(1)
+        val validLimit = (limitParam?.toIntOrNull() ?: 20).coerceIn(1, 100)
         
         try {
             // 优先级：query > chunk_range > chunk_index
@@ -436,7 +434,7 @@ class MemoryQueryToolExecutor(private val context: Context) : ToolExecutor {
                     val startIndex = (rangeParts[0].toIntOrNull() ?: 1) - 1
                     val endIndex = (rangeParts[1].toIntOrNull() ?: totalChunks) - 1
                     
-                    if (startIndex < 0 || endIndex >= totalChunks || startIndex > endIndex) {
+                    if (startIndex < 0 || endIndex >= totalChunks || startIndex > endIndex || endIndex - startIndex >= 100) {
                         return@withContext ToolResult(
                             toolName = toolName,
                             success = false,
@@ -546,7 +544,9 @@ class MemoryQueryToolExecutor(private val context: Context) : ToolExecutor {
                 contentType = contentType,
                 source = source,
                 folderPath = folderPath,
-                tags = tags
+                tags = tags,
+                libraryKind = tool.parameters.find { it.name == "library_kind" }?.value ?: MemoryLibraryPolicy.MEMORY,
+                category = tool.parameters.find { it.name == "category" }?.value ?: "other"
             )
             
             if (memory != null) {
@@ -580,7 +580,7 @@ class MemoryQueryToolExecutor(private val context: Context) : ToolExecutor {
         val memoryRepository = getMemoryRepository(resolveActiveProfileId(tool))
         val oldTitle = tool.parameters.find { it.name == "old_title" }?.value
         
-        if (oldTitle.isNullOrBlank()) {
+        if (oldTitle.isNullOrBlank() && tool.parameters.none { it.name == "uuid" && it.value.isNotBlank() }) {
             return ToolResult(
                 toolName = tool.name,
                 success = false,
@@ -592,7 +592,7 @@ class MemoryQueryToolExecutor(private val context: Context) : ToolExecutor {
         AppLogger.d(TAG, "Updating memory with title: $oldTitle")
 
         return try {
-            val memory = memoryRepository.findMemoryByTitle(oldTitle)
+            val memory = resolveMemory(tool, memoryRepository, oldTitle)
             if (memory == null) {
                 return ToolResult(
                     toolName = tool.name,
@@ -622,7 +622,8 @@ class MemoryQueryToolExecutor(private val context: Context) : ToolExecutor {
                 newCredibility = newCredibility,
                 newImportance = newImportance,
                 newFolderPath = newFolderPath,
-                newTags = newTags
+                newTags = newTags,
+                newCategory = tool.parameters.find { it.name == "category" }?.value ?: MemoryLibraryPolicy.category(memory)
             )
             
             if (updatedMemory != null) {
@@ -656,7 +657,7 @@ class MemoryQueryToolExecutor(private val context: Context) : ToolExecutor {
         val memoryRepository = getMemoryRepository(resolveActiveProfileId(tool))
         val title = tool.parameters.find { it.name == "title" }?.value
         
-        if (title.isNullOrBlank()) {
+        if (title.isNullOrBlank() && tool.parameters.none { it.name == "uuid" && it.value.isNotBlank() }) {
             return ToolResult(
                 toolName = tool.name,
                 success = false,
@@ -668,7 +669,7 @@ class MemoryQueryToolExecutor(private val context: Context) : ToolExecutor {
         AppLogger.d(TAG, "Deleting memory with title: $title")
 
         return try {
-            val memory = memoryRepository.findMemoryByTitle(title)
+            val memory = resolveMemory(tool, memoryRepository, title)
             if (memory == null) {
                 return ToolResult(
                     toolName = tool.name,
@@ -1288,7 +1289,8 @@ class MemoryQueryToolExecutor(private val context: Context) : ToolExecutor {
         limit: Int,
         snapshotId: String? = null,
         snapshotCreated: Boolean = false,
-        excludedBySnapshotCount: Int = 0
+        excludedBySnapshotCount: Int = 0,
+        fullContent: Boolean = false
     ): MemoryQueryResultData = withContext(Dispatchers.IO) {
         val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
         val isWildcardQuery = query.trim() == "*"
@@ -1299,53 +1301,14 @@ class MemoryQueryToolExecutor(private val context: Context) : ToolExecutor {
             val chunkIndices: List<Int>?
             
             if (memory.isDocumentNode) {
-                // 对于文档节点，执行"二次探查"，获取匹配的区块内容
-                AppLogger.d(TAG, "Memory result is a document ('${memory.title}'). Fetching specific matching chunks for query: '$query'")
-                val matchingChunks = memoryRepository.searchChunksInDocument(memory.id, query, limit)
                 val totalChunks = memoryRepository.getTotalChunkCount(memory.id)
-
-                if (matchingChunks.isNotEmpty()) {
-                    // 收集分块索引（使用1-based显示）
-                    chunkIndices = matchingChunks.map { it.chunkIndex }
-                    
-                    // 生成分块信息摘要
-                    chunkInfo = if (matchingChunks.size == 1) {
-                        "Chunk ${matchingChunks[0].chunkIndex + 1}/$totalChunks"
-                    } else {
-                        "Chunks ${matchingChunks.map { it.chunkIndex + 1 }.take(5).joinToString(", ")}/$totalChunks"
-                    }
-                    
-                    if (isWildcardQuery || limit > 20) {
-                        // 截断模式：只显示文档标题和分块信息
-                        content = "Document: ${memory.title} ($totalChunks chunks)"
-                    } else {
-                        // 将匹配的区块内容拼接起来，每个区块显示编号
-                        content = "Document: ${memory.title}\n" +
-                            matchingChunks.take(5) // 最多取5个最相关的区块
-                                .joinToString("\n---\n") { chunk -> 
-                                    "Chunk ${chunk.chunkIndex + 1}/$totalChunks:\n${chunk.content}"
-                                }
-                    }
-                } else {
-                    // 如果二次探查未找到（理论上很少见，因为全局搜索已经认为它相关），提供一个回退信息
-                    chunkInfo = null
-                    chunkIndices = null
-                    if (isWildcardQuery || limit > 20) {
-                        content = "Document: ${memory.title}"
-                    } else {
-                        content = "Document '${memory.title}' was found, but no specific chunks matched the query '$query'. The document's general content is: ${memory.content}"
-                    }
-                }
+                chunkInfo = "$totalChunks chunks; use uuid with chunk_index, chunk_range or query to read evidence"
+                chunkIndices = null
+                content = memory.content.take(600)
             } else {
-                // 对于普通记忆，只有通配查询时返回短摘要，其余始终返回完整内容
                 chunkInfo = null
                 chunkIndices = null
-                content = if (isWildcardQuery) {
-                    val summary = memory.content.take(10)
-                    if (memory.content.length > 10) "$summary..." else summary
-                } else {
-                    memory.content
-                }
+                content = if (fullContent) memory.content else memory.content.take(600)
             }
 
             MemoryQueryResultData.MemoryInfo(
@@ -1355,7 +1318,12 @@ class MemoryQueryToolExecutor(private val context: Context) : ToolExecutor {
                 tags = memory.tags.map { it.name },
                 createdAt = sdf.format(memory.createdAt),
                 chunkInfo = chunkInfo,
-                chunkIndices = chunkIndices
+                chunkIndices = chunkIndices,
+                uuid = memory.uuid,
+                libraryKind = MemoryLibraryPolicy.kind(memory),
+                category = MemoryLibraryPolicy.category(memory),
+                updatedAt = sdf.format(memory.updatedAt),
+                archived = memory.archived
             )
         }
         MemoryQueryResultData(

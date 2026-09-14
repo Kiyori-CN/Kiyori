@@ -44,7 +44,13 @@ data class SerializableMemory(
     val createdAt: Date,
     @Serializable(with = DateSerializer::class)
     val updatedAt: Date,
-    val tagNames: List<String> // 标签名称列表
+    val tagNames: List<String>, // 标签名称列表
+    val libraryKind: String = "",
+    val category: String = "other",
+    val archived: Boolean = false,
+    val isDocumentNode: Boolean = false,
+    val documentPath: String? = null,
+    val chunks: List<String> = emptyList()
 )
 
 /**

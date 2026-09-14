@@ -19,10 +19,13 @@ data class DocumentChunk(
 
     // 区块在文档中的顺序索引
     var chunkIndex: Int = 0,
+    // 与 Memory 一致：历史 ObjectBox 区块没有向量来源字段，null 表示来源未知。
+    var embeddingModelKey: String? = null,
+    var embeddingContentHash: String? = null,
 
     // 文本内容的向量嵌入
     @Convert(converter = EmbeddingConverter::class, dbType = ByteArray::class)
     var embedding: Embedding? = null
 ) {
     lateinit var memory: ToOne<Memory>
-} 
+}

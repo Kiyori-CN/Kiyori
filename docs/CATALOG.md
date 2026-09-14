@@ -598,6 +598,12 @@
 | [01_version_range_button_state.md](TODO/market_version_download_state/01_version_range_button_state.md) | 版本范围按钮状态 |
 | [index.md](TODO/market_version_download_state/index.md) | 市场版本范围下载状态 |
 
+## docs/TODO/memory_knowledge_refinement
+
+| 文档 | 用途或标题 |
+| --- | --- |
+| [index.md](TODO/memory_knowledge_refinement/index.md) | 记忆与知识库重构 |
+
 ## docs/TODO/mt_file_manager_replica
 
 | 文档 | 用途或标题 |
@@ -801,7 +807,8 @@
 | [kiyori_iconography.md](doc-src/architecture/kiyori_iconography.md) | Kiyori 图标用途与配色规范 |
 | [kiyori_material_surfaces.md](doc-src/architecture/kiyori_material_surfaces.md) | Kiyori Material 3 材质与表面规范 |
 | [kiyori_product_shell_and_navigation.md](doc-src/architecture/kiyori_product_shell_and_navigation.md) | Kiyori 产品壳与导航架构 |
-| [memory_candidate_scoring_formula.md](doc-src/architecture/memory_candidate_scoring_formula.md) | 记忆机制说明（简化版） |
+| [memory_candidate_scoring_formula.md](doc-src/architecture/memory_candidate_scoring_formula.md) | 记忆候选检索与整理 |
+| [memory_knowledge.md](doc-src/architecture/memory_knowledge.md) | 记忆与知识架构 |
 | [model_capability_and_resumable_execution.md](doc-src/architecture/model_capability_and_resumable_execution.md) | 统一模型能力与可恢复执行架构 |
 | [openai_hosted_web_search.md](doc-src/architecture/openai_hosted_web_search.md) | OpenAI 搜索架构 |
 | [repository_architecture.md](doc-src/architecture/repository_architecture.md) | Kiyori 仓库与源码架构 |
@@ -904,6 +911,7 @@
 | [extensions.md](user-guide/extensions.md) | 扩展与工具使用 |
 | [files_and_workspaces.md](user-guide/files_and_workspaces.md) | 文件、工作区与 AI 产物 |
 | [getting_started.md](user-guide/getting_started.md) | 首次使用 |
+| [memory_knowledge.md](user-guide/memory_knowledge.md) | 管理记忆与知识 |
 | [network_and_media.md](user-guide/network_and_media.md) | 网络、媒体与特权能力 |
 | [privacy_and_data.md](user-guide/privacy_and_data.md) | 隐私、数据与迁移 |
 
