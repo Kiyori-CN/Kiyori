@@ -19,6 +19,8 @@ import kotlin.concurrent.thread
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -523,11 +525,10 @@ class KiyoriMihomoRuntime private constructor(context: Context) {
                     phase = KiyoriMihomoProbePhase.STARTING,
                     subscriptionId = config.id,
                 )
-            var probe: ActiveRuntime? = null
             try {
                 proxyLog.info("订阅探测", "正在启动隔离 Mihomo 以读取节点或执行测速")
-                val active =
-                    withContext(Dispatchers.IO) {
+                withTemporaryMihomoResource(
+                    acquire = {
                         startProcess(
                             config = config,
                             testUrl = testUrl,
@@ -540,21 +541,25 @@ class KiyoriMihomoRuntime private constructor(context: Context) {
                             workDirectory = probeDirectory,
                             directoryLabel = "probe",
                         )
+                    },
+                    release = { active -> stopProcessBlocking(active.process) },
+                ) { active ->
+                    withContext(Dispatchers.IO) {
+                        applySelectionsLocked(active, config.selectedGroupItems)
+                        active.appliedSelections = config.selectedGroupItems
+                        refreshSnapshotLocked(active)
                     }
-                probe = active
-                withContext(Dispatchers.IO) {
-                    applySelectionsLocked(active, config.selectedGroupItems)
-                    active.appliedSelections = config.selectedGroupItems
-                    refreshSnapshotLocked(active)
+                    mutableProbeState.value =
+                        KiyoriMihomoProbeState(
+                            phase = operationPhase,
+                            subscriptionId = config.id,
+                        )
+                    withContext(Dispatchers.IO) { block(active) }.also {
+                        proxyLog.info("订阅探测", "隔离 Mihomo 操作已完成")
+                    }
                 }
-                mutableProbeState.value =
-                    KiyoriMihomoProbeState(
-                        phase = operationPhase,
-                        subscriptionId = config.id,
-                    )
-                withContext(Dispatchers.IO) { block(active) }.also {
-                    proxyLog.info("订阅探测", "隔离 Mihomo 操作已完成")
-                }
+            } catch (error: CancellationException) {
+                throw error
             } catch (error: KiyoriNetworkException) {
                 proxyLog.error("订阅探测", "隔离 Mihomo 操作失败：${error.code.name} ${error.message.orEmpty()}")
                 mutableProbeState.value =
@@ -581,12 +586,11 @@ class KiyoriMihomoRuntime private constructor(context: Context) {
                     )
                 throw wrapped
             } finally {
-                probe?.let { active ->
-                    withContext(Dispatchers.IO) { stopProcessBlocking(active.process) }
-                }
-                withContext(Dispatchers.IO) { clearDirectory(probeDirectory, "probe") }
-                if (mutableProbeState.value.phase != KiyoriMihomoProbePhase.ERROR) {
-                    mutableProbeState.value = KiyoriMihomoProbeState()
+                withContext(NonCancellable + Dispatchers.IO) {
+                    clearDirectory(probeDirectory, "probe")
+                    if (mutableProbeState.value.phase != KiyoriMihomoProbePhase.ERROR) {
+                        mutableProbeState.value = KiyoriMihomoProbeState()
+                    }
                 }
             }
         }
@@ -625,35 +629,9 @@ class KiyoriMihomoRuntime private constructor(context: Context) {
             )
         activeRuntime?.let { active ->
             if (active.process.isAlive && active.fingerprint == fingerprint) {
-                val health = inspectRuntimeHealth(active)
-                active.controllerHealthy = health.controllerReady
-                active.mixedPortListening = health.mixedPortListening
-                if (!health.controllerReady || !health.mixedPortListening) {
-                    proxyLog.error(
-                        "运行时健康",
-                        "复用检查失败 runtimeGeneration=${active.runtimeGeneration} " +
-                            "processAlive=true controllerReady=${health.controllerReady} " +
-                            "mixedPortListening=${health.mixedPortListening} " +
-                            "controllerStatus=${health.controllerStatus ?: "none"} " +
-                            "elapsedMs=${health.elapsedMillis}",
-                    )
-                    stopLocked(
-                        finalPhase = KiyoriMihomoRuntimePhase.ERROR,
-                        message = "The embedded Mihomo runtime health check failed.",
-                        reason = "health_check_failed",
-                        failureKind = KiyoriMihomoRuntimeFailureKind.HEALTH_CHECK_FAILED,
-                    )
-                    throw KiyoriNetworkException(
-                        KiyoriNetworkErrorCode.CORE_START_FAILED,
-                        "The embedded Mihomo runtime health check failed.",
-                    )
-                }
-                proxyLog.info(
-                    "运行时健康",
-                    "复用检查通过 runtimeGeneration=${active.runtimeGeneration} " +
-                        "mixedPortListening=true controllerReady=true elapsedMs=${health.elapsedMillis}",
-                )
-                publishRunningState(active)
+                // 请求复用只检查进程与配置身份。健康看护是连续失败计数的唯一所有者；
+                // 每个请求另做短超时探测并立即 stop 会把一次控制面拥塞放大成所有 AI 流断开。
+                // 当前连接失败仍原样返回，既有看护继续负责故障发布及有界恢复。
                 return active
             }
             stopLocked(KiyoriMihomoRuntimePhase.STOPPED, null, "runtime_replaced")

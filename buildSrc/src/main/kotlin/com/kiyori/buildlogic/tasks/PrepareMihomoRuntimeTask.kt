@@ -74,12 +74,21 @@ abstract class PrepareMihomoRuntimeTask @Inject constructor(
         }
         val mihomo = module("mihomo")
         val sing = module("sing")
-        val original = sing.resolve("common/bufio/splice_linux.go")
-        check(calculateSha256(original) == pin("sing.splice.sha256")) { "Unexpected upstream splice implementation" }
-        // Validate the original dependency graph before replacing the single reviewed source file.
+        val patches = mapOf("splice_linux.go" to "sing.splice.sha256", "copy_direct_posix.go" to "sing.readwait.sha256")
+        patches.forEach { (file, checksum) ->
+            check(calculateSha256(sing.resolve("common/bufio/$file")) == pin(checksum)) {
+                "Unexpected upstream implementation: $file"
+            }
+        }
+        // Validate the original dependency graph before replacing the reviewed source files.
         go(mihomo, "mod", "download")
         check(go(mihomo, "mod", "verify").contains("all modules verified"))
-        Files.copy(input.resolve("splice_linux.go").toPath(), original.toPath(), StandardCopyOption.REPLACE_EXISTING)
+        patches.forEach { (file, _) ->
+            Files.copy(input.resolve(file).toPath(), sing.resolve("common/bufio/$file").toPath(), StandardCopyOption.REPLACE_EXISTING)
+        }
+        val relay = mihomo.resolve("common/net/sing.go")
+        check(calculateSha256(relay) == pin("mihomo.relay.sha256")) { "Unexpected upstream relay implementation" }
+        Files.copy(input.resolve("relay.go").toPath(), relay.toPath(), StandardCopyOption.REPLACE_EXISTING)
         // Upstream release CI populates this otherwise empty embed. Preserve the existing release's trust roots.
         val certificates = input.resolve("ca-certificates.crt")
         check(calculateSha256(certificates) == pin("ca.sha256")) { "Embedded CA bundle checksum mismatch" }

@@ -11,6 +11,16 @@ KIYORI_ROOT = JAVA_ROOT / "com" / "kiyori"
 
 
 class ApplicationNetworkProxyContractTest(unittest.TestCase):
+    def test_request_reuse_cannot_stop_all_streams_on_a_control_probe_timeout(self) -> None:
+        runtime = self.read_kiyori("platform/network/KiyoriMihomoRuntime.kt")
+        reuse = runtime.split("activeRuntime?.let { active ->", 1)[1].split("return active", 1)[0]
+        self.assertIn("active.process.isAlive", reuse)
+        self.assertNotIn("inspectRuntimeHealth(", reuse)
+        self.assertNotIn("stopLocked(", reuse)
+        monitor = runtime.split("private fun monitorRuntimeHealth", 1)[1]
+        self.assertIn("consecutiveFailures >= HEALTH_FAILURE_THRESHOLD", monitor)
+        self.assertIn("KiyoriMihomoRuntimeFailureKind.HEALTH_CHECK_FAILED", monitor)
+
     def read_operit(self, relative_path: str) -> str:
         return (OPERIT_ROOT / relative_path).read_text(encoding="utf-8")
 

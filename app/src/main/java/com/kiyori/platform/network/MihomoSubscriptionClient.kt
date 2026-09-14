@@ -5,6 +5,7 @@ import java.net.Proxy
 import java.net.URI
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -116,6 +117,8 @@ class MihomoSubscriptionClient {
                 }
                 subscriptionFailure("The subscription did not return a configuration.")
             }
+        } catch (error: CancellationException) {
+            throw error
         } catch (error: KiyoriNetworkException) {
             KiyoriNetworkProxyLogStore.error(
                 "订阅下载",

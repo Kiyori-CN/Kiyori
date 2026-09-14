@@ -7,7 +7,7 @@
 ## 来源与修复
 
 `source.properties` 固定 Mihomo `v1.19.30`、sing `v0.5.7`、两者 Go 模块校验和、原始
-`splice_linux.go` SHA-256 和 Go `1.26.6`。此 Go 版本与原官方二进制的 build info 一致。
+三份被修改的上游源文件 SHA-256 和 Go `1.26.6`。此 Go 版本与原官方二进制的 build info 一致。
 构建先验证模块缓存完整性，再复制到任务临时目录；依赖继续使用上游 `go.mod/go.sum`，
 `-mod=readonly` 禁止构建自动修改依赖图。只有本地 sing 替换和以下显式输入发生变化。
 
@@ -16,6 +16,15 @@
   保留 [GPL-3.0-or-later 声明](LICENSE)。补丁在读、写系统调用返回 `EINTR` 时继续同一调用。
   `EINTR` 未消费字节，不能终止 TCP 转发，也不能当成 EAGAIN 等待新的就绪边沿。
   每条复制流每个方向最多记录一次恢复日志，不包含 payload、地址或凭据；其余错误仍原样返回。
+- [`copy_direct_posix.go`](copy_direct_posix.go) 修复 sing 同版本原始 TCP `read` 与 UDP
+  `recvmsg` 的 EINTR 处理。加密出站不能直接 splice 时仍会使用原始读取器，不能只修复 splice。
+  中断后继续同一个未消费数据的调用，EAGAIN 仍交还 poller，EOF、关闭和超时保持原有语义；
+  每个读取器最多记录一次中断处理。公开来源为
+  [上游原始读取器](https://github.com/MetaCubeX/sing/blob/v0.5.7/common/bufio/copy_direct_posix.go)。
+- [`relay.go`](relay.go) 对应 Mihomo 的
+  [common/net/sing.go](https://github.com/MetaCubeX/mihomo/blob/v1.19.30/common/net/sing.go)，
+  保持双向复制与半关闭行为，每个方向结束时仅记录本机客户端端口及受控原因分类。
+  `copy_complete` 只表示复制函数正常返回，不能证明 SSE 已语义完成；不打印目标、正文或异常消息。
 - [`ca-certificates.crt`](ca-certificates.crt) 保留原官方 Android 运行库中的同一份 121 个根证书，
   避免源码中的空 embed 改变 TLS 信任集合。原运行库 SHA-256 为
   `94344144936968f25e7089bbeac2d87f3caf67574ba433511424724ad7435dad`；证书连续 PEM
@@ -25,7 +34,7 @@
 上游构建行为可查
 [Mihomo 发布工作流](https://github.com/MetaCubeX/mihomo/blob/v1.19.30/.github/workflows/build.yml)。
 Kiyori 保留 `with_gvisor`、CGO、Android API 34、ARM64 与嵌入 CA，使用项目已有 NDK，
-固定版本字符串 `v1.19.30-kiyori.1`、构建时间字符串和空 build ID。
+固定版本字符串 `v1.19.30-kiyori.2`、构建时间字符串和空 build ID。
 源构建的本地 ELF SHA-256 由任务报告，APK 校验要求逐字节等于该次已验证的产物；
 不同宿主/NDK 的 ELF 哈希不被冒充为固定跨平台哈希。
 
@@ -46,10 +55,15 @@ Android SDK/NDK 使用项目配置。首次构建会获取锁定 Go 工具链与
 bash tools/mihomo_runtime/test_splice.sh
 ```
 
-测试从同一份已验证/已修补源码编译 Linux 核心，只使用回环 TCP。正常与 EINTR 注入场景
+测试从同一份已验证/已修补源码编译 Linux 核心，只使用回环 TCP/UDP。正常与 splice EINTR 注入场景
 都必须只发送一个请求、精确收到 512 KiB 非均匀字节序列、命中关键词 DIRECT；注入场景还必须
 实际覆盖读和写两个方向。未注入、未命中 DIRECT 或字节损坏都不能算通过。CI 完整 Android
 检查和构建执行此入口。它验证核心转发，不能证明目标 Android 内核上的实际中断原因。
+
+同一入口还运行 [`readwait_integration_test.go`](readwait_integration_test.go)：原始 TCP 读取
+必须精确收到 128 KiB，UDP 必须保留 40 个数据报（包括空包）的内容与发送端；strace 注入
+`read/recvmsg` EINTR 时必须实际命中生产读取器的恢复分支。正常 EOF、本地关闭和读取超时
+另行验证，未注入或没有覆盖该分支不能算通过。
 
 手机对话是否恢复、首包/长流/工具后续请求和真实节点协议仍需现场验收；不把该补丁的
 本地回归结果宣称为所有网络都不再断开。代理层不重新提交未知状态的 AI POST。

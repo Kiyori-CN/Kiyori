@@ -21,9 +21,14 @@
 - 内嵌核心从固定版本源码构建，输入与验证见 [Mihomo 构建契约](../../../tools/mihomo_runtime/README.md)。
   Linux splice 的读、写 `EINTR` 只继续原系统调用，保留当前字节位置，不终止连接或重发应用请求；
   其他传输错误仍由原路径处理。每条复制流各方向最多记录一次 EINTR 处理日志。
+  非 splice 原始 TCP `read` / UDP `recvmsg` 同样在 EINTR 后继续原调用，不向上返回伪连接失败；
+  EAGAIN、EOF、关闭和超时保留原语义。核心转发结束按方向记录本机客户端端口和受控原因分类，
+  `copy_complete` 不等于 AI 协议完成，不记录目标地址、正文或异常原文。
 - launcher 的 Linux `PDEATHSIG` 绑定创建子进程的父线程。主核心、probe 与配置校验均由专用创建线程启动，
   该线程等待子进程退出，避免协程 worker 回收误停核心；既有 runtime 保持唯一 Process 与停止所有权。
   创建/等待线程中断不代表停止授权，启动异常原样返回，宿主进程死亡仍由 launcher 终止核心。
+- 设置页临时订阅探测在 IO 块内交还资源句柄；取消跨调度器返回或测速后，仍以不可取消清理
+  关闭该探测进程并清除私有目录。取消保持取消语义，不冒充订阅下载失败或主核心错误。
 - 自定义规则独立保存，订阅更新只替换订阅规则；不覆盖自定义规则。
 - 默认拒绝与外部系统 VPN 并存；用户明确允许后路径为应用 Mihomo → 系统 VPN → 节点。
 - 首次 URL 导入在没有 active subscription 时使用 Android 系统网络，因此可以由系统 VPN 提供可达性；已有活动订阅且需要内嵌代理时，更新必须使用当前 Kiyori 路由，失败不会静默改走直连。外部 Clash 只开放本机 mixed-port 而未接入 Android VPN/TUN 时，Kiyori 不扫描或自动接管该端口。
@@ -31,6 +36,9 @@
 ## 启动与恢复
 
 - manager 持有单一 readiness state 与 generation，不能永久缓存第一次成功或失败。
+- 每次请求复用只核对主核心进程存活和配置身份；不执行短超时 Controller/端口探测，
+  不因某个请求的一次控制面超时停止所有连接。启动就绪检查与既有后台连续健康检查继续生效，
+  请求本身的连接失败原样返回，不自动重发；日志中的健康字段仍是最近探测快照。
 - `enabled=true` 只允许在当前订阅存在、清洗配置非空且具有 root route 时持久化；从关闭切到开启、导入、替换、切换和编辑订阅均在保存前用包含订阅规则与当前自定义规则的 RULE runtime 执行 Mihomo `-t`。
 - 系统网络 callback 合并网络增删及能力变化，在既有 `mutationMutex` 内重读最新配置与全部网络的 VPN transport 后协调。VPN 冲突停止核心并清理 WebView 覆盖；不创建第二核心或静默直连。
 - 首个真实 WebView 完成 provider、能力和脚本桥初始化后安装进程代理覆盖；就绪前阻止远程主文档，包括恢复、Back、Forward、Refresh。`about:`、`file:` 等本地文档不等待。
@@ -39,7 +47,11 @@
 - 在既有 `mutationMutex` 中重读配置与 VPN；每失败 generation 一次、五分钟最多两次。限额后保持 `ERROR`，不换节点、不静默直连。
 - 核心退出立即使旧 WebView 端点失效。相同健康端点不重复安装覆盖；generation 失败清除缓存。代理关闭后的协调可正常完成，过期 deferred 不能写回新状态。
 - ProxyController 安装与清理回调有五秒超时；恢复只影响新媒体请求，既有下载保留原任务路由证据。
-- 动态 OkHttp 客户端发送请求前复核已复用连接的实际 proxy；若配置或 runtime endpoint 已变化，关闭旧 socket 并明确失败，避免旧直连或旧 loopback 端点继续承载新请求。
+- 动态 OkHttp 客户端发送请求前复核已复用连接的实际 proxy；若配置或 runtime endpoint 已变化，
+  当前 exchange 明确失败且不发送请求。不能直接关闭池化 socket，因为 HTTP/2 上可能仍有其他
+  流；先标记该连接不再接收新 exchange，再由 OkHttp 在已有流释放后关闭连接，避免旧连接
+  持续被选中。`OkHttpConnectionRetirement` 隔离固定 OkHttp 4.12.0 的内部 ABI 调用：公共
+  `evictAll` 只处理空闲连接，不能完成此操作。升级依赖必须通过真实 HTTP/2 并发流与新连接回归。
 
 ## 播放器传输与诊断
 

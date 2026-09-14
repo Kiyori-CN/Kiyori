@@ -138,6 +138,10 @@ func TestSpliceInterruptedTransfer(t *testing.T) {
 			if !strings.Contains(string(coreLog), "DomainKeyword(newapi) using DIRECT") {
 				t.Fatal("DIRECT rule was not exercised")
 			}
+			if !strings.Contains(string(coreLog), "[Kiyori relay] direction=download clientPort=") ||
+				!strings.Contains(string(coreLog), "result=copy_complete") {
+				t.Fatal("missing native copy completion evidence")
+			}
 			if inject {
 				if !bytes.Contains(trace, []byte("INJECTED")) {
 					t.Fatal("no syscall was injected")

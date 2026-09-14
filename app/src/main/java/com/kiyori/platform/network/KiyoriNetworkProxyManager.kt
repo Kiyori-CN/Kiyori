@@ -922,16 +922,10 @@ class KiyoriNetworkProxyManager private constructor(context: Context) {
                     manager = this,
                     module = module,
                 ),
-            ).addNetworkInterceptor { chain ->
+            ).addNetworkInterceptor(networkRouteGuard { request ->
                 // OkHttp 复用连接时可能不再次调用 ProxySelector；发送 HTTP 前拒绝旧端点或旧直连。
-                val expected = DynamicKiyoriProxySelector(this, module).select(chain.request().url.toUri()).single()
-                val connection = chain.connection()
-                if (connection != null && connection.route().proxy != expected) {
-                    connection.socket().close()
-                    throw IOException("The application proxy route changed; this connection is no longer valid.")
-                }
-                chain.proceed(chain.request())
-            }.also { installDynamicFailureLogging(it, module) }
+                DynamicKiyoriProxySelector(this, module).select(request.url.toUri()).single()
+            }).also { installDynamicFailureLogging(it, module) }
 
     fun openConnectionBlocking(
         url: URL,

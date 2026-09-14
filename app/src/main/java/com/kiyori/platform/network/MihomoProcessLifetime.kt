@@ -3,6 +3,25 @@ package com.kiyori.platform.network
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ExecutionException
 import kotlin.concurrent.thread
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
+
+/** 临时探测资源在跨调度器取消时也必须交还并释放；主运行时不使用此临时作用域。 */
+internal suspend fun <T : Any, R> withTemporaryMihomoResource(
+    acquire: () -> T,
+    release: (T) -> Unit,
+    block: suspend (T) -> R,
+): R {
+    var resource: T? = null
+    try {
+        // 赋值必须发生在 IO 块内：及时取消可能丢弃 withContext 的返回值。
+        withContext(Dispatchers.IO) { resource = acquire() }
+        return block(checkNotNull(resource))
+    } finally {
+        withContext(NonCancellable + Dispatchers.IO) { resource?.let(release) }
+    }
+}
 
 /**
  * Linux 的 PDEATHSIG 绑定创建子进程的父线程，而非整个 JVM。协程 IO worker 会在空闲时

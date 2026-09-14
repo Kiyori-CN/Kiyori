@@ -46,6 +46,56 @@ date: 2026-08-23
 
 ## 2026-09-14 内置代理导致 AI 流中断
 
+21:20 正文 EOF 复发后的深入审计（基线 `ec775a4c7926fb72aea9d23184cfd35372237f4f`）：
+
+- 目标：审计设置、配置保存、请求路由、核心复用与 TCP 转发，修复有证据的稳定性缺陷；
+  用户授权使用指定订阅和模型服务进行合成请求测试，并在验证后提交推送。
+- 输入：`AI_SERVICES / RULE / EOFException / RESPONSE_BODY / callCancelled=false`，
+  2034 ms 时核心 generation 1 仍报告 RUNNING。它不能单独确定真实出站或 EOF 发起端。
+- 阶段：调用链与固定上游源码审计；故障复现和最小修复；定向自动测试与授权服务测试；
+  串行 Debug APK、文档与交付审计。每阶段记录实际证据，不以旧 APK 结果替代本轮验收。
+- 当前发现：每次请求的复用检查在一次 800 ms Controller 探测失败后停止整个核心，
+  绕过后台连续失败策略；sing 的非 splice 原始读取路径也未处理 EINTR，需独立回归。
+- 边界：不重发已提交的 AI POST、不换模型/端点/节点掩盖失败、不静默直连；不安装或操作设备。
+  凭据与真实订阅只进入本机临时测试，不进入源码、测试夹具、日志或 Git。
+- 风险与回滚：改动涉及在途连接和 native 复制路径，以独立故障注入与逐字节断言验证；
+  固定上游版本和校验和，沿用唯一 manager/runtime，回滚为本轮提交的精确逆向变更。
+- 已实现的修复：
+  - 请求复用不再执行短超时健康探测和全核心停机，启动校验及后台连续失败恢复继续生效。
+  - 非 splice TCP/UDP 读取补齐 EINTR 处理；原始文件哈希、源码替换和核心 `.2` 版本均固定。
+  - 路由不匹配时退役旧池化连接，拒绝本次请求并保留其他 HTTP/2 流；避免物理关闭的连带
+    中断，也避免只抛异常导致旧连接反复复用。固定版本 ABI 由单一 Java 边界与真实连接测试约束。
+  - 临时订阅探测的资源交接及清理抵抗协程取消；取消保持原语义，不包装成订阅故障。
+  - 核心每个复制方向结束时增加本机端口和受控原因，不打印 payload、目标或异常原文。
+- 已取得证据：原始读取器正常 TCP/UDP 通过，未修补版本注入 EINTR 后 TCP 在 1024 字节处
+  失败、UDP 直接失败；修补版 128 KiB TCP 与 40 个 UDP 包逐字节通过，实际注入 60/41 次。
+  splice 正常与 96 次 EINTR 注入均完整转发 512 KiB，每场景一个请求。
+- HTTPS 本机集成：生产 RULE 配置、OkHttp 4.12.0 与正文观察器下，8 秒首包等待、8 秒正文
+  暂停、75 秒连续流均完成；主动 TLS/chunked 截断原样失败且只观察一次，共四个 POST。
+- 授权服务实测：Windows 上指定订阅 HTTP 200、517812 字节，清洗后 69 节点、9 组、9261
+  保留规则、2 条排除规则、2 个隔离节点。指定 Astra 直连 HTTP 200、110 事件完整；独立的
+  RULE/显式域名 DIRECT 样本 HTTP 200、109 事件完整，核心确认一次 TCP 命中 DIRECT，两个
+  复制方向正常结束。每个样本只创建一次 POST，没有失败重发。
+- 实测限制：WSL 在订阅 TLS 握手阶段失败，未发送模型请求；Windows 初次默认 RULE/GLOBAL
+  样本分别出现 SocketException/SSLHandshakeException，该测试最初仅等待 mixed-port，弱于
+  生产 Controller/策略组就绪边界，不能据此判定产品启动缺陷。后续改为 Controller/策略组就绪，
+  RULE GET 成功实际命中 DIRECT，不能当成节点通过；八个分散索引的 VLESS 节点独立 GET
+  均出现 TLS 失败。未证实这些节点在本机环境中的失败原因，不扩写成订阅全体节点失效。
+  没有修改应用的真实订阅/选择，也没有宣称默认节点、Android 或用户 21:20 EOF 已验收。
+- 最终自动验证：21 suites / 136 JVM tests、3 suites / 14 buildSrc tests、31 个代理/CI
+  Python 契约测试全部通过，0 failures / errors / skipped。连接退役测试同时确认：旧 HTTP/2
+  回答完整、被拒绝的请求未发送、下一请求使用新物理连接。新增取消测试覆盖资源取得期间取消、
+  使用期间取消及错误清理；异常断言保留协程调试栈恢复后的原始因果链。
+- 最终 `:app:assembleDebug --no-daemon --console=plain` 58 秒通过。APK 为
+  `app/build/outputs/apk/debug/app-debug.apk`，2026-09-14 22:09:24 +08:00，481644953 bytes，
+  SHA-256 `2f2492948d00f3bee1975833867596e68a3cabb609c0b875a771039a8bf444c4`。
+  核验 `com.kiyori / 45 / 0.1.0`、唯一 launcher、v2 单 signer、zipalign 16 KiB 通过；
+  55 个 AArch64 ELF 的 PT_LOAD 均至少 16 KiB。包内 `.2` 核心逐字节匹配生成文件，三份
+  生成源文件与已审阅输入一致，私有诊断实验改动没有进入 APK。
+- 文档检查 522 文件零问题，正式准备与差异检查通过；候选提交树、新鲜克隆及远端 ref 在
+  提交推送时另行核验。未运行全量应用单测、Lint、Release、设备安装或远端 CI。
+- 交付状态：`LOCAL FIXES AND DEBUG APK VERIFIED / DEVICE AND NODE PATH VERIFICATION PENDING`。
+
 18:17 复发后的核心修复（基线 `de365e1f9268d2195bbc7fa008d5f3de48cc3f34`）：
 
 - 新无工具对话收到 HTTP 200、359 个事件和 581 个字符后，在 13579 ms 发生 chunked EOF；
