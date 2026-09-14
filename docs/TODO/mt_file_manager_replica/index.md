@@ -1,5 +1,38 @@
 # Kiyori 内置文件管理器开发
 
+## 2026-09-14 文件首页与存储位置精修
+
+状态：实现、定向回归和 Debug 构建完成，设备 `verification_pending`。
+基线 `main / c00cf64512dc732310c4c65d71b74f95dde2cd30`，初始工作区干净。
+本轮授权首页布局、选项重排、存储位置页面优化、相关问题修复、构建和提交推送。
+
+1. 缩小网格图标及名称，统一存储行名称字号；根据主题行高重新分配三个可见间距，保持首页整体高度。
+2. 分类保留图片、视频、音频、文档、安装包、压缩包；快捷访问按应用集、下载、浏览器、WPS Office、QQ、微信、截屏、蓝牙排序。
+3. 将四个存储选项整理为容量概览和紧凑列表，保留独立打开、显示开关、路径和错误重试。
+4. 修正未统计数量冒充零文件的问题，更新现有回归与正式契约，执行定向测试、文档检查和串行 Debug 构建。
+5. 审计精确文件和候选树，提交推送并核对远端 `main`。
+
+范围限于首页及其存储管理页，复用 Shell、文件会话和偏好；不新增分类扫描后端，不操作设备或发布 APK。
+风险为字号缩小后的可读性、长路径及开关误触；保留至少 48 dp 交互目标和可滚动布局。
+回滚使用本轮提交差异，不涉及数据迁移；设备视觉、字体缩放、横屏与真实目录访问保持 `verification_pending`。
+
+本地证据（2026-09-14 至 2026-09-15，Asia/Shanghai）：
+
+- 默认主题的静态布局核算：搜索框之后至存储行之前，新旧高度预算均为 460 dp；
+  三段可见间距均约 22.67 dp。该计算不替代设备字体度量和实际像素测量。
+- `:app:testDebugUnitTest` 定向覆盖 `KiyoriFileStorageTest`、`KiyoriSettingsPagesTest`、
+  `FileManagerStorageManagementTest`：3 套 40 项，0 失败、错误或跳过。覆盖顺序、未知数量、
+  精确路径/环境、固定入口、隐藏/移除/分类组合及容量边界。
+- `check_documentation.py --repository . --base c00cf64512dc732310c4c65d71b74f95dde2cd30`：
+  522 份文档、0 问题；正式开发准备与 `git diff --check` 通过。
+- 串行 `:app:assembleDebug --no-daemon --console=plain` 成功（3m 30s），单启动器、脚本代理、
+  播放器打包检查通过。APK 为 `app/build/outputs/apk/debug/app-debug.apk`，
+  生成于 `2026-09-15 00:03:38 +08:00`，481645788 字节，`com.kiyori / 45 / 0.1.0 / arm64-v8a`；
+  V2 单签名与 16 KiB ZIP 对齐通过。
+  SHA-256：`AC42B5F7AAED3E68E2D0BE137ADC2CF005351664FC1FFCE31B5E591D888BB1A5`。
+- 网格和快捷访问“全部”原本没有点击业务，本轮只调整展示；分类扫描、应用目录映射不在本轮新增。
+  未运行 Lint、Release、设备安装或现场 UI 验收，远端 CI 单独验收。
+
 ## 2026-09-14 文件夹回收与永久删除修复
 
 状态：实现、定向回归与 Debug APK 构建完成；设备 `verification_pending`。基线 `main / 0b1bc919a1f4171b0ea61e43eb676cb1379e8d5d`，初始工作区干净。

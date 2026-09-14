@@ -45,10 +45,9 @@ import androidx.compose.material.icons.filled.Description
 
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Forum
-import androidx.compose.material.icons.filled.GraphicEq
+import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.KeyboardVoice
-import androidx.compose.material.icons.filled.LocalOffer
 
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.PlayCircle
@@ -79,11 +78,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -107,32 +109,31 @@ import kotlinx.coroutines.withContext
 
 internal data class KiyoriFileEntryItem(
     val title: String,
-    val count: String,
+    val count: String?,
     val tone: KiyoriSemanticTone,
     val icon: ImageVector,
 )
 
 internal val kiyoriFileCategoryItems =
     listOf(
-        KiyoriFileEntryItem("图片", "0项", KiyoriSemanticTone.PINK, Icons.Default.Image),
-        KiyoriFileEntryItem("视频", "0项", KiyoriSemanticTone.RED, Icons.Default.PlayCircle),
-        KiyoriFileEntryItem("音频", "0项", KiyoriSemanticTone.PURPLE, Icons.Default.MusicNote),
-        KiyoriFileEntryItem("文档", "0项", KiyoriSemanticTone.ORANGE, Icons.Default.Description),
-        KiyoriFileEntryItem("安装包", "0项", KiyoriSemanticTone.GREEN, Icons.Default.Android),
-        KiyoriFileEntryItem("压缩包", "0项", KiyoriSemanticTone.ORANGE, Icons.Default.Folder),
-        KiyoriFileEntryItem("标签", "0项", KiyoriSemanticTone.BLUE, Icons.Default.LocalOffer),
-        KiyoriFileEntryItem("下载", "0项", KiyoriSemanticTone.GREEN, Icons.Outlined.Download),
+        KiyoriFileEntryItem("图片", null, KiyoriSemanticTone.PINK, Icons.Default.Image),
+        KiyoriFileEntryItem("视频", null, KiyoriSemanticTone.RED, Icons.Default.PlayCircle),
+        KiyoriFileEntryItem("音频", null, KiyoriSemanticTone.PURPLE, Icons.Default.MusicNote),
+        KiyoriFileEntryItem("文档", null, KiyoriSemanticTone.ORANGE, Icons.Default.Description),
+        KiyoriFileEntryItem("安装包", null, KiyoriSemanticTone.GREEN, Icons.Default.Android),
+        KiyoriFileEntryItem("压缩包", null, KiyoriSemanticTone.ORANGE, Icons.Default.Folder),
     )
 
 internal val kiyoriFileQuickAccessItems =
     listOf(
-        KiyoriFileEntryItem("应用集", "0项", KiyoriSemanticTone.BLUE, Icons.Default.Apps),
-        KiyoriFileEntryItem("WPS Office", "0项", KiyoriSemanticTone.RED, Icons.Default.Description),
-        KiyoriFileEntryItem("QQ", "0项", KiyoriSemanticTone.BLUE, Icons.AutoMirrored.Filled.Chat),
-        KiyoriFileEntryItem("微信", "0项", KiyoriSemanticTone.GREEN, Icons.Default.Forum),
-        KiyoriFileEntryItem("截屏", "0项", KiyoriSemanticTone.CYAN, Icons.Default.Crop),
-        KiyoriFileEntryItem("录音机", "0项", KiyoriSemanticTone.PURPLE, Icons.Default.GraphicEq),
-        KiyoriFileEntryItem("蓝牙", "0项", KiyoriSemanticTone.BLUE, Icons.Default.Bluetooth),
+        KiyoriFileEntryItem("应用集", null, KiyoriSemanticTone.BLUE, Icons.Default.Apps),
+        KiyoriFileEntryItem("下载", null, KiyoriSemanticTone.GREEN, Icons.Outlined.Download),
+        KiyoriFileEntryItem("浏览器", null, KiyoriSemanticTone.CYAN, Icons.Default.Public),
+        KiyoriFileEntryItem("WPS Office", null, KiyoriSemanticTone.RED, Icons.Default.Description),
+        KiyoriFileEntryItem("QQ", null, KiyoriSemanticTone.BLUE, Icons.AutoMirrored.Filled.Chat),
+        KiyoriFileEntryItem("微信", null, KiyoriSemanticTone.GREEN, Icons.Default.Forum),
+        KiyoriFileEntryItem("截屏", null, KiyoriSemanticTone.CYAN, Icons.Default.Crop),
+        KiyoriFileEntryItem("蓝牙", null, KiyoriSemanticTone.BLUE, Icons.Default.Bluetooth),
     )
 
 /** 首页"存储位置"四个入口的种类；内部存储与回收站固定常驻，Linux 与工作区可在管理页开关。 */
@@ -252,6 +253,15 @@ internal fun KiyoriFileManagementPage(
         kiyoriFileStorageRowItems(internalStoragePath, workspacePath)
     }
     val visibleStorageRows = kiyoriVisibleFileStorageRowItems(storageRows, settings)
+    val typography = MaterialTheme.typography
+    val (searchGap, sectionGap) = with(LocalDensity.current) {
+        // 四行网格缩小后，把释放的高度分配给三个可见间隔，保持搜索框至存储区的总高度。
+        // 标题的 48 dp 命中区包含上下留白，扣除上半留白后才是相同的视觉间距。
+        val releasedPerRow = 4.dp + typography.labelLarge.lineHeight.toDp() - typography.bodySmall.lineHeight.toDp()
+        val visibleGap = (36.dp + releasedPerRow * 4) / 3
+        val headerInset = ((48.dp - typography.titleSmall.lineHeight.toDp()) / 2).coerceAtLeast(0.dp)
+        visibleGap to (visibleGap - headerInset).coerceAtLeast(0.dp)
+    }
 
     fun openStorageRow(item: KiyoriFileStorageRowItem) {
         // 每个位置都是显式导航；不走“恢复会话”回调，避免内部存储打开上次的 Linux/回收站。
@@ -268,13 +278,13 @@ internal fun KiyoriFileManagementPage(
                 .padding(horizontal = 16.dp),
     ) {
         KiyoriFileManagementTopBar()
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(searchGap))
         KiyoriFileEntryGrid(kiyoriFileCategoryItems)
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(sectionGap))
         KiyoriFileSectionHeader("快捷访问")
         Spacer(modifier = Modifier.height(8.dp))
         KiyoriFileEntryGrid(kiyoriFileQuickAccessItems)
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(sectionGap))
         KiyoriFileSectionHeader("存储位置", onSeeAllClick = { showStorageLocationsPage = true })
         Spacer(modifier = Modifier.height(8.dp))
         visibleStorageRows.forEachIndexed { index, item ->
@@ -364,7 +374,7 @@ private fun KiyoriFileManagementTopBar() {
 private fun KiyoriFileSectionHeader(title: String, onSeeAllClick: (() -> Unit)? = null) {
     val actionColor = if (onSeeAllClick != null) MaterialTheme.colorScheme.primary
         else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
-    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+    Row(modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp), verticalAlignment = Alignment.CenterVertically) {
         Text(
             title,
             style = MaterialTheme.typography.titleSmall,
@@ -422,20 +432,25 @@ private fun KiyoriFileEntryTile(item: KiyoriFileEntryItem, modifier: Modifier = 
             imageVector = item.icon,
             tone = item.tone,
             contentDescription = item.title,
-            containerSize = 40.dp,
-            iconSize = 18.dp,
+            containerSize = 36.dp,
+            iconSize = 16.dp,
         )
         Spacer(modifier = Modifier.height(5.dp))
         Text(
             item.title,
-            style = MaterialTheme.typography.labelLarge,
+            style = MaterialTheme.typography.bodySmall,
             fontWeight = FontWeight.SemiBold,
             color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
         )
         Text(
-            item.count,
+            item.count ?: "—",
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.62f),
+            modifier = Modifier.semantics {
+                if (item.count == null) contentDescription = "数量尚未统计"
+            },
         )
     }
 }
@@ -467,7 +482,7 @@ private fun KiyoriFileStorageRow(
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 item.title,
-                style = MaterialTheme.typography.bodyMedium,
+                style = MaterialTheme.typography.bodySmall,
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurface,
             )
@@ -541,7 +556,7 @@ private fun KiyoriFileStorageLocationsPage(
                     }
                     Text(
                         "存储位置",
-                        style = MaterialTheme.typography.titleLarge,
+                        style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                         modifier = Modifier.weight(1f).semantics { heading() },
                     )
@@ -549,32 +564,34 @@ private fun KiyoriFileStorageLocationsPage(
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 Column(
                     modifier = Modifier.weight(1f).verticalScroll(rememberScrollState())
-                        .padding(horizontal = 16.dp, vertical = 20.dp),
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    Text(
-                        "选择位置开始浏览",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                    Text(
-                        "点击位置打开文件。显示开关只调整入口，不删除文件，也不关闭 Linux 环境。",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(bottom = 4.dp),
-                    )
-                    entries.forEach { entry ->
-                        KiyoriFileStorageManagementRow(
-                            entry = entry,
-                            visible = kiyoriFileStorageRowVisible(entry, settings),
-                            capacity = capacity,
-                            onRefreshCapacity = onRefreshCapacity,
-                            onToggleVisible = { onToggleVisible(entry, it) },
-                            onClick = { onOpenEntry(entry) },
-                        )
+                    KiyoriFileStorageCapacityCard(capacity, onRefreshCapacity)
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text("浏览位置", style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f).semantics { heading() })
+                        Text("${entries.count { kiyoriFileStorageRowVisible(it, settings) }} / ${entries.size} 已显示",
+                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Surface(shape = KiyoriUiShapes.card, color = MaterialTheme.colorScheme.surfaceContainerLow) {
+                        Column {
+                            entries.forEachIndexed { index, entry ->
+                                KiyoriFileStorageManagementRow(
+                                    entry = entry,
+                                    visible = kiyoriFileStorageRowVisible(entry, settings),
+                                    onToggleVisible = { onToggleVisible(entry, it) },
+                                    onClick = { onOpenEntry(entry) },
+                                )
+                                if (index != entries.lastIndex) {
+                                    HorizontalDivider(Modifier.padding(horizontal = 12.dp),
+                                        color = MaterialTheme.colorScheme.outlineVariant)
+                                }
+                            }
+                        }
                     }
                     Text(
-                        "内部存储和回收站始终保留。隐藏的位置仍可在本页打开；重新显示工作区时，也会显示侧栏的工作区分组。",
+                        "点击位置浏览文件。开关同步首页和侧栏的显示；隐藏后仍可在这里打开，不会删除文件或关闭 Linux。",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(top = 4.dp, bottom = 12.dp),
@@ -589,91 +606,97 @@ private fun KiyoriFileStorageLocationsPage(
 private fun KiyoriFileStorageManagementRow(
     entry: KiyoriFileStorageRowItem,
     visible: Boolean,
-    capacity: KiyoriDeviceStorageCapacityState,
-    onRefreshCapacity: () -> Unit,
     onToggleVisible: (Boolean) -> Unit,
     onClick: () -> Unit,
 ) {
-    Surface(shape = KiyoriUiShapes.card, color = MaterialTheme.colorScheme.surfaceContainerLow) {
-        Column {
-            Row(
-                modifier = Modifier.fillMaxWidth()
-                    .clickable(role = Role.Button, onClickLabel = "打开${entry.title}", onClick = onClick)
-                    .padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                KiyoriSemanticIconBadge(
-                    imageVector = kiyoriFileStorageIcon(entry.kind),
-                    tone = kiyoriFileStorageTone(entry.kind),
-                    contentDescription = null,
-                    containerSize = 40.dp,
-                    iconSize = 22.dp,
-                )
-                Spacer(modifier = Modifier.width(14.dp))
-                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(entry.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                    Text(
-                        when (entry.kind) {
-                            KiyoriFileStorageKind.INTERNAL -> "浏览手机中的文件与文件夹"
-                            KiyoriFileStorageKind.LINUX -> "浏览 Linux 环境中的文件"
-                            KiyoriFileStorageKind.WORKSPACE -> "打开默认工作目录"
-                            KiyoriFileStorageKind.RECYCLE_BIN -> "恢复文件或永久删除"
-                        },
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    // 回收站是虚拟入口，不把内部路由伪装成真实磁盘路径。
-                    if (entry.kind != KiyoriFileStorageKind.RECYCLE_BIN) {
-                        Text(entry.path, style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                }
-                Spacer(modifier = Modifier.width(8.dp))
-                Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
-            }
-            if (entry.kind == KiyoriFileStorageKind.INTERNAL) {
-                Column(Modifier.padding(start = 16.dp, end = 16.dp, bottom = 12.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(capacity.label(LocalContext.current), modifier = Modifier.weight(1f),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        IconButton(onClick = onRefreshCapacity, enabled = !capacity.loading) {
-                            Icon(Icons.Outlined.Refresh, "刷新内部存储容量", modifier = Modifier.size(20.dp))
-                        }
-                    }
-                    capacity.capacity?.let { storage ->
-                        LinearProgressIndicator(
-                            progress = { storage.usedFraction },
-                            modifier = Modifier.fillMaxWidth(),
-                            color = MaterialTheme.colorScheme.primary,
-                            trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                        )
-                        Text("已用 ${Formatter.formatFileSize(LocalContext.current, storage.usedBytes)}",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(top = 6.dp))
-                    }
-                }
-            }
-            HorizontalDivider(Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant)
-            if (entry.fixed) {
-                Text("常驻入口 · 首页始终显示", style = MaterialTheme.typography.labelMedium,
+    // 两个同级命中区：点击图标/路径打开，右侧开关只改显示偏好，避免嵌套点击误导航。
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            modifier = Modifier.weight(1f)
+                .clickable(role = Role.Button, onClickLabel = "打开${entry.title}", onClick = onClick)
+                .heightIn(min = 76.dp)
+                .padding(horizontal = 12.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            KiyoriSemanticIconBadge(
+                imageVector = kiyoriFileStorageIcon(entry.kind),
+                tone = kiyoriFileStorageTone(entry.kind),
+                contentDescription = null,
+                containerSize = 30.dp,
+                iconSize = 18.dp,
+            )
+            Spacer(modifier = Modifier.width(10.dp))
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(entry.title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                Text(
+                    when (entry.kind) {
+                        KiyoriFileStorageKind.INTERNAL -> "手机文件 · 常驻"
+                        KiyoriFileStorageKind.LINUX -> "Linux 文件系统"
+                        KiyoriFileStorageKind.WORKSPACE -> "默认工作目录"
+                        KiyoriFileStorageKind.RECYCLE_BIN -> "恢复或永久删除 · 常驻"
+                    },
+                    style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp))
-            } else {
-                // 打开位置和显示开关是两个独立命中区。开关只由整行持有，读屏不会重复播报两个控件。
-                Row(
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)
-                        .toggleable(value = visible, role = Role.Switch, onValueChange = onToggleVisible)
-                        .padding(horizontal = 16.dp, vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text("在首页和侧栏显示", style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.weight(1f))
-                    Spacer(Modifier.width(12.dp))
-                    Switch(checked = visible, onCheckedChange = null)
+                )
+                // 回收站是虚拟入口，不把内部路由伪装成真实磁盘路径。
+                if (entry.kind != KiyoriFileStorageKind.RECYCLE_BIN) {
+                    Text(entry.path, style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
+            }
+            Spacer(modifier = Modifier.width(8.dp))
+            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
+        }
+        if (!entry.fixed) {
+            Column(
+                modifier = Modifier.width(76.dp).heightIn(min = 76.dp)
+                    .toggleable(value = visible, role = Role.Switch, onValueChange = onToggleVisible)
+                    .semantics { contentDescription = "${entry.title}在首页和侧栏显示" }
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+            ) {
+                Switch(checked = visible, onCheckedChange = null)
+                Text(if (visible) "已显示" else "已隐藏", style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+    }
+}
+
+@Composable
+private fun KiyoriFileStorageCapacityCard(
+    capacity: KiyoriDeviceStorageCapacityState,
+    onRefresh: () -> Unit,
+) {
+    val context = LocalContext.current
+    Surface(shape = KiyoriUiShapes.card, color = MaterialTheme.colorScheme.surfaceContainerLow) {
+        Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text("内部存储空间", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                    Text(capacity.label(context), style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                IconButton(onClick = onRefresh, enabled = !capacity.loading) {
+                    Icon(Icons.Outlined.Refresh, "刷新内部存储容量", modifier = Modifier.size(18.dp))
+                }
+            }
+            if (capacity.loading) {
+                LinearProgressIndicator(Modifier.fillMaxWidth().padding(vertical = 8.dp))
+            }
+            capacity.capacity?.let { storage ->
+                LinearProgressIndicator(
+                    progress = { storage.usedFraction },
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                    color = MaterialTheme.colorScheme.primary,
+                    trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                )
+                Text("已用 ${Formatter.formatFileSize(context, storage.usedBytes)}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 6.dp, bottom = 4.dp))
             }
         }
     }

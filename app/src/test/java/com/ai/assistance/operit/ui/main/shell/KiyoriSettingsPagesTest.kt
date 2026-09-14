@@ -1489,15 +1489,15 @@ class KiyoriSettingsPagesTest {
     @Test
     fun `file page preserves category and quick access order`() {
         assertEquals(
-            listOf("图片", "视频", "音频", "文档", "安装包", "压缩包", "标签", "下载"),
+            listOf("图片", "视频", "音频", "文档", "安装包", "压缩包"),
             kiyoriFileCategoryItems.map(KiyoriFileEntryItem::title),
         )
         assertEquals(
-            listOf("应用集", "WPS Office", "QQ", "微信", "截屏", "录音机", "蓝牙"),
+            listOf("应用集", "下载", "浏览器", "WPS Office", "QQ", "微信", "截屏", "蓝牙"),
             kiyoriFileQuickAccessItems.map(KiyoriFileEntryItem::title),
         )
         assertTrue(
-            (kiyoriFileCategoryItems + kiyoriFileQuickAccessItems).all { item -> item.count == "0项" },
+            (kiyoriFileCategoryItems + kiyoriFileQuickAccessItems).all { item -> item.count == null },
         )
     }
 
