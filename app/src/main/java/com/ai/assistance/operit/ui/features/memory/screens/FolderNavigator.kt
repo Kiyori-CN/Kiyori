@@ -17,6 +17,7 @@ import androidx.compose.material.icons.outlined.Close
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.paneTitle
 import com.kiyori.design.theme.KiyoriUiShapes
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.filled.*
@@ -58,14 +59,14 @@ private fun ProfileSelector(
     onMemorySpaceDelete: (String) -> Unit,
     enabled: Boolean
 ) {
-    var expanded by remember { mutableStateOf(false) }
-    var showCreateDialog by remember { mutableStateOf(false) }
-    var showRenameDialog by remember { mutableStateOf(false) }
-    var showDeleteDialog by remember { mutableStateOf(false) }
-    var editedName by remember { mutableStateOf("") }
+    var expanded by remember(selectedProfileId) { mutableStateOf(false) }
+    var showCreateDialog by remember(selectedProfileId) { mutableStateOf(false) }
+    var showRenameDialog by remember(selectedProfileId) { mutableStateOf(false) }
+    var showDeleteDialog by remember(selectedProfileId) { mutableStateOf(false) }
+    var editedName by remember(selectedProfileId) { mutableStateOf("") }
     val selectedProfileName = profileNameMap[selectedProfileId] ?: selectedProfileId
 
-    var manageExpanded by remember { mutableStateOf(false) }
+    var manageExpanded by remember(selectedProfileId) { mutableStateOf(false) }
     Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
         Box(Modifier.weight(1f)) {
             OutlinedButton(onClick = { expanded = true }, enabled = enabled, modifier = Modifier.fillMaxWidth(), shape = KiyoriUiShapes.control) {
@@ -216,12 +217,14 @@ fun FolderNavigator(
     var showCreateDialog by remember(selectedProfileId) { mutableStateOf(false) }
     var showRenameDialog by remember(selectedProfileId) { mutableStateOf(false) }
     var showDeleteDialog by remember(selectedProfileId) { mutableStateOf(false) }
-    var contextMenuFolder by remember { mutableStateOf<String?>(null) }
+    var contextMenuFolder by remember(selectedProfileId) { mutableStateOf<String?>(null) }
 
-    Surface(modifier = modifier.fillMaxWidth().fillMaxHeight(0.78f), color = MaterialTheme.colorScheme.surface) {
+    val title = stringResource(R.string.library_location)
+    // 共享抽屉已经限定可见视口，不再次乘高度比例，避免半展开时留下大片空白。
+    Box(modifier = modifier.fillMaxSize().semantics { paneTitle = title }) {
         Column {
             Row(Modifier.fillMaxWidth().padding(start = 24.dp, end = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text(stringResource(R.string.library_location), style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+                Text(title, style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
                 IconButton(onClick = onDismissRequest) { Icon(Icons.Outlined.Close, stringResource(R.string.memory_close)) }
             }
             Box(Modifier.fillMaxWidth().height(4.dp)) { if (isBusy) LinearProgressIndicator(Modifier.fillMaxWidth()) }
@@ -241,12 +244,13 @@ fun FolderNavigator(
                     }
                     FolderItem(name = stringResource(R.string.folder_navigator_all), fullPath = "", level = 0,
                         isSelected = selectedFolderPath.isEmpty(), isExpanded = false, hasChildren = false,
-                        onToggleExpand = {}, onClick = { onFolderSelected("") }, onLongClick = null)
+                        onToggleExpand = {}, onClick = { onFolderSelected("") }, onLongClick = null, enabled = !isBusy)
                 }
                 if (rootNode.children.isEmpty()) item {
                     Text(stringResource(R.string.library_no_folders), Modifier.padding(horizontal = 24.dp, vertical = 16.dp), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 renderFolderTree(nodes = rootNode.children, level = 0, selectedPath = selectedFolderPath,
+                    enabled = !isBusy,
                     expandedPaths = expandedState.expandedPaths,
                     onToggleExpand = { path ->
                         expandedState = if (path in expandedState.expandedPaths) expandedState.copy(expandedPaths = expandedState.expandedPaths - path)
@@ -320,6 +324,7 @@ private fun LazyListScope.renderFolderTree(
     nodes: List<FolderNode>,
     level: Int,
     selectedPath: String,
+    enabled: Boolean,
     expandedPaths: Set<String>,
     onToggleExpand: (String) -> Unit,
     onFolderSelected: (String) -> Unit,
@@ -340,6 +345,7 @@ private fun LazyListScope.renderFolderTree(
                 onToggleExpand = { onToggleExpand(node.fullPath) },
                 onClick = { onFolderSelected(node.fullPath) },
                 onLongClick = { onFolderLongClick(node.fullPath) },
+                enabled = enabled,
                 modifier = Modifier.animateItem(placementSpec = tween(durationMillis = 300))
             )
         }
@@ -350,6 +356,7 @@ private fun LazyListScope.renderFolderTree(
                 nodes = node.children,
                 level = level + 1,
                 selectedPath = selectedPath,
+                enabled = enabled,
                 expandedPaths = expandedPaths,
                 onToggleExpand = onToggleExpand,
                 onFolderSelected = onFolderSelected,
@@ -374,6 +381,7 @@ private fun FolderItem(
     onToggleExpand: () -> Unit,
     onClick: () -> Unit,
     onLongClick: (() -> Unit)?,
+    enabled: Boolean = true,
     modifier: Modifier = Modifier
 ) {
     val backgroundColor = if (isSelected) {
@@ -405,11 +413,12 @@ private fun FolderItem(
             .then(
                 if (onLongClick != null && fullPath != stringResource(R.string.memory_uncategorized)) {
                     Modifier.combinedClickable(
+                        enabled = enabled,
                         onClick = onClick,
                         onLongClick = onLongClick
                     )
                 } else {
-                    Modifier.clickable { onClick() }
+                    Modifier.clickable(enabled = enabled) { onClick() }
                 }
             )
             .heightIn(min = 52.dp)
@@ -420,6 +429,7 @@ private fun FolderItem(
         if (hasChildren) {
             IconButton(
                 onClick = onToggleExpand,
+                enabled = enabled,
                 modifier = Modifier.size(48.dp)
             ) {
                 Icon(
@@ -454,7 +464,7 @@ private fun FolderItem(
             fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
             modifier = Modifier.weight(1f), maxLines = 2, overflow = TextOverflow.Ellipsis
         )
-        if (onLongClick != null && fullPath != stringResource(R.string.memory_uncategorized)) IconButton(onClick = onLongClick) {
+        if (onLongClick != null && fullPath != stringResource(R.string.memory_uncategorized)) IconButton(onClick = onLongClick, enabled = enabled) {
             Icon(Icons.Outlined.MoreVert, stringResource(R.string.library_folder_actions, name), Modifier.size(20.dp))
         }
     }

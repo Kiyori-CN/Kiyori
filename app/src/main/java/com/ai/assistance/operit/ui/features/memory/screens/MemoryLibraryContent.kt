@@ -10,7 +10,6 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.MenuBook
-import androidx.compose.material.icons.automirrored.outlined.ViewList
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -31,6 +30,7 @@ import com.ai.assistance.operit.ui.features.memory.viewmodel.MemoryUiState
 import com.ai.assistance.operit.ui.features.memory.viewmodel.MemoryViewModel
 import com.kiyori.design.theme.KiyoriUiShapes
 import com.ai.assistance.operit.ui.main.components.LocalIsCurrentScreen
+import com.ai.assistance.operit.ui.main.navigation.LocalTopBarActions
 import java.text.DateFormat
 
 @Composable
@@ -58,13 +58,28 @@ internal fun MemoryLibraryContent(
     state: MemoryUiState, viewModel: MemoryViewModel, spaceName: String,
     onFolders: () -> Unit, onImport: () -> Unit, isImporting: Boolean = false
 ) {
-    var moreMenu by remember { mutableStateOf(false) }
-    var showFilters by remember { mutableStateOf(false) }
-    var addMenu by remember { mutableStateOf(false) }
+    var showFilters by remember(viewModel) { mutableStateOf(false) }
+    var addMenu by remember(viewModel) { mutableStateOf(false) }
     val keyboard = LocalSoftwareKeyboardController.current
     val isCurrentScreen = LocalIsCurrentScreen.current
     LaunchedEffect(isCurrentScreen) {
-        if (!isCurrentScreen) { showFilters = false; moreMenu = false; addMenu = false }
+        if (!isCurrentScreen) { showFilters = false; addMenu = false }
+    }
+    val setTopBarActions = LocalTopBarActions.current
+    val latestState = rememberUpdatedState(state)
+    val latestImporting = rememberUpdatedState(isImporting)
+    // 壳按 screenKey 保存动作。闭包读取最新状态，空间切换重新绑定 ViewModel，避免旧空间响应点击。
+    LaunchedEffect(isCurrentScreen, viewModel) {
+        if (isCurrentScreen) setTopBarActions {
+            MemoryTopBarActions(
+                state = latestState.value,
+                isImporting = latestImporting.value,
+                onGraph = { keyboard?.hide(); viewModel.setGraphVisible(!latestState.value.showGraph) },
+                onFilter = { keyboard?.hide(); showFilters = true },
+                onSettings = { keyboard?.hide(); viewModel.showSearchSettingsDialog(true) },
+                onRefresh = { keyboard?.hide(); viewModel.loadMemoryGraph(); viewModel.loadFolderPaths() },
+            )
+        }
     }
     val knowledge = state.libraryKind == MemoryLibraryPolicy.KNOWLEDGE
     val pendingQuery = state.searchQuery.trim() != state.appliedSearchQuery
@@ -79,26 +94,24 @@ internal fun MemoryLibraryContent(
 
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
-            // 全局标题由应用壳负责，这里仅保留内容类型和页面级操作。
-            Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp, top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                SingleChoiceSegmentedButtonRow(Modifier.weight(1f)) {
+            // 位置与内容类型同排，长空间名/目录省略，完整路径在位置抽屉中展示。
+            Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                TextButton(onClick = onFolders, enabled = !busy, modifier = Modifier.weight(1f), contentPadding = PaddingValues(horizontal = 4.dp)) {
+                    Icon(Icons.Outlined.FolderOpen, null, Modifier.size(20.dp))
+                    Column(Modifier.weight(1f).padding(horizontal = 8.dp), horizontalAlignment = Alignment.Start) {
+                        Text(spaceName, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(state.selectedFolderPath.ifBlank { stringResource(R.string.library_all_folders) }, style = MaterialTheme.typography.labelLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                    Icon(Icons.Outlined.ExpandMore, null, Modifier.size(18.dp))
+                }
+                SingleChoiceSegmentedButtonRow(Modifier.weight(1.15f)) {
                     listOf(R.string.library_memories, R.string.library_knowledge).forEachIndexed { index, label ->
                         SegmentedButton(selected = knowledge == (index == 1),
                             onClick = { viewModel.setLibraryKind(if (index == 1) MemoryLibraryPolicy.KNOWLEDGE else MemoryLibraryPolicy.MEMORY) },
-                            shape = SegmentedButtonDefaults.itemShape(index, 2), enabled = !busy
-                        ) { Text(stringResource(label)) }
-                    }
-                }
-                Box {
-                    IconButton(onClick = { moreMenu = true }) { Icon(Icons.Outlined.MoreVert, stringResource(R.string.library_more)) }
-                    DropdownMenu(expanded = moreMenu, onDismissRequest = { moreMenu = false }) {
-                        DropdownMenuItem(text = { Text(stringResource(R.string.library_refresh)) }, leadingIcon = { Icon(Icons.Outlined.Refresh, null) },
-                            enabled = !state.isLoading && !busy, onClick = { moreMenu = false; viewModel.loadMemoryGraph(); viewModel.loadFolderPaths() })
-                        DropdownMenuItem(text = { Text(stringResource(if (state.showGraph) R.string.library_list else R.string.library_graph)) },
-                            leadingIcon = { Icon(if (state.showGraph) Icons.AutoMirrored.Outlined.ViewList else Icons.Outlined.AccountTree, null) },
-                            onClick = { moreMenu = false; viewModel.setGraphVisible(!state.showGraph) })
-                        DropdownMenuItem(text = { Text(stringResource(R.string.library_settings)) }, leadingIcon = { Icon(Icons.Outlined.Settings, null) },
-                            onClick = { moreMenu = false; viewModel.showSearchSettingsDialog(true) })
+                            shape = SegmentedButtonDefaults.itemShape(index, 2), enabled = !busy,
+                            icon = {}
+                        ) { Text(stringResource(label), maxLines = 1, overflow = TextOverflow.Ellipsis) }
                     }
                 }
             }
@@ -116,21 +129,6 @@ internal fun MemoryLibraryContent(
                 }) { Icon(Icons.Outlined.Close, stringResource(R.string.library_clear_search)) } },
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                 keyboardActions = KeyboardActions(onSearch = { search() }))
-            Row(Modifier.fillMaxWidth().padding(start = 8.dp, end = 16.dp), verticalAlignment = Alignment.CenterVertically) {
-                TextButton(onClick = onFolders, enabled = !busy, modifier = Modifier.weight(1f), contentPadding = PaddingValues(horizontal = 8.dp)) {
-                    Icon(Icons.Outlined.FolderOpen, null, Modifier.size(20.dp))
-                    Column(Modifier.weight(1f).padding(horizontal = 8.dp)) {
-                        Text(spaceName, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        Text(state.selectedFolderPath.ifBlank { stringResource(R.string.library_all_folders) }, style = MaterialTheme.typography.labelLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    }
-                    Icon(Icons.Outlined.ExpandMore, null, Modifier.size(18.dp))
-                }
-                TextButton(onClick = { keyboard?.hide(); showFilters = true }) {
-                    Icon(Icons.Outlined.Tune, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp))
-                    Text(stringResource(R.string.library_filter))
-                    if (filterCount > 0) { Spacer(Modifier.width(4.dp)); Badge { Text(filterCount.toString()) } }
-                }
-            }
             if (filterCount > 0) LazyRow(contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (state.showArchived) item { ActiveFilter(stringResource(R.string.library_archived)) { viewModel.setArchivedFilter(false) } }
                 state.categoryFilter?.let { category -> item { ActiveFilter(memoryCategoryLabel(category)) { viewModel.setCategoryFilter(null) } } }
@@ -148,7 +146,7 @@ internal fun MemoryLibraryContent(
                 state.error != null -> LibraryEmptyState(R.string.library_load_error, message = state.error, error = true) {
                     Button(onClick = search, enabled = !state.isLoading) { Text(stringResource(R.string.library_retry)) }
                 }
-                state.isLoading && state.memories.isEmpty() -> Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                state.isLoading && (state.memories.isEmpty() || state.showGraph) -> Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(Modifier.size(28.dp), strokeWidth = 3.dp)
                 }
                 state.memories.isEmpty() -> LibraryEmptyState(

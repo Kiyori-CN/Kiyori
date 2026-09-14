@@ -178,10 +178,14 @@ class MemoryViewModel(
 
     fun searchMemories() {
         _uiState.update { it.copy(appliedSearchQuery = it.searchQuery.trim()) }
+        refreshCurrentSearch()
+    }
+
+    private fun refreshCurrentSearch() {
         searchJob?.cancel()
         val generation = searchGeneration.incrementAndGet()
+        _uiState.update(MemoryUiPolicy::beginSearch)
         searchJob = viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, error = null) }
             try {
                 val graph = refreshGraph()
                 if (searchGeneration.get() == generation) {
@@ -229,6 +233,12 @@ class MemoryViewModel(
         clearSelection()
         _uiState.update { it.copy(searchQuery = "", appliedSearchQuery = "", selectedFolderPath = "", categoryFilter = null, tagFilter = null, showArchived = false, sortByTitle = false) }
         searchMemories()
+    }
+
+    fun resetOrganizationFilters() {
+        clearSelection()
+        _uiState.update(MemoryUiPolicy::resetOrganizationFilters)
+        refreshCurrentSearch()
     }
 
     fun setSortByTitle(value: Boolean) {

@@ -4,6 +4,39 @@ status: verification_pending
 
 # 记忆与知识库重构
 
+## 2026-09-15 顶栏与抽屉统一轮
+
+起点 `main / c583ef0d1ceb265bed2cfb1ca7858baa8a76e7dc`，工作区干净；用户授权实现、构建、提交推送。
+
+- 目标：标题右侧固定“关系图谱 / 筛选 / 设置 / 刷新”；文件夹位于类型切换左侧，搜索独占下一行。
+- 参考：当前 `AIChatScreen` 的顶栏动作、`KiyoriUiTokens` 和语义彩色图标；浏览器历史使用的
+  `KiyoriModalBottomDrawer` / `KiyoriDraggableBottomDrawer`，统一三态、遮罩、安全区和退出动画。
+- 范围：记忆库首页、文件夹和筛选抽屉、相关筛选状态与无障碍；保留原有编辑/确认对话框的职责。
+- 非目标：不改数据库、Agent 协议、主题 token 或其他领域；不安装或操作设备，不调用真实模型。
+- 阶段：核对参考与状态调用链 → 顶栏/布局/抽屉实现 → 针对性状态回归、文档与串行 Debug 构建 → 审计并推送 main。
+- 风险与回滚：关注窄屏长目录、大字体、抽屉可见高度、关闭动画、后台页面动作与空间切换；
+  回滚本轮提交恢复原布局，不涉及数据迁移。
+- 验收：本地源码审阅、筛选状态回归、Debug APK 与候选树/远端 ref；真机视觉、TalkBack、拖动、横屏与键盘保持 `verification_pending`。
+
+本轮实现覆盖四个彩色顶栏动作、两行内容导航、位置与筛选的共享三态抽屉，以及关闭动画和可见高度。
+筛选重置保留目录与搜索草稿；已选标签不因零匹配而消失；空间变化清除旧菜单目标，目录忙碌时禁止操作。
+最终反向审阅发现图谱筛选后旧框选 ID 仍可进入批量删除，现由查询启动统一清理框选/关联和旧删除确认；
+图谱加载期间隐藏旧图谱及相关操作，范围变化后必须重新选择。相关状态和共享抽屉契约均纳入本轮回归。
+
+2026-09-15 本地验证：
+
+- `:app:testDebugUnitTest --tests '*MemoryUiPolicyTest' --tests '*KiyoriBottomDrawerMigrationContractTest' --tests '*KiyoriModalBottomDrawerContractTest' --no-daemon --console=plain`
+  通过：7 项、0 失败/错误；其中 MemoryUiPolicy 5 项、全应用抽屉迁移 1 项、模态宿主契约 1 项。
+- `check_documentation.py --repository . --base c583ef0d1ceb265bed2cfb1ca7858baa8a76e7dc` 检查 525 文件、0 问题；
+  `check_formal_readiness.py --repository . --require-main` 通过；12 个文件精确允许清单、UTF-8/LF、凭据模式和子模块审查通过。
+- 未安装或操作设备。真机视觉、手势、TalkBack、键盘、大字体和横屏保持 `verification_pending`。
+- 最终 `:app:assembleDebug --no-daemon --console=plain` 成功，43 秒、238 任务（23 执行）；
+  单启动器、脚本代理与播放器打包检查通过。最终 APK 包含本轮图谱选择失效修复。
+- APK：`app/build/outputs/apk/debug/app-debug.apk`，2026-09-15 03:29:59 +08:00，487117295 字节；
+  `com.kiyori` / `0.1.0` / code 45，min SDK 26、target SDK 34、`arm64-v8a`。
+  SHA-256：`A099DCCF3ED222DFA48FA2B126A8AB2ECF474CCC79BD4ACAFD5142E1BBD6AED9`。
+  `apksigner verify --verbose` v2 有效、1 个签名者；`zipalign -c -P 16 4` 通过。
+
 ## 2026-09-15 界面精修轮
 
 起点 `main / 11f12ee8476bc369e9b5b2adf1b8aeb0053216b0`，工作区干净。用户提供两张真机截图，

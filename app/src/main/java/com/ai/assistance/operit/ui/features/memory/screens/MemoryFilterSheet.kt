@@ -18,18 +18,28 @@ import com.ai.assistance.operit.data.model.MemoryLibraryPolicy
 import com.ai.assistance.operit.ui.features.memory.viewmodel.MemoryUiState
 import com.ai.assistance.operit.ui.features.memory.viewmodel.MemoryViewModel
 import com.kiyori.design.theme.KiyoriUiShapes
+import com.ai.assistance.operit.ui.components.KiyoriModalBottomDrawer
+import androidx.compose.ui.semantics.paneTitle
+import androidx.compose.ui.semantics.semantics
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 internal fun MemoryFilterSheet(state: MemoryUiState, viewModel: MemoryViewModel, onDismiss: () -> Unit) {
     var tagQuery by remember { mutableStateOf("") }
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true), shape = KiyoriUiShapes.sheet) {
-        Column(Modifier.fillMaxWidth().heightIn(max = 640.dp)) {
+    val tagOptions = remember(state.availableTags, state.tagFilter) {
+        // 已选标签在当前查询变成空结果时仍可查看和取消，不能突然从选择器消失。
+        (state.availableTags + listOfNotNull(state.tagFilter)).distinct().sorted()
+    }
+    val matchingTags = remember(tagOptions, tagQuery) { tagOptions.filter { it.contains(tagQuery, ignoreCase = true) } }
+    val title = stringResource(R.string.library_organize)
+    KiyoriModalBottomDrawer(onDismissRequest = onDismiss, modifier = Modifier.semantics { paneTitle = title }) { dismissDrawer ->
+        // 高度交给共享抽屉的可见视口，半展开/横屏时底部操作仍留在屏内。
+        Column(Modifier.fillMaxSize()) {
             Row(Modifier.fillMaxWidth().padding(start = 24.dp, end = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text(stringResource(R.string.library_organize), style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
-                IconButton(onClick = onDismiss) { Icon(Icons.Outlined.Close, stringResource(R.string.memory_close)) }
+                Text(title, style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+                IconButton(onClick = dismissDrawer) { Icon(Icons.Outlined.Close, stringResource(R.string.memory_close)) }
             }
-            LazyColumn(Modifier.weight(1f, fill = false), contentPadding = PaddingValues(horizontal = 24.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(horizontal = 24.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 item {
                     Text(stringResource(R.string.library_sort), style = MaterialTheme.typography.titleSmall)
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -58,19 +68,22 @@ internal fun MemoryFilterSheet(state: MemoryUiState, viewModel: MemoryViewModel,
                     HorizontalDivider()
                 }
                 item { Text(stringResource(R.string.memory_tags), style = MaterialTheme.typography.titleSmall) }
-                if (state.availableTags.size > 8) item {
+                if (tagOptions.size > 8 || tagQuery.isNotEmpty()) item {
                     OutlinedTextField(value = tagQuery, onValueChange = { tagQuery = it }, placeholder = { Text(stringResource(R.string.library_find_tag)) }, singleLine = true, modifier = Modifier.fillMaxWidth(), shape = KiyoriUiShapes.field)
                 }
                 item { TagChoice(stringResource(R.string.library_all_tags), state.tagFilter == null) { viewModel.setTagFilter(null) } }
-                items(state.availableTags.filter { it.contains(tagQuery, ignoreCase = true) }, key = { it }) { tag ->
+                items(matchingTags, key = { it }) { tag ->
                     TagChoice(tag, state.tagFilter == tag) { viewModel.setTagFilter(tag) }
                 }
-                if (state.availableTags.isEmpty()) item { Text(stringResource(R.string.library_no_tags), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                if (matchingTags.isEmpty()) item {
+                    Text(stringResource(if (tagQuery.isBlank()) R.string.library_no_tags else R.string.library_no_results),
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
             }
             HorizontalDivider()
             Row(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 12.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                TextButton(onClick = { viewModel.resetFilters(); tagQuery = "" }) { Text(stringResource(R.string.library_reset_filters)) }
-                Button(onClick = onDismiss) { Text(stringResource(R.string.library_done)) }
+                TextButton(onClick = { viewModel.resetOrganizationFilters(); tagQuery = "" }) { Text(stringResource(R.string.library_reset_filters)) }
+                Button(onClick = dismissDrawer) { Text(stringResource(R.string.library_done)) }
             }
         }
     }

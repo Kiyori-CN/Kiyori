@@ -14,10 +14,8 @@ import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.SelectAll
 
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.rememberModalBottomSheetState
+import com.ai.assistance.operit.ui.components.KiyoriModalBottomDrawer
 import androidx.compose.runtime.saveable.rememberSaveable
-import com.kiyori.design.theme.KiyoriUiShapes
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -104,6 +102,9 @@ fun MemoryScreen() {
     val keyboardController = LocalSoftwareKeyboardController.current
     val scope = rememberCoroutineScope()
     val isCurrentScreen = LocalIsCurrentScreen.current
+    LaunchedEffect(isCurrentScreen) {
+        if (!isCurrentScreen) showFolderNavigator = false
+    }
     var spaceBusy by remember { mutableStateOf(false) }
     var spaceError by remember { mutableStateOf<String?>(null) }
     fun manageSpace(action: suspend () -> Unit) {
@@ -286,7 +287,7 @@ fun MemoryScreen() {
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 // 只有在框选模式下才显示"确认删除"按钮
-                if (uiState.showGraph && uiState.isBoxSelectionMode && uiState.boxSelectedNodeIds.isNotEmpty()) {
+                if (uiState.showGraph && !uiState.isLoading && uiState.isBoxSelectionMode && uiState.boxSelectedNodeIds.isNotEmpty()) {
                     FloatingActionButton(
                         onClick = { viewModel.showBatchDeleteConfirm() },
                         containerColor = MaterialTheme.colorScheme.errorContainer,
@@ -296,7 +297,7 @@ fun MemoryScreen() {
                     }
                 }
 
-                if (uiState.showGraph && uiState.memories.isNotEmpty() && !showFolderNavigator) {
+                if (uiState.showGraph && !uiState.isLoading && uiState.memories.isNotEmpty() && !showFolderNavigator) {
                 // 框选模式切换按钮
                 FloatingActionButton(
                     onClick = {
@@ -348,15 +349,14 @@ fun MemoryScreen() {
                 }
             )
             if (showFolderNavigator && isCurrentScreen) {
-                ModalBottomSheet(
+                KiyoriModalBottomDrawer(
                     onDismissRequest = { showFolderNavigator = false },
-                    sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-                    shape = KiyoriUiShapes.sheet
-                ) {
+                ) { dismissDrawer ->
                 FolderNavigator(
                     folderPaths = uiState.folderPaths,
                     selectedFolderPath = uiState.selectedFolderPath,
-                    onFolderSelected = { folderPath -> viewModel.selectFolder(folderPath); showFolderNavigator = false },
+                    // 先结束共享退出动画再卸载，目录状态仍由同一 ViewModel 持有。
+                    onFolderSelected = { folderPath -> viewModel.selectFolder(folderPath); dismissDrawer() },
                     onFolderRename = { oldPath, newPath ->
                         viewModel.renameFolder(
                             oldPath,
@@ -365,7 +365,7 @@ fun MemoryScreen() {
                     },
                     onFolderDelete = { folderPath -> viewModel.deleteFolder(folderPath) },
                     onFolderCreate = { folderPath -> viewModel.createFolder(folderPath) },
-                    isBusy = spaceBusy || uiState.isLoading,
+                    isBusy = spaceBusy || uiState.isLoading || uiState.isSaving || isImporting,
                     error = spaceError ?: uiState.error,
                     profileList = profileList,
                     profileNameMap = profileNameMap,
@@ -394,7 +394,7 @@ fun MemoryScreen() {
                             profileNameMap.remove(id)
                         }
                     },
-                    onDismissRequest = { showFolderNavigator = false }
+                    onDismissRequest = dismissDrawer
                 )
                 }
             }
