@@ -32,6 +32,15 @@ class ChatStatisticsFormatterTest {
     @Test
     fun missingCacheMetricRemainsUnknown() {
         assertNull(ChatStatisticsFormatter.formatCacheHitRate(null))
+        for (rate in listOf(-0.1, 1.1, Double.NaN, Double.POSITIVE_INFINITY)) {
+            assertNull(ChatStatisticsFormatter.formatCacheHitRate(rate))
+        }
+    }
+
+    @Test fun durationHasExplicitUnitsAndRejectsNegativeTime() {
+        assertEquals("1.25 s", ChatStatisticsFormatter.formatDuration(1250))
+        assertEquals("0.00 s", ChatStatisticsFormatter.formatDuration(0))
+        assertNull(ChatStatisticsFormatter.formatDuration(-1))
     }
 
     @Test

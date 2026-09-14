@@ -7713,4 +7713,12 @@
     <string name="test_media_unverified">연결됨 · 검증되지 않음</string>
     <string name="test_result_expand">펼치기</string>
     <string name="test_result_collapse">접기</string>
+    <string name="chat_stats_cumulative">대화 누적</string>
+    <string name="chat_stats_recent">최근 요청</string>
+    <string name="chat_stats_recent_note">최근 완료된 모델 호출 한 건입니다. 도구 실행 후 이어지는 호출은 별도로 집계합니다. 진행 중인 호출의 사용량은 아직 완전하지 않으며, 재시작 후 과거 표본을 추정하지 않습니다.</string>
+    <string name="chat_stats_cache_denominator">측정 가능한 입력 · 읽기 비율 분모</string>
+    <string name="chat_stats_cache_unknown_input">유효한 캐시 지표가 없는 입력</string>
+    <string name="chat_stats_first_output">첫 출력 대기 시간</string>
+    <string name="chat_stats_request_duration">총 요청 시간</string>
+    <string name="chat_stats_timing_note">현재 또는 최근 요청의 클라이언트 관측값입니다. 호출 시작부터 첫 콘텐츠와 스트림 종료까지 측정하며, 로컬 요청 준비, 네트워크, 프록시 및 서버 대기를 포함합니다. 첫 콘텐츠는 추론 또는 도구 데이터일 수 있습니다. 네트워크 RTT나 서버의 순수 추론 시간이 아닙니다.</string>
 </resources>

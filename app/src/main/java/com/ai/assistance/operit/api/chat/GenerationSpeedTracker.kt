@@ -2,6 +2,7 @@ package com.ai.assistance.operit.api.chat
 
 import com.ai.assistance.operit.api.chat.llmprovider.ProviderUsageSnapshot
 import com.ai.assistance.operit.api.chat.llmprovider.ProviderUsageSource
+import com.ai.assistance.operit.api.chat.llmprovider.toProviderUsageAggregate
 import com.ai.assistance.operit.data.model.GenerationSpeed
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -37,6 +38,7 @@ internal class GenerationSpeedTracker(
     private val streaming: Boolean,
     private val nowMs: () -> Long,
 ) {
+    private val startedMs = nowMs()
     private var firstOutputMs: Long? = null
     private var stoppedMs: Long? = null
     private var outputTokens = 0L
@@ -71,10 +73,20 @@ internal class GenerationSpeedTracker(
 
     @Synchronized
     fun complete(usage: ProviderUsageSnapshot): GenerationSpeed? =
-        when (usage.source) {
-            ProviderUsageSource.PROVIDER -> sample(usage.outputTokens, estimated = false)
-            ProviderUsageSource.LOCAL_ESTIMATE -> sample(usage.outputTokens, estimated = true)
-            ProviderUsageSource.UNAVAILABLE -> null
+        if (invalid) null else {
+            val measured = sample(if (usage.outputTokensReported && usage.source != ProviderUsageSource.UNAVAILABLE) usage.outputTokens else 0,
+                estimated = usage.source != ProviderUsageSource.PROVIDER)
+                ?: GenerationSpeed(null, usage.source != ProviderUsageSource.PROVIDER)
+            measured.copy(
+                firstOutputLatencyMs = firstOutputMs?.let { (it - startedMs).coerceAtLeast(0L) },
+                requestDurationMs = stoppedMs?.let { (it - startedMs).coerceAtLeast(0L) },
+                providerModel = usage.providerModel,
+                providerUsage = usage.toProviderUsageAggregate(),
+                inputTokens = usage.totalInputTokens.takeIf { usage.inputTokensReported && usage.source == ProviderUsageSource.PROVIDER },
+                outputTokens = usage.outputTokens.takeIf { usage.outputTokensReported && usage.source == ProviderUsageSource.PROVIDER },
+                reasoningTokens = usage.reasoningTokens.takeIf { usage.reasoningTokensReported },
+                cacheWriteTokens = usage.cacheWriteTokens.takeIf { usage.cacheWriteTokensReported },
+            )
         }
 
     private fun sample(tokens: Long, estimated: Boolean): GenerationSpeed? {
@@ -82,6 +94,7 @@ internal class GenerationSpeedTracker(
         val elapsed = (stoppedMs ?: nowMs()) - first
         // 非流式响应没有可观测的生成区间，不能把一次交付的耗时当作生成速度。
         if (!streaming || invalid || outputChunks < 2 || elapsed <= 0L || tokens <= 0L) return null
-        return GenerationSpeed(tokens.toDouble() * 1000.0 / elapsed, estimated)
+        return GenerationSpeed(tokens.toDouble() * 1000.0 / elapsed, estimated,
+            firstOutputLatencyMs = (first - startedMs).coerceAtLeast(0L))
     }
 }

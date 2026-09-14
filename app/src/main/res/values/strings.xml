@@ -1249,18 +1249,26 @@
     <string name="chat_stats_speed_reported">已完成 · 根据供应商用量</string>
     <string name="chat_stats_speed_no_sample">暂无有效的流式计时数据</string>
     <string name="chat_stats_speed_note">单次模型请求的输出 token / 首个输出至流结束的秒数。排除首包等待及工具执行；流式期间为估算，非流式及历史请求不推算速度。</string>
-    <string name="chat_stats_usage_section">累计用量 · token</string>
-    <string name="chat_stats_input_label">累计输入</string>
-    <string name="chat_stats_output_label">累计输出</string>
+    <string name="chat_stats_usage_section">供应商用量 · token</string>
+    <string name="chat_stats_input_label">输入</string>
+    <string name="chat_stats_output_label">输出</string>
     <string name="chat_stats_total_label">总用量</string>
     <string name="chat_stats_reasoning_label">推理细分（若有）</string>
-    <string name="chat_stats_usage_note">仅累计已入账的供应商用量，进行中的回合稍后计入。总用量 = 输入 + 输出；推理已包含在输出中，未提供细分时记为 0。</string>
+    <string name="chat_stats_usage_note">累计仅含输入和输出完整报告且已入账的请求，可能来自不同模型；进行中的回合稍后计入。总用量 = 输入 + 输出；推理属于输出细分。历史累计未区分推理、缓存写入的未提供和 0，没有正值时显示未提供。</string>
     <string name="chat_stats_cache_section">提示词缓存</string>
     <string name="chat_stats_cache_read_label">缓存读取</string>
     <string name="chat_stats_cache_write_label">缓存写入</string>
-    <string name="chat_stats_uncached_label">未缓存输入</string>
-    <string name="chat_stats_cache_rate_label">缓存命中率</string>
-    <string name="chat_stats_cache_note">缓存读取、写入已包含在输入中。命中率只基于报告了缓存指标的请求计算；未提供与明确报告 0 分开显示。</string>
+    <string name="chat_stats_uncached_label">普通 / 未分类输入</string>
+    <string name="chat_stats_cache_rate_label">输入 token 缓存读取率</string>
+    <string name="chat_stats_cache_note">读取率 = 缓存读取 token ÷ 可计量输入 token，按 token 加权，并非命中请求占比。写入不算命中；缓存读取、写入均已包含在输入中。异常或未提供的缓存分桶排除，输入总量仍保留。</string>
+    <string name="chat_stats_cumulative">对话累计</string>
+    <string name="chat_stats_recent">最近请求</string>
+    <string name="chat_stats_recent_note">最近完成的单次模型调用，工具续轮分别计量；运行中尚无完整用量，重启后不推算历史样本。</string>
+    <string name="chat_stats_cache_denominator">可计量输入 · 读取率分母</string>
+    <string name="chat_stats_cache_unknown_input">缺少有效缓存指标的输入</string>
+    <string name="chat_stats_first_output">首次输出等待</string>
+    <string name="chat_stats_request_duration">请求总耗时</string>
+    <string name="chat_stats_timing_note">当前 / 最近请求的客户端观测：从发起调用到首次内容及流结束，包含本地请求准备、网络、代理及服务端等待。首次内容可能是思考或工具数据；不是网络 RTT 或服务端纯推理耗时。</string>
     <string name="chat_stats_coverage_section">数据覆盖</string>
     <string name="chat_stats_requests_label">模型请求数</string>
     <string name="chat_stats_usage_coverage_label">用量覆盖</string>

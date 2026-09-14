@@ -7866,4 +7866,12 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="test_media_unverified">Terhubung, tetapi belum terverifikasi</string>
     <string name="test_result_expand">Perluas</string>
     <string name="test_result_collapse">Ciutkan</string>
+    <string name="chat_stats_cumulative">Total percakapan</string>
+    <string name="chat_stats_recent">Permintaan terbaru</string>
+    <string name="chat_stats_recent_note">Panggilan model terakhir yang selesai. Panggilan lanjutan setelah alat dihitung terpisah. Penggunaan belum lengkap saat berjalan; sampel historis tidak diperkirakan setelah mulai ulang.</string>
+    <string name="chat_stats_cache_denominator">Input terukur · penyebut rasio baca</string>
+    <string name="chat_stats_cache_unknown_input">Input tanpa metrik cache yang valid</string>
+    <string name="chat_stats_first_output">Waktu tunggu keluaran pertama</string>
+    <string name="chat_stats_request_duration">Durasi total permintaan</string>
+    <string name="chat_stats_timing_note">Pengamatan klien untuk permintaan saat ini atau terbaru: dari awal panggilan hingga konten pertama dan akhir aliran, termasuk persiapan lokal, jaringan, proksi, dan waktu tunggu server. Konten pertama dapat berupa penalaran atau data alat. Ini bukan RTT jaringan atau waktu inferensi server saja.</string>
 </resources>

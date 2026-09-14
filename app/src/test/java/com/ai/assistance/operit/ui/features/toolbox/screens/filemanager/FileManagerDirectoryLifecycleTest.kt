@@ -75,18 +75,21 @@ class FileManagerDirectoryLifecycleTest {
         scheduler.runCurrent()
         model.toggleSelection(model.files.first { it.name == "private" })
         model.hideSelectedFiles()
-        assertEquals(listOf("visible"), model.leftPaneState.files.map { it.name })
-        assertEquals(listOf("visible"), model.rightPaneState.files.map { it.name })
+        // 返回上级目录是导航行，不参与文件隐藏/大小/排序断言，但必须保留且不能隐藏。
+        assertEquals(1, model.leftPaneState.files.count { it.name == ".." })
+        assertEquals(1, model.rightPaneState.files.count { it.name == ".." })
+        assertEquals(listOf("visible"), model.leftPaneState.files.filterNot { it.name == ".." }.map { it.name })
+        assertEquals(listOf("visible"), model.rightPaneState.files.filterNot { it.name == ".." }.map { it.name })
         assertTrue(model.selectedFiles.isEmpty())
         assertEquals(2, directory.requests.size)
         model.setShowManuallyHidden(true)
-        assertEquals(2, model.files.size)
+        assertEquals(2, model.files.count { it.name != ".." })
         val entry = model.manuallyHiddenFiles.single()
         model.editHiddenEntry(entry, "/storage/test/visible")
         model.setShowManuallyHidden(false)
-        assertEquals(listOf("private"), model.files.map { it.name })
+        assertEquals(listOf("private"), model.files.filterNot { it.name == ".." }.map { it.name })
         model.removeHiddenEntry(model.manuallyHiddenFiles.single())
-        assertEquals(2, model.files.size)
+        assertEquals(2, model.files.count { it.name != ".." })
         assertEquals(2, directory.requests.size)
     }
 
@@ -105,9 +108,9 @@ class FileManagerDirectoryLifecycleTest {
         directory.requests[2].response.complete(ToolResult("file_info", true, com.ai.assistance.operit.core.tools.FileInspectionData(
             "$INITIAL_PATH/folder", true, 12345, 2, 1, 0, true, true, "fingerprint")))
         scan.join()
-        assertEquals(12345L, model.files.single().directoryContentSize)
+        assertEquals(12345L, model.files.single { it.name != ".." }.directoryContentSize)
         model.loadVisibleDirectorySizes(FileManagerPane.RIGHT, listOf("folder"))
-        assertEquals(12345L, model.rightPaneState.files.single().directoryContentSize)
+        assertEquals(12345L, model.rightPaneState.files.single { it.name != ".." }.directoryContentSize)
         assertEquals(3, directory.requests.size)
     }
 
@@ -127,12 +130,12 @@ class FileManagerDirectoryLifecycleTest {
         scheduler.advanceTimeBy(60_000)
         model.refreshVisibleDirectories()
         scheduler.runCurrent()
-        assertEquals(12345L, model.files.single().directoryContentSize)
+        assertEquals(12345L, model.files.single { it.name != ".." }.directoryContentSize)
         directory.requests[3].response.complete(folderListing())
         directory.requests[4].response.complete(folderListing())
         scheduler.runCurrent()
-        assertEquals(12345L, model.files.single().directoryContentSize)
-        assertEquals(12345L, model.rightPaneState.files.single().directoryContentSize)
+        assertEquals(12345L, model.files.single { it.name != ".." }.directoryContentSize)
+        assertEquals(12345L, model.rightPaneState.files.single { it.name != ".." }.directoryContentSize)
         model.loadVisibleDirectorySizes(FileManagerPane.LEFT, listOf("folder"))
         model.loadVisibleDirectorySizes(FileManagerPane.RIGHT, listOf("folder"))
         assertEquals(5, directory.requests.size)
@@ -154,21 +157,21 @@ class FileManagerDirectoryLifecycleTest {
         // 父目录元数据未变，仍必须核验深层文件的实际字节数。
         val changed = launch { model.loadVisibleDirectorySizes(FileManagerPane.LEFT, listOf("folder"), revalidate = true) }
         scheduler.runCurrent()
-        assertEquals(100L, model.files.single().directoryContentSize)
+        assertEquals(100L, model.files.single { it.name != ".." }.directoryContentSize)
         directory.requests[3].response.complete(inspection(250))
         changed.join()
-        assertEquals(250L, model.files.single().directoryContentSize)
+        assertEquals(250L, model.files.single { it.name != ".." }.directoryContentSize)
         model.loadVisibleDirectorySizes(FileManagerPane.RIGHT, listOf("folder"), revalidate = true)
-        assertEquals(250L, model.rightPaneState.files.single().directoryContentSize)
+        assertEquals(250L, model.rightPaneState.files.single { it.name != ".." }.directoryContentSize)
         assertEquals(4, directory.requests.size)
 
         scheduler.advanceTimeBy(30_000)
-        val previous = model.files.single()
+        val previous = model.files.single { it.name != ".." }
         val unchanged = launch { model.loadVisibleDirectorySizes(FileManagerPane.LEFT, listOf("folder"), revalidate = true) }
         scheduler.runCurrent()
         directory.requests[4].response.complete(inspection(250))
         unchanged.join()
-        assertEquals(previous, model.files.single())
+        assertEquals(previous, model.files.single { it.name != ".." })
     }
 
     @Test
@@ -187,12 +190,12 @@ class FileManagerDirectoryLifecycleTest {
         scheduler.runCurrent()
         directory.requests[3].response.complete(folderListing())
         scheduler.runCurrent()
-        assertEquals(100L, model.files.single().directoryContentSize)
+        assertEquals(100L, model.files.single { it.name != ".." }.directoryContentSize)
         val refreshed = launch { model.loadVisibleDirectorySizes(FileManagerPane.LEFT, listOf("folder")) }
         scheduler.runCurrent()
         directory.requests[4].response.complete(inspection(200))
         refreshed.join()
-        assertEquals(200L, model.files.single().directoryContentSize)
+        assertEquals(200L, model.files.single { it.name != ".." }.directoryContentSize)
     }
 
     @Test
@@ -210,12 +213,12 @@ class FileManagerDirectoryLifecycleTest {
         directory.requests[3].response.complete(folderListing())
         directory.requests[2].response.complete(inspection(100))
         initial.join()
-        assertNull(model.files.single().directoryContentSize)
+        assertNull(model.files.single { it.name != ".." }.directoryContentSize)
         val refreshed = launch { model.loadVisibleDirectorySizes(FileManagerPane.LEFT, listOf("folder")) }
         scheduler.runCurrent()
         directory.requests[4].response.complete(inspection(200))
         refreshed.join()
-        assertEquals(200L, model.files.single().directoryContentSize)
+        assertEquals(200L, model.files.single { it.name != ".." }.directoryContentSize)
     }
 
     @Test
@@ -235,10 +238,10 @@ class FileManagerDirectoryLifecycleTest {
         scheduler.runCurrent()
         directory.requests[2].response.complete(failure("Permission denied"))
         scan.join()
-        assertEquals(listOf("new"), model.files.map { it.name })
+        assertEquals(listOf("new"), model.files.filterNot { it.name == ".." }.map { it.name })
         model.loadVisibleDirectorySizes(FileManagerPane.RIGHT, listOf("folder"))
-        assertNull(model.rightPaneState.files.single().directoryContentSize)
-        assertTrue(model.rightPaneState.files.single().directorySizeUnavailable)
+        assertNull(model.rightPaneState.files.single { it.name != ".." }.directoryContentSize)
+        assertTrue(model.rightPaneState.files.single { it.name != ".." }.directorySizeUnavailable)
     }
 
     @Test
@@ -255,8 +258,8 @@ class FileManagerDirectoryLifecycleTest {
         directory.requests[0].response.complete(listing("stale"))
         scheduler.runCurrent()
 
-        assertEquals(listOf("fresh"), model.leftPaneState.files.map { it.name })
-        assertEquals(listOf("right"), model.rightPaneState.files.map { it.name })
+        assertEquals(listOf("fresh"), model.leftPaneState.files.filterNot { it.name == ".." }.map { it.name })
+        assertEquals(listOf("right"), model.rightPaneState.files.filterNot { it.name == ".." }.map { it.name })
         assertFalse(model.leftPaneState.isLoading)
         assertNull(model.leftPaneState.error)
     }
@@ -300,7 +303,7 @@ class FileManagerDirectoryLifecycleTest {
         scheduler.runCurrent()
 
         assertEquals(INITIAL_PATH, model.leftPaneState.path)
-        assertEquals(listOf("returned"), model.leftPaneState.files.map { it.name })
+        assertEquals(listOf("returned"), model.leftPaneState.files.filterNot { it.name == ".." }.map { it.name })
     }
 
     @Test
@@ -370,7 +373,7 @@ class FileManagerDirectoryLifecycleTest {
         assertSame(directoryDispatcher, request.dispatcher)
         assertEquals("list_files", request.tool.name)
         assertEquals(mapOf("path" to "/", "environment" to "repo:documents"), request.tool.parameters.associate { it.name to it.value })
-        assertEquals(listOf("folder", "small", "large"), model.leftPaneState.files.map { it.name })
+        assertEquals(listOf("folder", "small", "large"), model.leftPaneState.files.filterNot { it.name == ".." }.map { it.name })
         val large = model.leftPaneState.files.single { it.name == "large" }
         assertEquals(1_700_000_000_000L, large.lastModified)
         assertEquals("1700000000", large.lastModifiedLabel)
@@ -452,7 +455,7 @@ class FileManagerDirectoryLifecycleTest {
         directory.requests[3].response.complete(listing())
         scheduler.runCurrent()
         assertEquals(listOf("keep"), model.selectedFiles.map { it.name })
-        assertEquals(listOf("keep", "new"), model.files.map { it.name })
+        assertEquals(listOf("keep", "new"), model.files.filterNot { it.name == ".." }.map { it.name })
     }
 
     @Test fun `navigation supersedes background refresh even if provider ignores cancellation`() = runTest(mainDispatcher) {

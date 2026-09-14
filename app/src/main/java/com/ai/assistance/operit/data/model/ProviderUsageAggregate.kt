@@ -97,7 +97,7 @@ data class ProviderUsageAggregate(
      */
     val cacheHitRate: Double?
         get() =
-            if (providerCacheMetricRequestCount == 0) {
+            if (providerCacheMetricRequestCount == 0 || providerCacheReadTokens > providerCacheMetricPromptTokens) {
                 null
             } else if (providerCacheMetricPromptTokens == 0L) {
                 0.0

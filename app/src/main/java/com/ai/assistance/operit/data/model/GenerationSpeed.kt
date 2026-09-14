@@ -1,4 +1,15 @@
 package com.ai.assistance.operit.data.model
 
 /** 当前或最近一次模型请求的输出速度；只在内存中保留，不推算历史请求。 */
-data class GenerationSpeed(val tokensPerSecond: Double, val isEstimated: Boolean)
+data class GenerationSpeed(
+    val tokensPerSecond: Double?,
+    val isEstimated: Boolean,
+    val firstOutputLatencyMs: Long? = null,
+    val requestDurationMs: Long? = null,
+    val providerModel: String? = null,
+    val providerUsage: ProviderUsageAggregate? = null,
+    val inputTokens: Long? = null,
+    val outputTokens: Long? = null,
+    val reasoningTokens: Long? = null,
+    val cacheWriteTokens: Long? = null,
+)

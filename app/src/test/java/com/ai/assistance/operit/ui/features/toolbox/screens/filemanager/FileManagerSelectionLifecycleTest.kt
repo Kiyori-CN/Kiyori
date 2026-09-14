@@ -241,7 +241,7 @@ class FileManagerSelectionLifecycleTest {
         model.loadCurrentDirectory()
         scheduler.runCurrent()
         assertFalse(model.isMultiSelectMode)
-        assertTrue(model.files.isEmpty())
+        assertEquals(listOf(".."), model.files.map { it.name })
     }
 
     @Test fun `filter is pane local makes no IO and removes hidden batch candidates`() = runTest(dispatcher) {
@@ -249,11 +249,11 @@ class FileManagerSelectionLifecycleTest {
         model.selectAll()
         val baseline = reads
         model.setDirectoryFilter("ALP")
-        assertEquals(listOf("alpha"), model.files.map { it.name })
+        assertEquals(listOf("alpha"), model.files.filterNot { it.name == ".." }.map { it.name })
         assertEquals(listOf("alpha"), model.selectedFiles.map { it.name })
         model.activatePane(FileManagerPane.RIGHT)
         assertEquals("", model.filterQuery)
-        assertEquals(3, model.files.size)
+        assertEquals(3, model.files.count { it.name != ".." })
         model.activatePane(FileManagerPane.LEFT)
         assertEquals("ALP", model.filterQuery)
         model.setDirectoryFilter("")
@@ -281,10 +281,10 @@ class FileManagerSelectionLifecycleTest {
         model.loadCurrentDirectory()
         model.setDirectoryFilter("alpha")
         scheduler.runCurrent()
-        assertEquals(listOf("alpha2"), model.files.map { it.name })
+        assertEquals(listOf("alpha2"), model.files.filterNot { it.name == ".." }.map { it.name })
         assertTrue(model.navigateBack())
         assertEquals("/storage/test", model.currentPath)
-        assertEquals(2, model.files.size)
+        assertEquals(2, model.files.count { it.name != ".." })
     }
 
     @Test fun `filtered scrolling cannot erase the unfiltered position or accept a stale projection`() = runTest(dispatcher) {
@@ -329,14 +329,14 @@ class FileManagerSelectionLifecycleTest {
     @Test fun `sort UI chooses useful defaults and toggles direction without reversing directories`() = runTest(dispatcher) {
         entries = listOf(entry("item10", 10), entry("item2", 2))
         val model = model()
-        assertEquals(listOf("item2", "item10"), model.files.map { it.name })
+        assertEquals(listOf("item2", "item10"), model.files.filterNot { it.name == ".." }.map { it.name })
         model.selectSortMode(FileManagerSortMode.SIZE)
         scheduler.runCurrent()
         assertTrue(model.sortDescending)
-        assertEquals(listOf("item10", "item2"), model.files.map { it.name })
+        assertEquals(listOf("item10", "item2"), model.files.filterNot { it.name == ".." }.map { it.name })
         model.toggleSortDirection()
         scheduler.runCurrent()
-        assertEquals(listOf("item2", "item10"), model.files.map { it.name })
+        assertEquals(listOf("item2", "item10"), model.files.filterNot { it.name == ".." }.map { it.name })
     }
 
     private fun entry(name: String, size: Long = 1) = DirectoryListingData.FileEntry(name, false, size, "rw", "")

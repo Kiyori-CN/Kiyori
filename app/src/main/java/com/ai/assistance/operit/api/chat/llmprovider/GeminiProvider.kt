@@ -59,19 +59,19 @@ internal object GeminiUsagePayloadAdapter {
     fun parse(usageMetadata: JSONObject?): UsageCounts? {
         usageMetadata ?: return null
 
-        val promptPresent = usageMetadata.has("promptTokenCount")
-        val cachePresent = usageMetadata.has("cachedContentTokenCount")
-        val candidatesPresent = usageMetadata.has("candidatesTokenCount")
-        val thoughtsPresent = usageMetadata.has("thoughtsTokenCount")
+        val promptPresent = ProviderUsageNumbers.present(usageMetadata, "promptTokenCount")
+        val cachePresent = ProviderUsageNumbers.present(usageMetadata, "cachedContentTokenCount")
+        val candidatesPresent = ProviderUsageNumbers.present(usageMetadata, "candidatesTokenCount")
+        val thoughtsPresent = ProviderUsageNumbers.present(usageMetadata, "thoughtsTokenCount")
         if (!promptPresent && !cachePresent && !candidatesPresent && !thoughtsPresent) {
             return null
         }
 
-        val rawPromptTokens = usageMetadata.optInt("promptTokenCount", 0)
-        val rawCachedTokens = usageMetadata.optInt("cachedContentTokenCount", 0)
-        val rawCandidateTokens = usageMetadata.optInt("candidatesTokenCount", 0)
-        val rawThoughtTokens = usageMetadata.optInt("thoughtsTokenCount", 0)
-        val totalInputTokens = rawPromptTokens.coerceAtLeast(0).takeIf { promptPresent }
+        val rawPromptTokens = ProviderUsageNumbers.read(usageMetadata, "promptTokenCount")
+        val rawCachedTokens = ProviderUsageNumbers.read(usageMetadata, "cachedContentTokenCount")
+        val rawCandidateTokens = ProviderUsageNumbers.read(usageMetadata, "candidatesTokenCount")
+        val rawThoughtTokens = ProviderUsageNumbers.read(usageMetadata, "thoughtsTokenCount")
+        val totalInputTokens = rawPromptTokens.takeIf { promptPresent && it >= 0 }
         val cachedInputTokens =
             rawCachedTokens
                 .coerceAtLeast(0)
@@ -81,9 +81,9 @@ internal object GeminiUsagePayloadAdapter {
             totalInputTokens?.let { total ->
                 (total - (cachedInputTokens ?: 0)).coerceAtLeast(0)
             }
-        val reasoningTokens = rawThoughtTokens.coerceAtLeast(0).takeIf { thoughtsPresent }
+        val reasoningTokens = rawThoughtTokens.takeIf { thoughtsPresent && it >= 0 }
         val outputTokens =
-            if (candidatesPresent || thoughtsPresent) {
+            if ((candidatesPresent || thoughtsPresent) && rawCandidateTokens >= 0 && rawThoughtTokens >= 0) {
                 (
                     rawCandidateTokens.coerceAtLeast(0).toLong() +
                         rawThoughtTokens.coerceAtLeast(0).toLong()
@@ -1602,21 +1602,20 @@ class GeminiProvider(
             parsed.cachedInputTokens?.toLong()
                 ?: previous?.cacheReadTokens
                 ?: 0L
-        val uncachedInputTokens =
-            parsed.uncachedInputTokens?.toLong()
-                ?: previous?.uncachedInputTokens
-                ?: (totalInputTokens - cachedInputTokens).coerceAtLeast(0L)
+        // 流式尾块可能只更新总输入；必须用同一快照重新分桶，不能沿用旧未缓存输入。
+        val boundedCacheReadTokens = cachedInputTokens.coerceAtMost(totalInputTokens)
+        val uncachedInputTokens = (totalInputTokens - boundedCacheReadTokens).coerceAtLeast(0L)
         val outputTokens =
             parsed.outputTokens?.toLong()
                 ?: previous?.outputTokens
-                ?: tokenCacheManager.outputTokenCount.toLong()
+                ?: 0L
         val reasoningTokens =
             parsed.reasoningTokens?.toLong()
                 ?: previous?.reasoningTokens
                 ?: 0L
         val cacheMetricState =
             when {
-                parsed.cacheMetricState == ProviderCacheMetricState.INVALID ||
+                cachedInputTokens > totalInputTokens || parsed.cacheMetricState == ProviderCacheMetricState.INVALID ||
                     previous?.cacheMetricState == ProviderCacheMetricState.INVALID ->
                     ProviderCacheMetricState.INVALID
                 parsed.cacheMetricState == ProviderCacheMetricState.REPORTED ||
@@ -1628,14 +1627,17 @@ class GeminiProvider(
             ProviderUsageSnapshot(
                 providerModel = providerModel,
                 protocol = com.ai.assistance.operit.data.model.ApiProtocol.PROVIDER_NATIVE,
-                totalInputTokens = uncachedInputTokens + cachedInputTokens,
+                totalInputTokens = totalInputTokens,
                 uncachedInputTokens = uncachedInputTokens,
-                cacheReadTokens = cachedInputTokens,
+                cacheReadTokens = boundedCacheReadTokens,
                 cacheWriteTokens = 0L,
                 outputTokens = outputTokens,
                 reasoningTokens = reasoningTokens,
                 cacheMetricState = cacheMetricState,
                 source = ProviderUsageSource.PROVIDER,
+                inputTokensReported = parsed.totalInputTokens != null || previous?.inputTokensReported == true,
+                outputTokensReported = parsed.outputTokens != null || previous?.outputTokensReported == true,
+                reasoningTokensReported = parsed.reasoningTokens != null || previous?.reasoningTokensReported == true,
             )
         latestProviderUsageSnapshot = snapshot
 
@@ -1643,7 +1645,7 @@ class GeminiProvider(
             actualInput =
                 uncachedInputTokens.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
             cachedInput =
-                cachedInputTokens.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
+                boundedCacheReadTokens.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
         )
         parsed.outputTokens?.let {
             tokenCacheManager.setOutputTokens(it)

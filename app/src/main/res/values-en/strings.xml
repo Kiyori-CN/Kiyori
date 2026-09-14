@@ -1293,18 +1293,26 @@
     <string name="chat_stats_speed_reported">Completed · from provider usage</string>
     <string name="chat_stats_speed_no_sample">No valid streaming timing data yet</string>
     <string name="chat_stats_speed_note">Output tokens per model request / seconds from first output to stream end. Excludes initial wait and tool execution. Streaming values are estimates; non-streaming and historical requests have no inferred speed.</string>
-    <string name="chat_stats_usage_section">Cumulative usage · tokens</string>
-    <string name="chat_stats_input_label">Total input</string>
-    <string name="chat_stats_output_label">Total output</string>
+    <string name="chat_stats_usage_section">Provider usage · tokens</string>
+    <string name="chat_stats_input_label">Input</string>
+    <string name="chat_stats_output_label">Output</string>
     <string name="chat_stats_total_label">Total tokens</string>
     <string name="chat_stats_reasoning_label">Reasoning detail (if available)</string>
-    <string name="chat_stats_usage_note">Recorded provider usage only; the active turn is added later. Total = input + output. Reasoning is included in output; an unreported breakdown is stored as 0.</string>
+    <string name="chat_stats_usage_note">Totals include recorded requests with complete input and output reports and may span models; the active turn is added later. Total = input + output; reasoning is part of output. Historical totals cannot distinguish absent reasoning or cache writes from zero, so no positive count is shown as unavailable.</string>
     <string name="chat_stats_cache_section">Prompt cache</string>
     <string name="chat_stats_cache_read_label">Cache read</string>
     <string name="chat_stats_cache_write_label">Cache write</string>
-    <string name="chat_stats_uncached_label">Uncached input</string>
-    <string name="chat_stats_cache_rate_label">Cache hit rate</string>
-    <string name="chat_stats_cache_note">Cache reads and writes are included in input. Hit rate uses only requests with reported cache metrics. Missing data is distinct from an explicitly reported zero.</string>
+    <string name="chat_stats_uncached_label">Regular / unclassified input</string>
+    <string name="chat_stats_cache_rate_label">Input token cache read rate</string>
+    <string name="chat_stats_cache_note">Read rate = cached input tokens / measurable input tokens, weighted by tokens rather than requests. Writes are not hits. Reads and writes are included in input. Invalid or missing cache breakdowns are excluded while input totals are retained.</string>
+    <string name="chat_stats_cumulative">Conversation</string>
+    <string name="chat_stats_recent">Latest request</string>
+    <string name="chat_stats_recent_note">The latest completed model call, with tool continuation calls counted separately. Active calls have no final usage; historical samples are not inferred after restart.</string>
+    <string name="chat_stats_cache_denominator">Measurable input · rate denominator</string>
+    <string name="chat_stats_cache_unknown_input">Input without valid cache metrics</string>
+    <string name="chat_stats_first_output">Wait for first output</string>
+    <string name="chat_stats_request_duration">Request duration</string>
+    <string name="chat_stats_timing_note">Client timing for the current / latest call, from invocation to first content and stream end. Includes local preparation, network, proxy and server wait. First content may be reasoning or tool data; this is not network RTT or pure inference time.</string>
     <string name="chat_stats_coverage_section">Data coverage</string>
     <string name="chat_stats_requests_label">Model requests</string>
     <string name="chat_stats_usage_coverage_label">Usage coverage</string>

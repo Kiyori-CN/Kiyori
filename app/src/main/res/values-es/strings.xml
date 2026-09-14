@@ -7976,4 +7976,12 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="test_media_unverified">Conectado, pero sin verificar</string>
     <string name="test_result_expand">Expandir</string>
     <string name="test_result_collapse">Contraer</string>
+    <string name="chat_stats_cumulative">Total de la conversación</string>
+    <string name="chat_stats_recent">Solicitud reciente</string>
+    <string name="chat_stats_recent_note">Última llamada completada al modelo. Las llamadas posteriores a herramientas se contabilizan por separado. El uso aún es incompleto durante la ejecución; no se estiman muestras históricas tras reiniciar.</string>
+    <string name="chat_stats_cache_denominator">Entrada medible · denominador de la tasa de lectura</string>
+    <string name="chat_stats_cache_unknown_input">Entrada sin métricas de caché válidas</string>
+    <string name="chat_stats_first_output">Espera hasta la primera salida</string>
+    <string name="chat_stats_request_duration">Duración total de la solicitud</string>
+    <string name="chat_stats_timing_note">Observación del cliente para la solicitud actual o reciente: desde el inicio de la llamada hasta el primer contenido y el fin del flujo, incluidos la preparación local, la red, el proxy y la espera del servidor. El primer contenido puede ser razonamiento o datos de herramientas. No representa el RTT de la red ni solo el tiempo de inferencia del servidor.</string>
 </resources>

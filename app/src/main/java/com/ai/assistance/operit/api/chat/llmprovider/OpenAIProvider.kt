@@ -223,6 +223,9 @@ open class OpenAIProvider(
                 reasoningTokens = parsed.reasoningTokens.toLong(),
                 cacheMetricState = parsed.cacheMetricState,
                 source = ProviderUsageSource.PROVIDER,
+                outputTokensReported = parsed.outputTokensReported,
+                reasoningTokensReported = parsed.reasoningTokensReported,
+                cacheWriteTokensReported = parsed.cacheWriteTokensReported,
             )
         onTokensUpdated(
             parsed.totalInputTokens,
@@ -721,6 +724,9 @@ open class OpenAIProvider(
             }
 
         customizeFinalRequestObject(finalRequestObject, messagesArray, toolsJson)
+        if (!useResponsesApi) {
+            OpenAIPromptCachePolicy.requestChatUsage(finalRequestObject, modelCapabilityProfile)
+        }
 
         return ProviderToolCallIdentityContract.canonicalJsonText(
             finalRequestObject.toString()

@@ -51,55 +51,41 @@ internal object AnthropicUsagePayloadAdapter {
         val cacheMetricState: ProviderCacheMetricState,
     )
 
-    private fun sumNumericFields(jsonObject: JSONObject?): Int {
-        jsonObject ?: return 0
-
-        var total = 0
-        val keys = jsonObject.keys()
-        while (keys.hasNext()) {
-            val key = keys.next()
-            when (val value = jsonObject.opt(key)) {
-                is Number -> total += value.toInt()
-                is JSONObject -> total += sumNumericFields(value)
-            }
-        }
-        return total
-    }
-
     fun parse(usage: JSONObject?): UsageCounts? {
         usage ?: return null
 
         val cacheReadPresent =
-            usage.has("cache_read_input_tokens") ||
-                usage.optJSONObject("input_tokens_details")?.has("cached_tokens") == true ||
-                usage.has("cached_tokens")
+            ProviderUsageNumbers.present(usage, "cache_read_input_tokens") ||
+                ProviderUsageNumbers.present(usage.optJSONObject("input_tokens_details"), "cached_tokens") ||
+                ProviderUsageNumbers.present(usage, "cached_tokens")
         val rawCacheReadTokens =
             when {
-                usage.has("cache_read_input_tokens") ->
-                    usage.optInt("cache_read_input_tokens", 0)
-                usage.optJSONObject("input_tokens_details")?.has("cached_tokens") == true ->
-                    usage.optJSONObject("input_tokens_details")?.optInt("cached_tokens", 0) ?: 0
-                usage.has("cached_tokens") ->
-                    usage.optInt("cached_tokens", 0)
+                ProviderUsageNumbers.present(usage, "cache_read_input_tokens") ->
+                    ProviderUsageNumbers.read(usage, "cache_read_input_tokens")
+                ProviderUsageNumbers.present(usage.optJSONObject("input_tokens_details"), "cached_tokens") ->
+                    ProviderUsageNumbers.read(usage.optJSONObject("input_tokens_details"), "cached_tokens")
+                ProviderUsageNumbers.present(usage, "cached_tokens") ->
+                    ProviderUsageNumbers.read(usage, "cached_tokens")
                 else -> 0
             }
 
         val cacheCreationPresent =
-            usage.has("cache_creation_input_tokens") ||
-                usage.optJSONObject("cache_creation") != null
+            ProviderUsageNumbers.present(usage, "cache_creation_input_tokens") ||
+                ProviderUsageNumbers.present(usage.optJSONObject("cache_creation"), "ephemeral_5m_input_tokens") ||
+                ProviderUsageNumbers.present(usage.optJSONObject("cache_creation"), "ephemeral_1h_input_tokens")
         val rawCacheCreationInputTokens =
             when {
-                usage.has("cache_creation_input_tokens") ->
-                    usage.optInt("cache_creation_input_tokens", 0)
+                ProviderUsageNumbers.present(usage, "cache_creation_input_tokens") ->
+                    ProviderUsageNumbers.read(usage, "cache_creation_input_tokens")
                 usage.optJSONObject("cache_creation") != null ->
-                    sumNumericFields(usage.optJSONObject("cache_creation"))
+                    ProviderUsageNumbers.sumCacheCreation(usage.optJSONObject("cache_creation"))
                 else -> 0
             }
 
-        val directInputPresent = usage.has("input_tokens")
-        val promptInputPresent = usage.has("prompt_tokens")
-        val rawDirectInputTokens = usage.optInt("input_tokens", 0)
-        val rawPromptTokens = usage.optInt("prompt_tokens", 0)
+        val directInputPresent = ProviderUsageNumbers.present(usage, "input_tokens")
+        val promptInputPresent = ProviderUsageNumbers.present(usage, "prompt_tokens")
+        val rawDirectInputTokens = ProviderUsageNumbers.read(usage, "input_tokens")
+        val rawPromptTokens = ProviderUsageNumbers.read(usage, "prompt_tokens")
         val inputInvalid =
             rawDirectInputTokens < 0 ||
                 rawPromptTokens < 0 ||
@@ -107,7 +93,7 @@ internal object AnthropicUsagePayloadAdapter {
                 rawCacheCreationInputTokens < 0 ||
                 (
                     promptInputPresent &&
-                        rawCacheReadTokens.coerceAtLeast(0) +
+                        rawCacheReadTokens.coerceAtLeast(0).toLong() +
                             rawCacheCreationInputTokens.coerceAtLeast(0) >
                             rawPromptTokens.coerceAtLeast(0)
                     )
@@ -116,22 +102,22 @@ internal object AnthropicUsagePayloadAdapter {
         val cacheCreationInputTokens = rawCacheCreationInputTokens.coerceAtLeast(0)
         val uncachedInputTokens =
             when {
-                directInputPresent -> rawDirectInputTokens.coerceAtLeast(0)
+                directInputPresent -> rawDirectInputTokens.takeIf { it >= 0 }
                 promptInputPresent ->
                     (
-                        rawPromptTokens.coerceAtLeast(0) -
+                        rawPromptTokens.coerceAtLeast(0).toLong() -
                             cacheReadTokens -
                             cacheCreationInputTokens
-                        ).coerceAtLeast(0)
+                        ).coerceAtLeast(0L).toInt().takeIf { rawPromptTokens >= 0 }
                 else -> null
             }
 
         val outputPresent =
-            usage.has("output_tokens") ||
-                usage.has("completion_tokens")
+            ProviderUsageNumbers.present(usage, "output_tokens") ||
+                ProviderUsageNumbers.present(usage, "completion_tokens")
         val rawOutputTokens =
-            usage.optInt("output_tokens", usage.optInt("completion_tokens", 0))
-        val outputTokens = rawOutputTokens.coerceAtLeast(0).takeIf { outputPresent }
+            ProviderUsageNumbers.read(usage, "output_tokens", ProviderUsageNumbers.read(usage, "completion_tokens"))
+        val outputTokens = rawOutputTokens.takeIf { outputPresent && it >= 0 }
 
         val hasAnyField =
             directInputPresent ||
@@ -278,7 +264,7 @@ class ClaudeProvider(
         val outputTokens =
             parsed.outputTokens?.toLong()
                 ?: previous?.outputTokens
-                ?: tokenCacheManager.outputTokenCount.toLong()
+                ?: 0L
         val cacheMetricState =
             when {
                 parsed.cacheMetricState == ProviderCacheMetricState.INVALID ||
@@ -304,6 +290,9 @@ class ClaudeProvider(
                 reasoningTokens = 0L,
                 cacheMetricState = cacheMetricState,
                 source = ProviderUsageSource.PROVIDER,
+                inputTokensReported = parsed.uncachedInputTokens != null || previous?.inputTokensReported == true,
+                outputTokensReported = parsed.outputTokens != null || previous?.outputTokensReported == true,
+                cacheWriteTokensReported = parsed.cacheCreationInputTokens != null || previous?.cacheWriteTokensReported == true,
             )
         latestProviderUsageSnapshot = snapshot
 

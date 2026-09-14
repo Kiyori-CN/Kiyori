@@ -82,10 +82,13 @@ class TokenStatisticsDelegate(
         lastCurrentWindowSize = window
     }
 
+    @Synchronized
     private fun handlePerRequestCounts(
         key: String,
-        counts: Pair<Int, Int>?
+        counts: Pair<Int, Int>?,
+        expectedService: EnhancedAIService? = null,
     ) {
+        if (expectedService != null && boundServicesByChatKey[key] !== expectedService) return
         if (counts == null) {
             perRequestTokenCountByChatKey.remove(key)
         } else {
@@ -97,10 +100,13 @@ class TokenStatisticsDelegate(
         }
     }
 
+    @Synchronized
     private fun handleRequestWindowEstimate(
         key: String,
-        windowSize: Int?
+        windowSize: Int?,
+        expectedService: EnhancedAIService? = null,
     ) {
+        if (expectedService != null && boundServicesByChatKey[key] !== expectedService) return
         if (windowSize == null) {
             return
         }
@@ -140,11 +146,13 @@ class TokenStatisticsDelegate(
         }
     }
 
+    @Synchronized
     fun setActiveChatId(chatId: String?) {
         activeChatId = chatId
         refreshActiveFromCache()
     }
 
+    @Synchronized
     fun bindChatService(chatId: String?, service: EnhancedAIService) {
         val key = chatKey(chatId)
         boundServicesByChatKey[key] = service
@@ -154,14 +162,15 @@ class TokenStatisticsDelegate(
             coroutineScope.launch(Dispatchers.IO) {
                 launch {
                     service.generationSpeedFlow.collect { speed ->
-                        if (boundServicesByChatKey[key] === service) setGenerationSpeed(chatId, speed)
+                        setGenerationSpeed(chatId, speed, service)
                     }
                 }
                 launch {
                     service.perRequestTokenCounts.collect { counts ->
                         handlePerRequestCounts(
                             key = key,
-                            counts = counts
+                            counts = counts,
+                            expectedService = service,
                         )
                     }
                 }
@@ -169,7 +178,8 @@ class TokenStatisticsDelegate(
                     service.requestWindowEstimateFlow.collect { windowSize ->
                         handleRequestWindowEstimate(
                             key = key,
-                            windowSize = windowSize
+                            windowSize = windowSize,
+                            expectedService = service,
                         )
                     }
                 }
@@ -181,6 +191,7 @@ class TokenStatisticsDelegate(
     }
 
     /** 重置token统计 */
+    @Synchronized
     fun resetTokenStatistics() {
         _cumulativeInputTokens.value = 0L
         _cumulativeOutputTokens.value = 0L
@@ -207,6 +218,7 @@ class TokenStatisticsDelegate(
     }
 
     /** 更新累计的token统计信息 */
+    @Synchronized
     fun updateCumulativeStatistics(chatId: String? = activeChatId, serviceOverride: EnhancedAIService? = null) {
         val key = chatKey(chatId)
         val service = serviceOverride ?: boundServicesByChatKey[key] ?: getEnhancedAiService()
@@ -247,6 +259,7 @@ class TokenStatisticsDelegate(
     }
 
     /** 设置累计token计数 */
+    @Synchronized
     fun setTokenCounts(
         chatId: String?,
         inputTokens: Long,
@@ -279,6 +292,7 @@ class TokenStatisticsDelegate(
         setTokenCounts(activeChatId, inputTokens, outputTokens, windowSize)
     }
 
+    @Synchronized
     fun setProviderUsageAggregate(
         chatId: String?,
         providerUsage: ProviderUsageAggregate,
@@ -290,8 +304,11 @@ class TokenStatisticsDelegate(
         }
     }
 
-    internal fun setGenerationSpeed(chatId: String?, speed: GenerationSpeed?) {
+    @Synchronized
+    internal fun setGenerationSpeed(chatId: String?, speed: GenerationSpeed?, expectedService: EnhancedAIService? = null) {
         val key = chatKey(chatId)
+        // 校验与发布必须在同一临界区；取消旧 collector 本身不能阻止其迟到回调。
+        if (expectedService != null && boundServicesByChatKey[key] !== expectedService) return
         if (speed == null) generationSpeedByChatKey.remove(key)
         else generationSpeedByChatKey[key] = speed
         if (isActiveKey(key)) _generationSpeed.value = speed

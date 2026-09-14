@@ -95,7 +95,7 @@ class ModelRequestCompilerTest {
         assertFalse(compiled.encryptedReasoningContentEnabled)
         assertFalse(compiled.background)
         assertNull(compiled.store)
-        assertFalse(compiled.promptCacheEnabled)
+        assertTrue(compiled.promptCacheEnabled)
         assertFalse(compiled.strictToolSchemasWhenCompatible)
         assertFalse(compiled.toolSearchEnabled)
     }
@@ -127,7 +127,7 @@ class ModelRequestCompilerTest {
         assertFalse(compiled.encryptedReasoningContentEnabled)
         assertFalse(compiled.background)
         assertNull(compiled.store)
-        assertFalse(compiled.promptCacheEnabled)
+        assertTrue(compiled.promptCacheEnabled)
         assertFalse(compiled.strictToolSchemasWhenCompatible)
         assertFalse(compiled.toolSearchEnabled)
     }

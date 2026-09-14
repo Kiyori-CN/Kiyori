@@ -4,6 +4,91 @@ status: in_progress
 
 # AI 对话全界面与交互优化
 
+## 2026-09-14 对话统计、缓存与调用稳定性升级
+
+本轮基线 `main@1576b3457d06d1f35ad8f0c7a23895389342181d`，工作区干净，用户授权修复后提交推送。
+状态：本轮实现与本地验证完成，现场验收 `verification_pending`。继续复用 Provider 用量、
+TokenStatisticsDelegate、共享模态抽屉和应用代理所有者。
+
+| 阶段 | 方案与影响面 | 验收 |
+| --- | --- | --- |
+| 计量正确性 | OpenAI/DeepSeek 字段严格解析，排除异常缓存样本，饱和聚合；保留存储兼容 | 缺失、零值、错类型、溢出、命中/未命中矛盾和多请求回归 |
+| 缓存请求 | 核对 Codex 公开请求构造、稳定历史与工具排序；Chat 请求用量尾块；官方新模型稳定前缀断点 | 请求 JSON、显式配置优先、兼容端点不注入未证实扩展 |
+| 面板与性能 | 缓存读取率和可计量分母、覆盖提示、当前/最近请求计时、层级和自适应排版、摘要 | 格式化和计时回归，资源检查、Debug APK；设备排版待验收 |
+| 稳定性 | 核对 SSE 终态、工具身份闭合、未知提交禁重发、代理生命周期；修复本轮可复现缺陷 | 故障注入与取消回归，不以自动重试掩盖失败 |
+| 交付 | 更新 AI 契约与使用说明，审查精确差异和候选提交 | 必要自动检查、串行 Debug APK、新鲜克隆、本地与远端 ref |
+
+非目标：改端点/凭据、安装或操作设备、切换模型或代理节点、引入第二统计存储、承诺固定命中率。
+风险：中转站 usage 字段与缓存策略不一定等同官方；历史累计无法反推出逐请求细分；UI 与真实服务性能
+须分别验收。回滚按本轮精确提交差异执行，不重置已有工作。
+
+公开依据（2026-09-14 实际读取）：[OpenAI Prompt caching](https://developers.openai.com/api/docs/guides/prompt-caching)、
+[DeepSeek Context Caching](https://api-docs.deepseek.com/guides/kv_cache)、
+[Codex client.rs](https://github.com/openai/codex/blob/main/codex-rs/core/src/client.rs)。
+Codex 的连接复用、相同会话键和增量输入具有协议及服务端前提，不能把专属路由头复制到任意中转。
+缓存由服务端按完整前缀和模型规则决定，客户端只改善可复用条件并准确呈现供应商报告。
+
+### 已确认缺陷与实现
+
+| 证据入口 | 原问题 | 本轮处理 |
+| --- | --- | --- |
+| ProviderUsageSnapshot / ProviderUsageAggregate | INVALID 缓存仍进入读取分子；累计简单相加存在溢出与重复遍历 | 异常分桶不入分子，保留输入总量；饱和运算、同步去重、新 hop 增量入账，替换时重算 |
+| OpenAIResponsesPayloadAdapter | optInt 把错类型、空值、非整数或溢出计量转换成零或截断 | 严格计数；DeepSeek hit + miss 与总输入一致性；推理不得超出输出 |
+| OpenAIProvider / ModelCapabilityProfile | Chat 默认未请求 usage 尾块；GPT-5.6/Astra 中转没有稳定键 | Chat 请求 include_usage 并尊重显式关闭；GPT Responses 兼容键与官方扩展分离 |
+| OpenAIPromptCachePolicy | 官方新模型稳定 developer 前缀没有独立写入边界 | 为官方 GPT-5.6/Astra 添加一个断点并保留 implicit；尊重用户已有模式/断点，不向中转和 DeepSeek 注入 |
+| DeepSeek Responses 转换 | system 被通用逻辑改成 developer，而 DeepSeek 将 developer 视为 user | 按 DeepSeek 身份保留 system；工具闭合与明文 reasoning 重放保持原路径 |
+| Claude / Gemini / ToolPkg | 部分快照可能混入本地输出估算；创建桶递归计数；Gemini 总输入变化后分桶陈旧 | 供应商字段覆盖独立记录；完整覆盖才入累计；只计算定义的创建桶；Gemini 使用同一快照重新分桶 |
+| GenerationSpeedTracker / TokenStatisticsDelegate | 缺少等待与总耗时；无有效速度时也丢掉最近用量；迟到 collector 可覆盖新窗口数 | 使用同一单调时钟样本，保留最近已完成请求字段；会话发布与服务身份检查同锁 |
+| ChatStatisticsSheet | 只有累计视角，难区分冷启动与最近请求，口径分母不直观 | 最近/累计切换、突出缓存读取率和有效分母、覆盖与未知输入、计时、响应式换行、按需复制 |
+
+最近请求是内存投影，累计仍使用既有数据库和消息合同。没有新增价格表、第二用量数据库、
+伪造“节省金额”、缓存命中承诺或重复 POST 路径。历史推理/缓存写入零值来源无法还原；
+旧记录若缓存分子大于有效分母则隐藏无效比率，不能凭当前修复改写历史账目。
+
+### 真实端点合成验证
+
+2026-09-14 使用用户指定的两条路由及独立合成内容，12 次带认证请求均完成；只保存数值、
+协议与终态，不保存认证头、对话正文或真实工具副作用。以下为小样本可达性和字段验证，
+不是 Kiyori APK 性能基准，也不经过 Android 内置代理。
+
+| 路径 | 观察 | 边界 |
+| --- | --- | --- |
+| GPT-6 Astra · 中转 · Responses SSE | 三轮均 completed；首轮 cached=0，第三轮 cached=2944 / input=3084（95.5%） | 稳定键与递增合成历史；不构成相对旧 APK 的 A/B 证明 |
+| DeepSeek Flash · 官方 Responses SSE | 三轮均 completed；后两轮 2816/3051（92.3%）、2816/3066（91.8%） | 服务端自动缓存，没有 OpenAI 缓存参数 |
+| GPT / DeepSeek · Responses 原生工具 | 各完成调用、唯一 call_id、对应结果与下一次回答，两次模型请求 | 工具仅返回固定合成值，无文件/网络/设备副作用 |
+| DeepSeek Flash · Chat SSE | DONE 及 usage 尾块；prompt=8、output=1、hit=0、miss=8 | 验证 Chat 计量字段与零命中 |
+| DeepSeek Flash · Anthropic SSE | message_stop；input=8、read=0、write=0、output=1 | 验证 Messages 起始/增量用量与终态 |
+
+新增依据：[DeepSeek Responses 兼容说明](https://api-docs.deepseek.com/guides/responses_api)、
+[DeepSeek Anthropic 兼容说明](https://api-docs.deepseek.com/guides/anthropic_api)。其 Responses
+不支持 previous_response_id、background、store、prompt_cache_key；不能把 OpenAI 服务端能力
+按模型名套用给 DeepSeek。Codex 的稳定会话键和追加历史可参考，WebSocket 增量传输及专用
+路由状态不能无依据移植到通用中转。
+
+### 自动验证与待验收
+
+- 首批七类定向 JVM 回归通过。
+- 全量首轮 2,924 项暴露 16 个既有文件管理测试断言问题，均与基线 `b8aa8ef42`
+  新增父目录导航行有关。只修正四份测试中实际文件/目录的统计对象，并增加父目录保留断言，
+  不改文件管理产品运行时；最终完整回归 492 suites、2,924 tests，0 failures、0 errors，
+  1 个既有 Bilibili 真实媒体样本测试跳过；新增缓存/用量回归 8 项全部通过。
+- 正式开发准备与完整架构检查通过（phase=m03，未放宽架构快照）；文档工作区检查
+  522 文件、0 问题，本地化候选树检查 0 errors、0 warnings。
+- 首轮 Lint 发现 8 条新文案缺少五种语言翻译，已补齐韩语、葡萄牙语、马来语、印尼语和西班牙语，
+  保留原 Lint 基线；补齐后的复跑 0 errors、79 warnings。随后反审修正推理 token 超过输出时
+  不能截断冒充真实用量，新增断言随最终 2,924 项回归全部通过。
+- 最终联合命令 `./gradlew.bat :app:testDebugUnitTest :app:lintDebug :app:assembleDebug --no-daemon --console=plain`
+  通过（11m57s）；最终 Lint 为 0 errors、79 warnings、2 hints，保留既有基线，未新增忽略或降级断言。
+- 最终 Debug APK 已生成并核验：2026-09-14 20:58:47 +08:00，487,050,391 bytes，
+  `com.kiyori / 0.1.0 / 45`，arm64-v8a；签名 v2、单一 Launcher 和 16 KiB ZIP 对齐检查通过。
+  SHA-256：`5533E79C3EC95999FE72DBBA09D9C83722C7CE4E58ECB18EE054D4E72649DF3D`。
+- Git 交付核验入口：`check_repo_hygiene.py --base <本轮基线> --candidate <候选提交>`、
+  `check_fresh_clone.py --repository .`，推送后核对 HEAD、origin/main 和远端 main。
+  2026-09-14 查询 GitHub Actions 当前关闭，不能把本地检查表述为远端 CI 通过。
+- `verification_pending`：手机窄屏/大字体/深浅色/无障碍与抽屉交互，实际对话历史的缓存 A/B，
+  Android 内置代理开关、RULE/GLOBAL/DIRECT、后台恢复、网络切换、长工具链和长期稳定性。
+  远端 Actions 与设备验收独立于本地测试及电脑合成 API 请求。
+
 本专项覆盖软件首页右侧 AI 对话及其可达子页面、消息弹层、输入组件、历史选择器、悬浮小窗和语音界面。目标是修复有源码或实测依据的问题，并在既有 Kiyori 视觉体系中完善布局、反馈和操作连续性。本文是本专项唯一进度入口；长期所有权见 [AI 执行契约](../../doc-src/contracts/ai_execution.md) 与 [产品壳契约](../../doc-src/contracts/product_shell.md)。
 
 ## 对话详情与执行诊断全面优化（2026-09-10）

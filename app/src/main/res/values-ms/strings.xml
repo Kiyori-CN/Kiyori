@@ -7862,4 +7862,12 @@ Kini anda boleh menggunakan mod AutoGLM di antara muka perbualan.</string>
     <string name="test_media_unverified">Disambungkan, tetapi belum disahkan</string>
     <string name="test_result_expand">Kembangkan</string>
     <string name="test_result_collapse">Runtuhkan</string>
+    <string name="chat_stats_cumulative">Jumlah perbualan</string>
+    <string name="chat_stats_recent">Permintaan terkini</string>
+    <string name="chat_stats_recent_note">Panggilan model terakhir yang selesai. Panggilan susulan selepas alat dikira berasingan. Penggunaan belum lengkap semasa berjalan; sampel sejarah tidak dianggarkan selepas mula semula.</string>
+    <string name="chat_stats_cache_denominator">Input boleh diukur · penyebut kadar bacaan</string>
+    <string name="chat_stats_cache_unknown_input">Input tanpa metrik cache yang sah</string>
+    <string name="chat_stats_first_output">Masa menunggu output pertama</string>
+    <string name="chat_stats_request_duration">Jumlah tempoh permintaan</string>
+    <string name="chat_stats_timing_note">Pemerhatian klien bagi permintaan semasa atau terkini: dari mula panggilan hingga kandungan pertama dan tamat aliran, termasuk persediaan setempat, rangkaian, proksi dan menunggu pelayan. Kandungan pertama mungkin penaakulan atau data alat. Ini bukan RTT rangkaian atau masa inferens pelayan sahaja.</string>
 </resources>

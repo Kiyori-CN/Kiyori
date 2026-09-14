@@ -8,6 +8,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.ContentCopy
+import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -24,7 +25,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.data.model.GenerationSpeed
 import com.ai.assistance.operit.data.model.ProviderUsageAggregate
@@ -64,11 +64,8 @@ internal fun ChatStatisticsButton(
                 progress = { progress }, modifier = Modifier.fillMaxSize(), color = tone,
                 strokeWidth = 3.dp, trackColor = MaterialTheme.colorScheme.surfaceVariant,
             )
-            Text(
-                text = ratio?.let { (it * 100).coerceAtMost(999.0).toInt().toString() } ?: "—",
-                style = MaterialTheme.typography.labelSmall, fontSize = 9.sp,
-                fontWeight = FontWeight.Bold, color = tone,
-            )
+            Icon(Icons.Outlined.BarChart, contentDescription = null,
+                modifier = Modifier.size(17.dp), tint = tone)
         }
     }
     if (expanded) {
@@ -87,10 +84,11 @@ private fun contextUsageColor(ratio: Double?): Color = when {
 }
 
 @Composable
+@OptIn(ExperimentalLayoutApi::class)
 private fun ChatStatisticsSheet(
     currentTokens: Long,
     maxTokens: Long,
-    usage: ProviderUsageAggregate,
+    cumulativeUsage: ProviderUsageAggregate,
     speed: GenerationSpeed?,
     onDismiss: () -> Unit,
 ) {
@@ -99,6 +97,9 @@ private fun ChatStatisticsSheet(
     val numberFormat = remember(locale) { NumberFormat.getIntegerInstance(locale) }
     val unavailable = stringResource(R.string.chat_stats_unavailable)
     val title = stringResource(R.string.chat_stats_title)
+    var recent by rememberSaveable { mutableStateOf(false) }
+    val usage = if (recent) speed?.providerUsage ?: ProviderUsageAggregate() else cumulativeUsage
+    val scopeLabel = stringResource(if (recent) R.string.chat_stats_recent else R.string.chat_stats_cumulative)
     val ratio = ChatStatisticsFormatter.contextUsageRatio(currentTokens, maxTokens)
     val percentage = ChatStatisticsFormatter.formatContextUsage(currentTokens, maxTokens) ?: unavailable
     val contextLabel = stringResource(R.string.chat_stats_context_occupancy)
@@ -113,26 +114,32 @@ private fun ChatStatisticsSheet(
     } ?: unavailable
     val speedSource = stringResource(
         when {
-            speed == null -> R.string.chat_stats_speed_no_sample
+            speed?.tokensPerSecond == null -> R.string.chat_stats_speed_no_sample
             speed.isEstimated -> R.string.chat_stats_speed_estimated
             else -> R.string.chat_stats_speed_reported
         },
     )
     fun tokens(value: Long, reported: Boolean) = if (reported) numberFormat.format(value) else unavailable
+    fun reportedTokens(value: Long?) = value?.let(numberFormat::format) ?: unavailable
     val hasUsage = usage.providerUsageRequestCount > 0
     val hasCache = usage.providerCacheMetricRequestCount > 0
     val usageRows = listOf(
-        stringResource(R.string.chat_stats_input_label) to tokens(usage.providerTotalInputTokens, hasUsage),
-        stringResource(R.string.chat_stats_output_label) to tokens(usage.providerOutputTokens, hasUsage),
+        stringResource(R.string.chat_stats_input_label) to if (recent) reportedTokens(speed?.inputTokens) else tokens(usage.providerTotalInputTokens, hasUsage),
+        stringResource(R.string.chat_stats_output_label) to if (recent) reportedTokens(speed?.outputTokens) else tokens(usage.providerOutputTokens, hasUsage),
         stringResource(R.string.chat_stats_total_label) to tokens(usage.providerTotalTokens, hasUsage),
-        stringResource(R.string.chat_stats_reasoning_label) to tokens(usage.providerReasoningTokens, hasUsage),
+        stringResource(R.string.chat_stats_reasoning_label) to if (recent) reportedTokens(speed?.reasoningTokens)
+            else tokens(usage.providerReasoningTokens, usage.providerReasoningTokens > 0),
     )
     val cacheRows = listOf(
         stringResource(R.string.chat_stats_cache_read_label) to tokens(usage.providerCacheReadTokens, hasCache),
-        stringResource(R.string.chat_stats_cache_write_label) to tokens(usage.providerCacheWriteTokens, hasCache),
+        stringResource(R.string.chat_stats_cache_write_label) to if (recent) reportedTokens(speed?.cacheWriteTokens)
+            else tokens(usage.providerCacheWriteTokens, usage.providerCacheWriteTokens > 0),
         stringResource(R.string.chat_stats_uncached_label) to tokens(usage.providerUncachedInputTokens, hasUsage),
         stringResource(R.string.chat_stats_cache_rate_label) to
             (ChatStatisticsFormatter.formatCacheHitRate(usage.cacheHitRate) ?: unavailable),
+        stringResource(R.string.chat_stats_cache_denominator) to tokens(usage.providerCacheMetricPromptTokens, hasCache),
+        stringResource(R.string.chat_stats_cache_unknown_input) to
+            tokens((usage.providerTotalInputTokens - usage.providerCacheMetricPromptTokens).coerceAtLeast(0), hasUsage),
     )
     val coverageRows = listOf(
         stringResource(R.string.chat_stats_requests_label) to numberFormat.format(usage.requestCount),
@@ -148,17 +155,28 @@ private fun ChatStatisticsSheet(
     val speedNote = stringResource(R.string.chat_stats_speed_note)
     val contextNote = stringResource(R.string.chat_stats_context_note)
     val cacheNote = stringResource(R.string.chat_stats_cache_note)
-    val report = buildString {
+    val latencyLabel = stringResource(R.string.chat_stats_first_output)
+    val durationLabel = stringResource(R.string.chat_stats_request_duration)
+    val latency = ChatStatisticsFormatter.formatDuration(speed?.firstOutputLatencyMs) ?: unavailable
+    val duration = ChatStatisticsFormatter.formatDuration(speed?.requestDurationMs) ?: unavailable
+    val timingNote = stringResource(R.string.chat_stats_timing_note)
+    // 摘要仅在复制时构造，流式速度更新不反复分配整份文本。
+    val report = { buildString {
         appendLine(title)
+        appendLine(scopeLabel)
+        if (recent) speed?.providerModel?.let { appendLine(it) }
         appendLine("$contextLabel: $percentage ($contextCount)")
         appendLine("$speedLabel: $speedValue · $speedSource")
+        appendLine("$latencyLabel: $latency")
+        appendLine("$durationLabel: $duration")
         (usageRows + cacheRows + coverageRows).forEach { (label, value) -> appendLine("$label: $value") }
         appendLine(contextNote)
         appendLine(speedNote)
+        appendLine(timingNote)
         appendLine(usageNote)
         appendLine(cacheNote)
         append(coverageNote)
-    }
+    } }
 
     KiyoriModalBottomDrawer(onDismissRequest = onDismiss,
         modifier = Modifier.semantics { paneTitle = title }) { dismissDrawer ->
@@ -172,7 +190,7 @@ private fun ChatStatisticsSheet(
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             IconButton(onClick = {
-                context.copyPlainTextToClipboard(title, report)
+                context.copyPlainTextToClipboard(title, report())
                 Toast.makeText(context, R.string.copied_to_clipboard, Toast.LENGTH_SHORT).show()
             }) {
                 Icon(Icons.Outlined.ContentCopy, contentDescription = stringResource(R.string.chat_stats_copy))
@@ -186,6 +204,29 @@ private fun ChatStatisticsSheet(
             contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
+            item {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilterChip(selected = !recent, onClick = { recent = false },
+                        label = { Text(stringResource(R.string.chat_stats_cumulative)) })
+                    FilterChip(selected = recent, onClick = { recent = true },
+                        label = { Text(stringResource(R.string.chat_stats_recent)) })
+                }
+                StatisticsNote(stringResource(if (recent) R.string.chat_stats_recent_note else R.string.chat_stats_usage_note))
+                if (recent) speed?.providerModel?.let { StatisticsNote(it) }
+            }
+            item {
+                StatisticsCard {
+                    Text(stringResource(R.string.chat_stats_cache_section), style = MaterialTheme.typography.titleSmall)
+                    Text(ChatStatisticsFormatter.formatCacheHitRate(usage.cacheHitRate) ?: unavailable,
+                        style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.primary)
+                    Text(stringResource(R.string.chat_stats_cache_rate_label), style = MaterialTheme.typography.labelLarge)
+                    LinearProgressIndicator(progress = { (usage.cacheHitRate ?: 0.0).toFloat().coerceIn(0f, 1f) },
+                        modifier = Modifier.fillMaxWidth())
+                    cacheRows.filterIndexed { index, _ -> index != 3 }.forEach { (label, value) -> StatisticsRow(label, value) }
+                    StatisticsNote(cacheNote)
+                }
+            }
             item {
                 StatisticsCard {
                     Text(contextLabel, style = MaterialTheme.typography.labelLarge)
@@ -211,6 +252,10 @@ private fun ChatStatisticsSheet(
                     Text(speedSource, style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.primary)
                     StatisticsNote(speedNote)
+                    HorizontalDivider()
+                    StatisticsRow(latencyLabel, latency)
+                    StatisticsRow(durationLabel, duration)
+                    StatisticsNote(timingNote)
                 }
             }
             item {
@@ -221,14 +266,6 @@ private fun ChatStatisticsSheet(
                         StatisticsRow(label, value, highlighted = index == 2)
                     }
                     StatisticsNote(usageNote)
-                }
-            }
-            item {
-                StatisticsCard {
-                    Text(stringResource(R.string.chat_stats_cache_section),
-                        style = MaterialTheme.typography.titleSmall)
-                    cacheRows.forEach { (label, value) -> StatisticsRow(label, value) }
-                    StatisticsNote(cacheNote)
                 }
             }
             item {

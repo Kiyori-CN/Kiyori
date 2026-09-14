@@ -232,14 +232,15 @@ object ModelCapabilityResolver {
                         else -> ExecutionPersistenceCapability.NONE
                     },
                 promptCache =
-                    if (isOfficialResponses) {
+                    if (isResponses) {
                         PromptCacheCapability.OPENAI_PROMPT_CACHE_KEY
                     } else {
                         PromptCacheCapability.NONE
                     },
                 promptCacheNamespace =
-                    if (isOfficialResponses) {
-                        "kiyori:openai:$family:$tier:v1"
+                    if (isResponses) {
+                        if (isOfficialResponses) "kiyori:openai:$family:$tier:v1"
+                        else "kiyori:openai-compatible:$family:$tier:v1"
                     } else {
                         null
                     },

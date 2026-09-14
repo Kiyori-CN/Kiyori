@@ -14,7 +14,11 @@ internal object ChatStatisticsFormatter {
             ?.let { String.format(Locale.US, "%.1f", it) }
 
     fun formatCacheHitRate(rate: Double?): String? =
-        rate?.let { String.format(Locale.US, "%.1f%%", it * 100.0) }
+        rate?.takeIf { it.isFinite() && it in 0.0..1.0 }
+            ?.let { String.format(Locale.US, "%.1f%%", it * 100.0) }
+
+    fun formatDuration(milliseconds: Long?): String? = milliseconds?.takeIf { it >= 0L }
+        ?.let { String.format(Locale.US, "%.2f s", it.toDouble() / 1000.0) }
 
     fun formatCoverage(reported: Int, total: Int): String = "$reported/$total"
 }

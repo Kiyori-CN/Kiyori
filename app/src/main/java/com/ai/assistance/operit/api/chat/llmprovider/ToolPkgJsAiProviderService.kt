@@ -93,6 +93,7 @@ internal object ToolPkgUsagePayloadAdapter {
             }
             val invalid =
                 decimal.signum() < 0 ||
+                    decimal.stripTrailingZeros().scale() > 0 ||
                     decimal > java.math.BigDecimal.valueOf(Int.MAX_VALUE.toLong())
             return ParsedCount(
                 value =
@@ -626,11 +627,11 @@ internal class ToolPkgJsAiProviderService(
         val uncachedInputTokens =
             usage.input?.toLong()
                 ?: previous?.uncachedInputTokens
-                ?: currentInputTokenCount.toLong()
+                ?: 0L
         val cachedInputTokens =
             usage.cachedInput?.toLong()
                 ?: previous?.cacheReadTokens
-                ?: currentCachedInputTokenCount.toLong()
+                ?: 0L
         val cacheWriteTokens =
             usage.cacheWrite?.toLong()
                 ?: previous?.cacheWriteTokens
@@ -638,7 +639,7 @@ internal class ToolPkgJsAiProviderService(
         val outputTokens =
             usage.output?.toLong()
                 ?: previous?.outputTokens
-                ?: currentOutputTokenCount.toLong()
+                ?: 0L
         val reasoningTokens =
             usage.reasoning?.toLong()
                 ?: previous?.reasoningTokens
@@ -677,6 +678,10 @@ internal class ToolPkgJsAiProviderService(
                 reasoningTokens = reasoningTokens,
                 cacheMetricState = cacheMetricState,
                 source = ProviderUsageSource.PROVIDER,
+                inputTokensReported = usage.input != null || previous?.inputTokensReported == true,
+                outputTokensReported = usage.output != null || previous?.outputTokensReported == true,
+                reasoningTokensReported = usage.reasoning != null || previous?.reasoningTokensReported == true,
+                cacheWriteTokensReported = usage.cacheWrite != null || previous?.cacheWriteTokensReported == true,
             )
     }
 

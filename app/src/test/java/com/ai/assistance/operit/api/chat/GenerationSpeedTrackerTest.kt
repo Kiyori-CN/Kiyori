@@ -25,28 +25,34 @@ class GenerationSpeedTrackerTest {
         assertNull(tracker.onContent("first"))
         now = 22_000
         tracker.onContent("second")
-        assertEquals(GenerationSpeed(50.0, true), tracker.onTokens(100))
+        assertEquals(50.0, tracker.onTokens(100)!!.tokensPerSecond!!, 0.000001)
+        assertEquals(20_000L, tracker.onTokens(100)!!.firstOutputLatencyMs)
         tracker.stop()
         now = 90_000 // usage 存储或后续工具耗时不能改变已停止的分母。
-        assertEquals(GenerationSpeed(60.0, false), tracker.complete(usage()))
+        val completed = tracker.complete(usage())!!
+        assertEquals(60.0, completed.tokensPerSecond!!, 0.000001)
+        assertFalse(completed.isEstimated)
+        assertEquals(22_000L, completed.requestDurationMs)
+        assertEquals(120L, completed.providerUsage!!.providerOutputTokens)
         tracker.stop()
-        assertEquals(GenerationSpeed(60.0, false), tracker.complete(usage()))
+        assertEquals(completed, tracker.complete(usage()))
     }
 
     @Test
     fun missingOutputZeroDurationAndNonStreamingRemainUnavailable() {
         val tracker = tracker()
-        assertNull(tracker.complete(usage()))
+        assertNull(tracker.complete(usage())!!.tokensPerSecond)
         tracker.onContent("one chunk")
         tracker.stop()
-        assertNull(tracker.complete(usage()))
+        assertNull(tracker.complete(usage())!!.tokensPerSecond)
         now = 1_000
         assertNull(tracker.onTokens(120)) // 单个输出块不能把本地交付耗时伪装成生成速度。
         val nonStreaming = tracker(streaming = false)
         nonStreaming.onContent("all at once")
         now += 2_000
         nonStreaming.stop()
-        assertNull(nonStreaming.complete(usage()))
+        assertNull(nonStreaming.complete(usage())!!.tokensPerSecond)
+        assertEquals(2_000L, nonStreaming.complete(usage())!!.requestDurationMs)
     }
 
     @Test
@@ -56,10 +62,13 @@ class GenerationSpeedTrackerTest {
         now = 1_000
         tracker.onContent("more text")
         tracker.stop()
-        assertNull(tracker.complete(usage(source = ProviderUsageSource.UNAVAILABLE)))
-        assertEquals(GenerationSpeed(120.0, true),
-            tracker.complete(usage(source = ProviderUsageSource.LOCAL_ESTIMATE)))
-        assertNull(tracker.complete(usage(output = 0)))
+        val unavailable = tracker.complete(usage(source = ProviderUsageSource.UNAVAILABLE))!!
+        assertNull(unavailable.tokensPerSecond)
+        assertEquals(0, unavailable.providerUsage!!.providerUsageRequestCount)
+        val local = tracker.complete(usage(source = ProviderUsageSource.LOCAL_ESTIMATE))!!
+        assertEquals(120.0, local.tokensPerSecond!!, 0.000001)
+        assertTrue(local.isEstimated)
+        assertNull(tracker.complete(usage(output = 0))!!.tokensPerSecond)
     }
 
     @Test
@@ -76,7 +85,7 @@ class GenerationSpeedTrackerTest {
         now = 3_000
         next.onContent("next chunk")
         next.stop()
-        assertEquals(GenerationSpeed(60.0, false), next.complete(usage()))
+        assertEquals(60.0, next.complete(usage())!!.tokensPerSecond!!, 0.000001)
     }
 
     @Test

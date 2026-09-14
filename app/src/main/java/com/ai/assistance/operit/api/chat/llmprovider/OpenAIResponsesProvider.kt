@@ -95,6 +95,7 @@ class OpenAIResponsesProvider(
             compiledRequest = compiledRequest,
             stream = stream,
         )
+        OpenAIPromptCachePolicy.markStablePrefix(jsonObject, compiledRequest.profile)
 
         return createJsonRequestBody(jsonObject.toString())
     }
@@ -290,6 +291,9 @@ object OpenAIResponsesPayloadAdapter {
         val cacheMetricState: ProviderCacheMetricState,
         val cacheWriteTokens: Int = 0,
         val reasoningTokens: Int = 0,
+        val outputTokensReported: Boolean = true,
+        val reasoningTokensReported: Boolean = false,
+        val cacheWriteTokensReported: Boolean = false,
     )
 
     data class ParsedResponseOutput(
@@ -311,37 +315,51 @@ object OpenAIResponsesPayloadAdapter {
     fun parseUsageCounts(usage: JSONObject?): UsageCounts? {
         usage ?: return null
 
+        // JSONObject.optInt 会把 null、错类型和越界值伪装成 0 或截断；计量不能据此声称命中。
+        fun count(json: JSONObject?, name: String): Int? {
+            if (!ProviderUsageNumbers.present(json, name)) return null
+            return ProviderUsageNumbers.read(json, name).takeIf { it >= 0 }
+        }
+        fun present(json: JSONObject?, name: String) = json?.has(name) == true && !json.isNull(name)
+        val hit = count(usage, "prompt_cache_hit_tokens")
+        val miss = count(usage, "prompt_cache_miss_tokens")
+        val inputField = if (present(usage, "prompt_tokens")) "prompt_tokens" else "input_tokens"
+        val outputField = if (present(usage, "completion_tokens")) "completion_tokens" else "output_tokens"
+        val derivedInput = if (hit != null && miss != null) {
+            (hit.toLong() + miss).takeIf { it <= Int.MAX_VALUE }?.toInt()
+        } else null
+
         val rawTotalInputTokens =
-            usage.optInt("prompt_tokens", usage.optInt("input_tokens", 0))
+            if (present(usage, inputField)) count(usage, inputField) ?: return null
+            else derivedInput ?: return null
         val totalInputTokens = rawTotalInputTokens.coerceAtLeast(0)
         val outputTokens =
-            usage.optInt("completion_tokens", usage.optInt("output_tokens", 0)).coerceAtLeast(0)
+            if (present(usage, outputField)) count(usage, outputField) ?: return null else 0
         val cachedDetails =
             usage.optJSONObject("prompt_tokens_details")
                 ?: usage.optJSONObject("input_tokens_details")
         val hasCacheMetric =
-            usage.has("prompt_cache_hit_tokens") ||
-                usage.has("cached_tokens") ||
-                cachedDetails?.has("cached_tokens") == true
+            present(usage, "prompt_cache_hit_tokens") ||
+                present(usage, "cached_tokens") ||
+                present(cachedDetails, "cached_tokens")
         val rawCachedInputTokens =
             when {
-                usage.has("prompt_cache_hit_tokens") ->
-                    usage.optInt("prompt_cache_hit_tokens", 0)
-                cachedDetails?.has("cached_tokens") == true ->
-                    cachedDetails.optInt("cached_tokens", 0)
-                usage.has("cached_tokens") ->
-                    usage.optInt("cached_tokens", 0)
+                present(usage, "prompt_cache_hit_tokens") -> hit ?: -1
+                present(cachedDetails, "cached_tokens") -> count(cachedDetails, "cached_tokens") ?: -1
+                present(usage, "cached_tokens") -> count(usage, "cached_tokens") ?: -1
                 else -> 0
             }
         val cachedInputTokens = rawCachedInputTokens.coerceAtLeast(0)
         val boundedCachedInputTokens = cachedInputTokens.coerceAtMost(totalInputTokens)
-        val hasCacheWriteMetric = cachedDetails?.has("cache_write_tokens") == true
-        val rawCacheWriteTokens = cachedDetails?.optInt("cache_write_tokens", 0) ?: 0
+        val hasCacheWriteMetric = present(cachedDetails, "cache_write_tokens")
+        val rawCacheWriteTokens = if (hasCacheWriteMetric) count(cachedDetails, "cache_write_tokens") ?: -1 else 0
         val cacheWriteTokens = rawCacheWriteTokens.coerceIn(0, totalInputTokens - boundedCachedInputTokens)
         val cacheMetricState =
             when {
                 !hasCacheMetric && !hasCacheWriteMetric -> ProviderCacheMetricState.NOT_REPORTED
                 rawTotalInputTokens < 0 ||
+                    (present(usage, "prompt_cache_miss_tokens") &&
+                        (miss == null || hit == null || hit.toLong() + miss != totalInputTokens.toLong())) ||
                     rawCachedInputTokens < 0 ||
                     rawCachedInputTokens > totalInputTokens ||
                     rawCacheWriteTokens < 0 ||
@@ -349,14 +367,9 @@ object OpenAIResponsesPayloadAdapter {
                     ProviderCacheMetricState.INVALID
                 else -> ProviderCacheMetricState.REPORTED
             }
-        val reasoningTokens =
-            usage.optJSONObject("completion_tokens_details")
-                ?.optInt("reasoning_tokens", 0)
-                ?.coerceAtLeast(0)
-                ?: usage.optJSONObject("output_tokens_details")
-                    ?.optInt("reasoning_tokens", 0)
-                    ?.coerceAtLeast(0)
-                ?: 0
+        val reportedReasoning = count(usage.optJSONObject("completion_tokens_details"), "reasoning_tokens")
+            ?: count(usage.optJSONObject("output_tokens_details"), "reasoning_tokens")
+        val reasoningTokens = reportedReasoning ?: 0
 
         val hasUsageFields =
             usage.has("prompt_tokens") ||
@@ -373,7 +386,11 @@ object OpenAIResponsesPayloadAdapter {
                 cacheWriteTokens = cacheWriteTokens,
                 outputTokens = outputTokens,
                 cacheMetricState = cacheMetricState,
-                reasoningTokens = reasoningTokens,
+                // 推理是输出的子集；矛盾字段不能截成输出总数后冒充真实推理用量。
+                reasoningTokens = reasoningTokens.takeIf { it <= outputTokens } ?: 0,
+                outputTokensReported = present(usage, outputField),
+                reasoningTokensReported = reportedReasoning != null && reportedReasoning <= outputTokens,
+                cacheWriteTokensReported = hasCacheWriteMetric && cacheMetricState == ProviderCacheMetricState.REPORTED,
             )
         } else {
             null
@@ -674,7 +691,9 @@ object OpenAIResponsesPayloadAdapter {
             }
 
             toolHistoryState.requireClosed("responses_${role}_boundary")
-            appendMessageItem(message = message, role = role, input = input)
+            // DeepSeek Responses 把 developer 当作 user；必须保留 system 的指令层级。
+            appendMessageItem(message = message, role = role, input = input,
+                systemRole = if (plainReasoningReplay) "system" else "developer")
         }
 
         toolHistoryState.requireClosed("responses_history_end")
@@ -723,6 +742,7 @@ object OpenAIResponsesPayloadAdapter {
         message: JSONObject,
         role: String,
         input: JSONArray,
+        systemRole: String = "developer",
     ) {
         val convertedContent = convertMessageContentForResponses(message.opt("content"))
         if (role == "assistant" && convertedContent is JSONArray) {
@@ -751,10 +771,10 @@ object OpenAIResponsesPayloadAdapter {
             flushParts()
             return
         }
-        appendConvertedMessage(role, convertedContent, input)
+        appendConvertedMessage(role, convertedContent, input, systemRole)
     }
 
-    private fun appendConvertedMessage(role: String, convertedContent: Any, input: JSONArray) {
+    private fun appendConvertedMessage(role: String, convertedContent: Any, input: JSONArray, systemRole: String = "developer") {
         val hasContent =
             when (convertedContent) {
                 is String -> convertedContent.isNotBlank()
@@ -767,7 +787,7 @@ object OpenAIResponsesPayloadAdapter {
 
         val mappedRole =
             when (role) {
-                "system" -> "developer"
+                "system" -> systemRole
                 else -> role
             }
         input.put(

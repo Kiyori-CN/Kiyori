@@ -54,9 +54,9 @@ sequence 发起：
 GET /responses/{response_id}?stream=true&starting_after={last_sequence}
 ```
 
-Responses 兼容 endpoint 不自动声明这项能力，也不自动加入 Prompt Cache、Tool Search、
+Responses 兼容 endpoint 不自动声明这项能力，也不自动加入缓存断点/TTL、Tool Search、
 `reasoning.encrypted_content` 或 strict schema。已核实的 GPT-5.6 / Astra 兼容 Responses
-请求 `reasoning.summary=auto`，摘要仍以服务端实际返回为准。GPT-5.6 / Astra 的用户五档
+请求 `reasoning.summary=auto`，并采用标准 `prompt_cache_key` 稳定分组；摘要和命中仍以服务端实际返回为准。GPT-5.6 / Astra 的用户五档
 仍精确编译为 `low / medium / high / xhigh / max`。
 
 `response.created` 前的自动重新提交必须满足 at-most-once 边界：只有明确的 429 限流拒绝
@@ -244,7 +244,7 @@ disabled none
 
 官方 GPT-5.6 Responses profile 额外声明 reasoning 自动摘要与加密重放、Prompt Cache、
 Background sequence resume、strict schema 和大工具集 Tool Search；GPT-5.6 compatible
-endpoint profile 只声明五档 reasoning wire 与 Responses at-most-once 提交，不假定服务端具备
+endpoint profile 声明五档 reasoning wire、标准缓存键与 Responses at-most-once 提交，不假定服务端具备
 官方执行持久性、缓存、工具发现或 reasoning 重放能力。
 
 未登记的 OpenAI 或兼容模型使用 passthrough profile：保留调用方已有 wire 参数，但不猜测
