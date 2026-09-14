@@ -50,8 +50,6 @@ import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 import com.ai.assistance.operit.util.FileUtils
 import com.ai.assistance.operit.util.PathMapper
-import com.ai.assistance.operit.util.ImagePoolManager
-import com.ai.assistance.operit.util.MediaPoolManager
 import com.ai.assistance.operit.util.HttpMultiPartDownloader
 import com.ai.assistance.operit.util.FFmpegUtil
 import kotlinx.coroutines.Dispatchers
@@ -1143,42 +1141,13 @@ open class StandardFileSystemTools(protected val context: Context) {
             }
 
             "jpg", "jpeg", "png", "gif", "bmp", "webp" -> {
-                // 获取可选的intent参数和direct_image参数
+                // 直接媒体读取已在统一入口处理；这里保留显式后端识别与 OCR。
                 val intent = tool.parameters.find { it.name == "intent" }?.value
-                val directImage = tool.parameters.find { it.name == "direct_image" }?.value?.toBoolean() ?: false
 
                 AppLogger.d(
                     TAG,
-                    "Detected image file, intent=${intent ?: "无"}, direct_image=$directImage"
+                    "Detected image file, intent=${intent ?: "无"}"
                 )
-
-                // 情况1：direct_image 为 true，直接返回图片链接，供支持识图的聊天模型自己查看
-                if (directImage) {
-                    try {
-                        val imageId = ImagePoolManager.addImage(path)
-                        if (imageId == "error") {
-                            return ToolResult(toolName = tool.name, success = false,
-                                result = StringResultData(""), error = "Image registration failed; direct_image requires actual image content")
-                        } else {
-                            val link = "<link type=\"image\" id=\"$imageId\"></link>"
-                            AppLogger.d(TAG, "Generated image link for direct_image: $link")
-                            return ToolResult(
-                                toolName = tool.name,
-                                success = true,
-                                result = FileContentData(
-                                    path = path,
-                                    content = link,
-                                    size = link.length.toLong()
-                                ),
-                                error = ""
-                            )
-                        }
-                    } catch (e: Exception) {
-                        AppLogger.e(TAG, "Error generating direct image link", e)
-                        return ToolResult(toolName = tool.name, success = false,
-                            result = StringResultData(""), error = "Image registration failed: ${e.message}")
-                    }
-                }
 
                 // 情况2：提供了 intent，使用后端识图模型
                 if (!intent.isNullOrBlank()) {
@@ -1300,36 +1269,8 @@ open class StandardFileSystemTools(protected val context: Context) {
 
             "mp3", "wav", "m4a", "aac", "flac", "ogg", "opus" -> {
                 val intent = tool.parameters.find { it.name == "intent" }?.value
-                val directAudio = tool.parameters.find { it.name == "direct_audio" }?.value?.toBoolean() ?: false
 
-                AppLogger.d(TAG, "Detected audio file, intent=${intent ?: "无"}, direct_audio=$directAudio")
-
-                if (directAudio) {
-                    try {
-                        val derivedMimeType =
-                            MimeTypeMap.getSingleton().getMimeTypeFromExtension(fileExt)
-                                ?: "audio/*"
-                        val audioId = MediaPoolManager.addMedia(path, derivedMimeType)
-                        if (audioId == "error") {
-                            AppLogger.e(TAG, "Failed to register audio for direct_audio, falling back to intent/info: $path")
-                        } else {
-                            val link = "<link type=\"audio\" id=\"$audioId\"></link>"
-                            AppLogger.d(TAG, "Generated audio link for direct_audio: $link")
-                            return ToolResult(
-                                toolName = tool.name,
-                                success = true,
-                                result = FileContentData(
-                                    path = path,
-                                    content = link,
-                                    size = link.length.toLong()
-                                ),
-                                error = ""
-                            )
-                        }
-                    } catch (e: Exception) {
-                        AppLogger.e(TAG, "Error generating direct audio link, falling back to intent/info", e)
-                    }
-                }
+                AppLogger.d(TAG, "Detected audio file, intent=${intent ?: "无"}")
 
                 if (!intent.isNullOrBlank()) {
                     try {
@@ -1392,36 +1333,8 @@ open class StandardFileSystemTools(protected val context: Context) {
 
             "mp4", "mkv", "mov", "webm", "avi", "m4v" -> {
                 val intent = tool.parameters.find { it.name == "intent" }?.value
-                val directVideo = tool.parameters.find { it.name == "direct_video" }?.value?.toBoolean() ?: false
 
-                AppLogger.d(TAG, "Detected video file, intent=${intent ?: "无"}, direct_video=$directVideo")
-
-                if (directVideo) {
-                    try {
-                        val derivedMimeType =
-                            MimeTypeMap.getSingleton().getMimeTypeFromExtension(fileExt)
-                                ?: "video/*"
-                        val videoId = MediaPoolManager.addMedia(path, derivedMimeType)
-                        if (videoId == "error") {
-                            AppLogger.e(TAG, "Failed to register video for direct_video, falling back to intent/info: $path")
-                        } else {
-                            val link = "<link type=\"video\" id=\"$videoId\"></link>"
-                            AppLogger.d(TAG, "Generated video link for direct_video: $link")
-                            return ToolResult(
-                                toolName = tool.name,
-                                success = true,
-                                result = FileContentData(
-                                    path = path,
-                                    content = link,
-                                    size = link.length.toLong()
-                                ),
-                                error = ""
-                            )
-                        }
-                    } catch (e: Exception) {
-                        AppLogger.e(TAG, "Error generating direct video link, falling back to intent/info", e)
-                    }
-                }
+                AppLogger.d(TAG, "Detected video file, intent=${intent ?: "无"}")
 
                 if (!intent.isNullOrBlank()) {
                     try {
@@ -1493,7 +1406,7 @@ open class StandardFileSystemTools(protected val context: Context) {
      * function does not enforce a size limit.
      */
     open suspend fun readFileFull(tool: AITool): ToolResult {
-        if (tool.parameters.any { it.name == "read_mode" }) return executeBoundedTextRead(tool)
+        if (tool.parameters.any { it.name == "read_mode" } && !FileMediaReadPolicy.requested(tool)) return executeBoundedTextRead(tool)
         val path = tool.parameters.find { it.name == "path" }?.value ?: ""
         val environment = tool.parameters.find { it.name == "environment" }?.value
         val textOnly = tool.parameters.find { it.name == "text_only" }?.value?.toBoolean() ?: false
@@ -1539,7 +1452,11 @@ open class StandardFileSystemTools(protected val context: Context) {
             }
 
             val fileExt = file.extension.lowercase()
-            
+
+            FileMediaReadPolicy.resolve(tool, path)?.let { format ->
+                return FileMediaReader.fromFile(tool, path, format)
+            }
+
             // 如果启用了 text_only 模式，检查文件是否为文本
             if (textOnly) {
                 // 读取文件前 512 字节进行判断
@@ -1583,6 +1500,8 @@ open class StandardFileSystemTools(protected val context: Context) {
                     error = "File does not appear to be a text file. Use specialized tools for binary files."
                 )
             }
+        } catch (cancelled: kotlinx.coroutines.CancellationException) {
+            throw cancelled
         } catch (e: Exception) {
             AppLogger.e(TAG, "Error reading file (full)", e)
             return ToolResult(
@@ -1695,6 +1614,8 @@ open class StandardFileSystemTools(protected val context: Context) {
 
             val fileExt = file.extension.lowercase()
 
+            if (FileMediaReadPolicy.requested(tool)) return readFileFull(tool)
+
             // For special types, full read then truncate text is the only way.
             if (isSpecialFileType(fileExt)) {
                 val fullResult = readFileFull(tool)
@@ -1760,6 +1681,8 @@ open class StandardFileSystemTools(protected val context: Context) {
                 ),
                 error = ""
             )
+        } catch (cancelled: kotlinx.coroutines.CancellationException) {
+            throw cancelled
         } catch (e: Exception) {
             AppLogger.e(TAG, "Error reading file", e)
             return ToolResult(

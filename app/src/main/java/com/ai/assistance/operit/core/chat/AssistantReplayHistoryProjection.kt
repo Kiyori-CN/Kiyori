@@ -149,7 +149,7 @@ object AssistantReplayHistoryProjector {
         val transactionCalls = mutableListOf<TransactionCall>()
         val resultRanges = mutableListOf<IntRange>()
         val replacements = mutableListOf<ContentReplacement>()
-        val transactionImageSuffixes = mutableListOf<String>()
+        val transactionMediaSuffixes = mutableListOf<String>()
         var transactionStart: Int? = null
         var resultsStarted = false
         var transactionResultsInProviderOrder = true
@@ -184,13 +184,13 @@ object AssistantReplayHistoryProjector {
                     content.substring(cursor, marker.range.first).isNotBlank()
             ) {
                 val betweenResults = content.substring(cursor, marker.range.first)
-                // 预览工具将图片链接放在结果信封外。只接纳紧随真实结果的纯图片附件；
+                // 文件与预览工具将媒体链接放在结果信封外。只接纳紧随真实结果的纯媒体附件；
                 // 等全部调用闭合后再移到事务末尾，避免附件被误判为 assistant 文本边界。
                 if (
-                    resultsStarted && MediaLinkParser.hasImageLinks(betweenResults) &&
-                        MediaLinkParser.removeImageLinks(betweenResults).isBlank()
+                    resultsStarted && MediaLinkParser.extractAttachmentTags(betweenResults).isNotEmpty() &&
+                        MediaLinkParser.removeAttachmentLinks(betweenResults).isBlank()
                 ) {
-                    transactionImageSuffixes.add(betweenResults)
+                    transactionMediaSuffixes.add(betweenResults)
                     replacements.add(
                         ContentReplacement(cursor until marker.range.first, "")
                     )
@@ -340,16 +340,16 @@ object AssistantReplayHistoryProjector {
                         MatchedToolResult(range = block.range, value = canonicalResult)
                     resultRanges.add(block.range)
                     if (transactionCalls.all { it.result != null }) {
-                        val movedImages = transactionImageSuffixes.isNotEmpty()
-                        if (transactionImageSuffixes.isNotEmpty()) {
+                        val movedMedia = transactionMediaSuffixes.isNotEmpty()
+                        if (transactionMediaSuffixes.isNotEmpty()) {
                             replacements.add(
                                 ContentReplacement(
                                     (block.range.last + 1)..block.range.last,
-                                    transactionImageSuffixes.joinToString(""),
+                                    transactionMediaSuffixes.joinToString(""),
                                 )
                             )
                             reorderedTransactionCount += 1
-                            transactionImageSuffixes.clear()
+                            transactionMediaSuffixes.clear()
                         }
                         val resultsInCallOrder =
                             transactionCalls.map { requireNotNull(it.result).value }
@@ -359,7 +359,7 @@ object AssistantReplayHistoryProjector {
                             resultRanges.zip(resultsInCallOrder).forEach { (range, value) ->
                                 replacements.add(ContentReplacement(range = range, value = value))
                             }
-                            if (!movedImages) reorderedTransactionCount += 1
+                            if (!movedMedia) reorderedTransactionCount += 1
                         } else {
                             transactionCalls.forEach { call ->
                                 val result = requireNotNull(call.result)

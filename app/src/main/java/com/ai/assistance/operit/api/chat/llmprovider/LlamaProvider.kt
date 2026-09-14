@@ -155,6 +155,8 @@ class LlamaProvider(
         enableRetry: Boolean
     ): Stream<String> = stream {
         isCancelled = false
+        // 当前 llama.cpp 会话只编码文本，不能把媒体池标签当成模型已经感知的内容。
+        chatHistory.forEach { MediaLinkParser.requireAvailableInput(it.content, image = false, audio = false, video = false) }
 
         if (!LlamaSession.isAvailable()) {
             emit("${context.getString(R.string.llama_error_prefix)}: ${LlamaSession.getUnavailableReason()}")

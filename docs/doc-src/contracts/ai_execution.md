@@ -4,6 +4,37 @@
 
 ## 模型配置检测
 
+### 绝对路径与多模态输入
+
+`read_file` 的中英文 Agent schema 按当前请求固定的配置快照暴露
+`direct_image`、`direct_audio`、`direct_video`。`ModelMediaInputCapabilities` 是配置与
+本机协议编码能力的纯投影，不是第二份模型配置；系统提示、原生 Tool Call schema、后端识别
+可用性和 Provider 工厂使用同一投影。仅根据模型名称或只有路径文本不能证明媒体已进入请求。
+扩展使用同一文件工具，参数与格式边界见 [文件 API](../package-dev/files.md)。
+
+- 开启某项原生能力时，Agent 优先使用对应直接参数；未开启时保留已有 OCR、显式后端识别或
+  元数据入口。显式直接请求不得因读取失败而切换处理方式。
+- 图片、音频、视频与带文件名的文件链接由一个有序解析器提取，工具结果先保留完整调用信封，
+  再在信封外追加完整媒体链接。并行结果暂存这些纯媒体后缀，真实工具全部闭合后才重放附件。
+  普通文本不能获得该豁免。后续历史媒体标明来自工具/助手输出，以输入角色发送。
+- OpenAI-compatible Chat 使用 `image_url`、`input_audio`、`video_url`；后两种取决于端点实际
+  支持。官方 OpenAI 音频输入仅使用 Chat Completions 的 WAV/MP3；不自动转码为不同语义的文件。
+  当前 Responses 适配器不编码视频；compatible Responses 保留已有显式 `input_audio`，
+  真实兼容性仍需供应商验收。官方 Responses 的音频不作为可用输入暴露。
+- Anthropic 当前编码器支持图片，不支持音视频；Gemini 使用 `inline_data`，分别遵守三个
+  模型开关。媒体先按原次序传递，不按音频/视频/图片分组重排。
+- 当前 llama.cpp 会话只有文本编码，不暴露媒体参数并拒绝媒体输入；MNN 继续取配置开关与
+  实际模型 `isVisual/isAudio` 的交集。MNN 视频仍是已有首帧/音轨预处理，不等同于完整视频时序理解。
+- 能力关闭、协议未实现、媒体池内容失效或无法满足输入容量时，在提交前明确失败，不能移除媒体
+  后继续发送暗示已理解内容的文本。切换模型或重启后遇到失效历史媒体，需要重新读取/附加。
+
+协议依据（2026-09-14 核对）：[OpenAI 图片输入](https://developers.openai.com/api/docs/guides/images-vision)、
+[OpenAI 音频输入](https://developers.openai.com/api/docs/guides/audio-chat-completions)。这些公开协议资料不证明
+用户配置的模型或中转站已通过理解能力测试；本轮现场状态见
+[专项计划](../../TODO/unified_model_capability_and_resumable_execution/index.md#2026-09-14-绝对路径多模态读取修复)。
+
+### 检测证据
+
 模型与功能配置测试固定启动时的模型配置及参数。媒体请求使用内置带标记的图片、音频和
 视频，回复必须匹配素材中的标记才能验证通过；请求成功但标记不匹配为 `unverified`，
 请求失败为 `failed`。测试不会在提示词里泄露预期标记，不把“网络已通”解释为“理解能力已验证”。

@@ -5783,7 +5783,7 @@
     <string name="toolreg_read_file_part_range_lines">行 %1$s-%2$s</string>
     <string name="toolreg_read_file_part_range_from">从行 %1$s 开始</string>
     <string name="toolreg_read_file_part_desc">读取文件 (%1$s): %2$s%3$s</string>
-    <string name="toolreg_read_file_full_desc">读取完整文件内容: %1$s%2$s</string>
+    <string name="toolreg_read_file_full_desc">读取完整文件内容: %1$s%2$s。对于支持原生多模态输入的模型，可传入 direct_image=true、direct_audio=true、direct_video=true，将媒体直接交给模型而不是 OCR/文本提取。</string>
     <string name="toolreg_read_file_binary_desc">读取二进制文件内容: %1$s%2$s</string>
     <string name="toolreg_write_file_append_operation">追加内容到文件</string>
     <string name="toolreg_write_file_overwrite_operation">写入内容到文件</string>

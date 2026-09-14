@@ -172,6 +172,7 @@ class ClaudeProvider(
     private val enableToolCall: Boolean = false, // 是否启用Tool Call接口（预留，Claude有原生tool支持）
     private val enableClaude1hPromptCache: Boolean = false,
     private val endpointProviderType: ApiProviderType = ApiProviderType.ANTHROPIC,
+    private val supportsVision: Boolean = true,
     private val authenticationMode: AnthropicAuthenticationMode =
         AnthropicAuthenticationPolicy.resolve(providerType),
 ) : AIService, ProviderUsageReporting, ProviderReplayMetadataConsumer {
@@ -666,13 +667,9 @@ class ClaudeProvider(
     private fun buildContentArray(text: String, allowEmptyArray: Boolean = false): JSONArray {
         val contentArray = JSONArray()
 
-        val textAfterMediaRemoval = if (MediaLinkParser.hasMediaLinks(text)) {
-            AppLogger.w("AIService", "检测到音视频链接，但Claude格式当前仅支持图片，多媒体链接将被移除")
-            MediaLinkParser.removeMediaLinks(text).trim()
-        } else {
-            text
-        }
-        
+        MediaLinkParser.requireAvailableInput(text, supportsVision, audio = false, video = false)
+        val textAfterMediaRemoval = text
+
         // 检查是否包含图片链接
         if (MediaLinkParser.hasImageLinks(textAfterMediaRemoval)) {
             val imageLinks = MediaLinkParser.extractImageLinks(textAfterMediaRemoval)

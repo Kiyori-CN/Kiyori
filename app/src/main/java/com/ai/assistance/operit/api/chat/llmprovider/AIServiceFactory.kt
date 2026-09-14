@@ -434,11 +434,12 @@ object AIServiceFactory {
             SingleApiKeyProvider(config.apiKey)
         }
 
+        val mediaInputs = ModelMediaInputCapabilities.resolve(config)
         // 图片处理支持标志
-        val supportsVision = config.enableDirectImageProcessing
+        val supportsVision = mediaInputs.image
         // 音频/视频输入支持标志（OpenAI兼容的多模态content数组）
-        val supportsAudio = config.enableDirectAudioProcessing
-        val supportsVideo = config.enableDirectVideoProcessing
+        val supportsAudio = mediaInputs.audio
+        val supportsVideo = mediaInputs.video
         // Tool Call支持标志
         val enableToolCall = config.enableToolCall
 
@@ -475,6 +476,7 @@ object AIServiceFactory {
                 providerType = protocolRoute.identityProviderType,
                 enableToolCall = enableToolCall,
                 enableClaude1hPromptCache = config.enableClaude1hPromptCache,
+                supportsVision = supportsVision,
                 endpointProviderType = protocolRoute.endpointProviderType,
             )
         }
@@ -543,7 +545,8 @@ object AIServiceFactory {
                     customHeaders,
                     providerType,
                     enableToolCall,
-                    config.enableClaude1hPromptCache
+                    config.enableClaude1hPromptCache,
+                    supportsVision = supportsVision
                 )
 
             // Gemini格式，支持Google Gemini系列及通用Gemini端点
@@ -557,7 +560,10 @@ object AIServiceFactory {
                     customHeaders,
                     providerType,
                     config.enableGoogleSearch,
-                    enableToolCall
+                    enableToolCall,
+                    supportsVision = supportsVision,
+                    supportsAudio = supportsAudio,
+                    supportsVideo = supportsVideo
                 )
 
             // LM Studio使用OpenAI兼容格式

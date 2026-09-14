@@ -407,21 +407,21 @@ class MultiServiceManager(private val context: Context) {
         val config = modelConfigManager.getModelConfigFlow(configMapping.configId).first()
         
         // 检查模型配置是否启用了直接图片处理
-        return config.enableDirectImageProcessing
+        return com.ai.assistance.operit.api.chat.llmprovider.ModelMediaInputCapabilities.resolve(config).image
     }
 
     suspend fun hasAudioRecognitionConfigured(): Boolean {
         ensureInitialized()
         val configMapping = functionalConfigManager.getConfigMappingForFunction(FunctionType.AUDIO_RECOGNITION)
         val config = modelConfigManager.getModelConfigFlow(configMapping.configId).first()
-        return config.enableDirectAudioProcessing
+        return com.ai.assistance.operit.api.chat.llmprovider.ModelMediaInputCapabilities.resolve(config).audio
     }
 
     suspend fun hasVideoRecognitionConfigured(): Boolean {
         ensureInitialized()
         val configMapping = functionalConfigManager.getConfigMappingForFunction(FunctionType.VIDEO_RECOGNITION)
         val config = modelConfigManager.getModelConfigFlow(configMapping.configId).first()
-        return config.enableDirectVideoProcessing
+        return com.ai.assistance.operit.api.chat.llmprovider.ModelMediaInputCapabilities.resolve(config).video
     }
 
 }

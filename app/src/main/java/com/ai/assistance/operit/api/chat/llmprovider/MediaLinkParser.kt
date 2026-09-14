@@ -26,6 +26,33 @@ data class MediaLinkTag(
 )
 
 object MediaLinkParser {
+    /** 工具信封外的媒体使用同一个有序解析器，不能按类型重排或丢失音视频。 */
+    fun extractAttachmentTags(message: String): List<MediaLinkTag> = linkPattern.findAll(message)
+        .map { match ->
+            val type = match.groupValues[1].lowercase()
+            MediaLinkTag(type, match.groupValues[2], if (type == "file") extractFileName(match) else null)
+        }.filter { it.id != "error" && (it.type != "file" || it.fileName != null) }
+        .distinctBy { "${it.type}:${it.id}" }.toList()
+
+    fun removeAttachmentLinks(message: String): String = linkPattern.replace(message, "")
+
+    fun attachmentMarkup(tag: MediaLinkTag): String {
+        fun escape(value: String) = value.replace("&", "&amp;").replace("\"", "&quot;")
+            .replace("<", "&lt;").replace(">", "&gt;")
+        val filename = tag.fileName?.let { " filename=\"${escape(it)}\"" }.orEmpty()
+        return "<link type=\"${tag.type}\" id=\"${escape(tag.id)}\"$filename></link>"
+    }
+
+    /** 配置关闭、协议不支持和池内容失效都必须在提交请求前可见。 */
+    fun requireAvailableInput(message: String, image: Boolean, audio: Boolean, video: Boolean, file: Boolean = false) {
+        for (tag in extractAttachmentTags(message)) {
+            val supported = when (tag.type) { "image" -> image; "audio" -> audio; "video" -> video; else -> file }
+            require(supported) { "${tag.type} input is disabled or unsupported by the selected model/API protocol; change the configuration or explicitly choose another reading method" }
+            val available = if (tag.type == "image") ImagePoolManager.getImage(tag.id) != null
+                else MediaPoolManager.getMedia(tag.id) != null
+            require(available) { "${tag.type} content is no longer available; read the file or attach it again before continuing" }
+        }
+    }
     // One encounter-ordered matcher prevents type-by-type scans from reordering mixed attachments.
     private val linkPattern = Regex(
         """<link\b(?=[^>]*\btype\s*=\s*\\*["']?(image|audio|video|file)\\*["']?)(?=[^>]*\bid\s*=\s*\\*["']?([^"'\\\s>]+)\\*["']?)[^>]*(?:/>|>.*?</link>)""",
@@ -118,7 +145,9 @@ object MediaLinkParser {
             if (type == "file" && fileName == null) continue
             seenIds.add(key)
             val mediaData = MediaPoolManager.getMedia(id) ?: continue
-            val limited = MediaBase64Limiter.limitBase64ForAi(mediaData.base64, mediaData.mimeType) ?: continue
+            val limited = requireNotNull(MediaBase64Limiter.limitBase64ForAi(mediaData.base64, mediaData.mimeType)) {
+                "Media content cannot be prepared within the input limit; use an explicit smaller clip"
+            }
             links.add(
                 MediaLink(
                     type = type,

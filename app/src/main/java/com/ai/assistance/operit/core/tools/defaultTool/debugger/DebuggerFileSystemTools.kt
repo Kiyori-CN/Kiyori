@@ -1,5 +1,8 @@
 package com.ai.assistance.operit.core.tools.defaultTool.debugger
 
+import com.ai.assistance.operit.core.tools.defaultTool.standard.FileMediaReadPolicy
+import com.ai.assistance.operit.core.tools.defaultTool.standard.FileMediaReader
+
 import android.content.ActivityNotFoundException
 import android.content.ClipData
 import android.content.Context
@@ -450,10 +453,33 @@ open class DebuggerFileSystemTools(context: Context) : AccessibilityFileSystemTo
         }
     }
 
-    /**
-     * Reads the full content of a file as a new tool, handling different file types.
-     * This function does not enforce a size limit.
-     */
+    /** 使用当前 shell 身份读取媒体，注册完成后释放搬运文件。 */
+    private suspend fun readDirectMediaWithShellAccess(
+        tool: AITool,
+        path: String,
+        format: FileMediaReadPolicy.Format,
+    ): ToolResult {
+        val source = File(path)
+        if (source.isFile && source.canRead()) {
+            return FileMediaReader.fromFile(tool, path, format)
+        }
+        // shell-only 文件必须通过已选择的执行身份搬运真实字节，不能绕回 OCR 或把二进制 cat 成文本。
+        val directory = requireNotNull(context.externalCacheDir) { "Shared cache is unavailable for privileged media read" }
+        val temporary = File.createTempFile("direct_media_", ".${path.substringAfterLast('.', "bin")}", directory)
+        try {
+            val limit = FileMediaReadPolicy.MAX_TRANSFER_BYTES
+            val copied = AndroidShellExecutor.executeShellCommand(
+                "test -f ${shQuote(path)} && head -c ${limit + 1} ${shQuote(path)} > ${shQuote(temporary.absolutePath)}"
+            )
+            check(copied.success) { "Privileged media read failed" }
+            require(temporary.length() in 1..limit.toLong()) { "Privileged media transfer must be between 1 byte and 20 MiB" }
+            val result = FileMediaReader.fromFile(tool, temporary.absolutePath, format)
+            return result.copy(result = (result.result as FileContentData).copy(path = path))
+        } finally {
+            if (temporary.exists() && !temporary.delete()) AppLogger.w(TAG, "Failed to remove privileged media transfer cache")
+        }
+    }
+
     override suspend fun readFileFull(tool: AITool): ToolResult {
         if (tool.parameters.any { it.name == "read_mode" }) return super.readFileFull(tool)
         val environment = tool.parameters.find { it.name == "environment" }?.value
@@ -482,6 +508,9 @@ open class DebuggerFileSystemTools(context: Context) : AccessibilityFileSystemTo
         }
         
         try {
+            FileMediaReadPolicy.resolve(tool, path)?.let { format ->
+                return readDirectMediaWithShellAccess(tool, path, format)
+            }
             // First check if the file exists using shell command
             val existsResult =
                     AndroidShellExecutor.executeShellCommand(
@@ -564,6 +593,8 @@ open class DebuggerFileSystemTools(context: Context) : AccessibilityFileSystemTo
                 )
             }
 
+        } catch (cancelled: kotlinx.coroutines.CancellationException) {
+            throw cancelled
         } catch (e: Exception) {
             AppLogger.e(TAG, "Error reading file", e)
             return ToolResult(
@@ -577,6 +608,7 @@ open class DebuggerFileSystemTools(context: Context) : AccessibilityFileSystemTo
 
     /** Read file content */
     override suspend fun readFile(tool: AITool): ToolResult {
+        if (FileMediaReadPolicy.requested(tool)) return readFileFull(tool)
         val environment = tool.parameters.find { it.name == "environment" }?.value
         if (environment == "linux") {
             return super.readFile(tool)
@@ -678,6 +710,8 @@ open class DebuggerFileSystemTools(context: Context) : AccessibilityFileSystemTo
                             ),
                     error = ""
             )
+        } catch (cancelled: kotlinx.coroutines.CancellationException) {
+            throw cancelled
         } catch (e: Exception) {
             AppLogger.e(TAG, "Error reading file", e)
             return ToolResult(

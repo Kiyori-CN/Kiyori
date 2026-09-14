@@ -793,6 +793,8 @@ object OpenAIResponsesPayloadAdapter {
                             }
                         }
 
+                        "video_url" -> error("Video input is not implemented by this Responses adapter; use a supported protocol or explicitly extract frames")
+
                         else -> {
                             val fallbackText = part.optString("text", "")
                             if (fallbackText.isNotEmpty()) {

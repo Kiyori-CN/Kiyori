@@ -377,7 +377,8 @@ class MNNProvider(
         val caps = readModelCapabilities(modelDir)
         val allowVision = supportsVision && caps.isVisual
         val allowAudio = supportsAudio && caps.isAudio
-        val allowVideo = supportsVideo && (caps.isAudio || caps.isVisual)
+        val allowVideo = supportsVideo && (allowAudio || allowVision)
+        MediaLinkParser.requireAvailableInput(raw, allowVision, allowAudio, allowVideo)
 
         val tempFiles = mutableListOf<File>()
         val imageCache = mutableMapOf<String, String>()

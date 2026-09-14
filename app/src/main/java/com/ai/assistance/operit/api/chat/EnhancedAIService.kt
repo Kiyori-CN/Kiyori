@@ -1,5 +1,7 @@
 package com.ai.assistance.operit.api.chat
 
+import com.ai.assistance.operit.api.chat.llmprovider.ModelMediaInputCapabilities
+
 import android.content.Context
 import android.content.Intent
 import android.os.Build
@@ -2974,9 +2976,10 @@ class EnhancedAIService private constructor(private val context: Context) {
         // 获取当前功能类型（通常是聊天模型）的模型配置，用于判断聊天模型是否自带识图能力
         val config = modelConfig
         val useToolCallApi = config.enableToolCall
-        val chatModelHasDirectImage = config.enableDirectImageProcessing
-        val chatModelHasDirectAudio = config.enableDirectAudioProcessing
-        val chatModelHasDirectVideo = config.enableDirectVideoProcessing
+        val mediaInputs = ModelMediaInputCapabilities.resolve(config)
+        val chatModelHasDirectImage = mediaInputs.image
+        val chatModelHasDirectAudio = mediaInputs.audio
+        val chatModelHasDirectVideo = mediaInputs.video
         val toolExposureMode = ToolExposureMode.resolve(config.apiProviderType)
 
         return conversationService.prepareConversationHistory(
@@ -3217,10 +3220,11 @@ class EnhancedAIService private constructor(private val context: Context) {
             }.getOrElse { emptyList() }
 
             // 当前功能模型（通常是聊天模型）是否支持直接看图
-            val chatModelHasDirectImage = config.enableDirectImageProcessing
+            val mediaInputs = ModelMediaInputCapabilities.resolve(config)
+            val chatModelHasDirectImage = mediaInputs.image
 
-            val chatModelHasDirectAudio = config.enableDirectAudioProcessing
-            val chatModelHasDirectVideo = config.enableDirectVideoProcessing
+            val chatModelHasDirectAudio = mediaInputs.audio
+            val chatModelHasDirectVideo = mediaInputs.video
 
             val selectedTools = if (toolExposureMode == ToolExposureMode.CLI) {
                 CliToolModeSupport.buildCliPublicToolPrompts(isEnglish).toMutableList()

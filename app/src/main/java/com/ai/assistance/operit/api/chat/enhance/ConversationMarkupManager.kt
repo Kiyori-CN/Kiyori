@@ -139,8 +139,8 @@ class ConversationMarkupManager {
                     } else {
                         projectedResult
                     }
-                val (toolPayload, imageLinkPayload) =
-                    splitImageLinksForModel(xmlSafeResult)
+                val (toolPayload, mediaLinkPayload) =
+                    splitMediaLinksForModel(xmlSafeResult)
                 val minimumToolResultXml =
                     createBoundedToolResultXml(
                         toolName = result.toolName,
@@ -153,18 +153,18 @@ class ConversationMarkupManager {
                     ) { payload ->
                         "<content>$payload</content>"
                     }
-                val maxImageLinkChars =
+                val maxMediaLinkChars =
                     (maxFormattedChars - minimumToolResultXml.length - 1).coerceAtLeast(0)
-                val boundedImageLinkPayload =
-                    takeWholeLinesWithin(imageLinkPayload, maxImageLinkChars)
-                val imageLinkSuffix =
-                    boundedImageLinkPayload.takeIf { it.isNotBlank() }?.let { "\n$it" }.orEmpty()
+                val boundedMediaLinkPayload =
+                    takeWholeLinesWithin(mediaLinkPayload, maxMediaLinkChars)
+                val mediaLinkSuffix =
+                    boundedMediaLinkPayload.takeIf { it.isNotBlank() }?.let { "\n$it" }.orEmpty()
                 val toolResultXml =
                     createBoundedToolResultXml(
                         toolName = result.toolName,
                         status = "success",
                         rawPayload = toolPayload,
-                        maxXmlChars = (maxFormattedChars - imageLinkSuffix.length).coerceAtLeast(0),
+                        maxXmlChars = (maxFormattedChars - mediaLinkSuffix.length).coerceAtLeast(0),
                         providerToolName = providerToolName,
                         providerCallId = providerCallId,
                         providerResultTerminal = providerResultTerminal,
@@ -172,7 +172,7 @@ class ConversationMarkupManager {
                         "<content>$payload</content>"
                     }
 
-                toolResultXml + imageLinkSuffix
+                toolResultXml + mediaLinkSuffix
             } else {
                 val errorPayload = buildString {
                     val message = result.error.orEmpty().trim()
@@ -199,21 +199,21 @@ class ConversationMarkupManager {
             }
         }
 
-        private fun splitImageLinksForModel(rawPayload: String): Pair<String, String> {
-            if (!MediaLinkParser.hasImageLinks(rawPayload)) {
+        private fun splitMediaLinksForModel(rawPayload: String): Pair<String, String> {
+            val tags = MediaLinkParser.extractAttachmentTags(rawPayload)
+            if (tags.isEmpty()) {
                 return rawPayload to ""
             }
 
-            val imageLinkPayload =
-                MediaLinkParser.extractImageLinkIds(rawPayload)
-                    .joinToString("\n") { id -> """<link type="image" id="$id"></link>""" }
-            val textPayload = MediaLinkParser.removeImageLinks(rawPayload).trim()
+            val mediaLinkPayload =
+                tags.joinToString("\n", transform = MediaLinkParser::attachmentMarkup)
+            val textPayload = MediaLinkParser.removeAttachmentLinks(rawPayload).trim()
             val toolPayload =
-                listOf("Image attached as multimodal input.", textPayload)
+                listOf("Media attached as multimodal input (${tags.joinToString { it.type }}).", textPayload)
                     .filter { it.isNotBlank() }
                     .joinToString("\n")
 
-            return toolPayload to imageLinkPayload
+            return toolPayload to mediaLinkPayload
         }
 
         fun buildBoundedToolResultMessage(results: List<ToolResult>): String {

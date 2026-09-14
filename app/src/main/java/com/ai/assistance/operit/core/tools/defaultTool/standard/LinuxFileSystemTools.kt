@@ -112,7 +112,7 @@ class LinuxFileSystemTools(context: Context) : StandardFileSystemTools(context) 
 
     /** 读取Linux文件的完整内容 */
     override suspend fun readFileFull(tool: AITool): ToolResult {
-        if (tool.parameters.any { it.name == "read_mode" }) return executeBoundedTextRead(tool, "linux")
+        if (tool.parameters.any { it.name == "read_mode" } && !FileMediaReadPolicy.requested(tool)) return executeBoundedTextRead(tool, "linux")
         val path = tool.parameters.find { it.name == "path" }?.value ?: ""
         val textOnly = tool.parameters.find { it.name == "text_only" }?.value?.toBoolean() ?: false
         PathValidator.validateLinuxPath(path, tool.name)?.let { return it }
@@ -126,8 +126,9 @@ class LinuxFileSystemTools(context: Context) : StandardFileSystemTools(context) 
             )
         }
 
+        val provider = fs
         try {
-            if (!fs.exists(path)) {
+            if (!provider.exists(path)) {
                 return ToolResult(
                     toolName = tool.name,
                     success = false,
@@ -136,7 +137,7 @@ class LinuxFileSystemTools(context: Context) : StandardFileSystemTools(context) 
                 )
             }
 
-            if (!fs.isFile(path)) {
+            if (!provider.isFile(path)) {
                 return ToolResult(
                     toolName = tool.name,
                     success = false,
@@ -147,23 +148,16 @@ class LinuxFileSystemTools(context: Context) : StandardFileSystemTools(context) 
 
             val fileExt = path.substringAfterLast('.', "").lowercase()
             
-            // 使用当前文件提供者读取字节，不能把 Linux/SSH 路径当作 Android 路径。
-            // 显式视觉读取失败必须报错，OCR 文本不能冒充已看到页面。
-            if (fileExt in listOf("jpg", "jpeg", "png", "gif", "bmp", "webp") &&
-                tool.parameters.any { it.name == "direct_image" && it.value.toBoolean() }) {
-                val provider = fs
+            FileMediaReadPolicy.resolve(tool, path)?.let { format ->
+                // 固定本次提供者；活动 SSH 路径不能当作 Android 或本地 Ubuntu 路径。
                 val size = provider.getFileSize(path)
-                require(size in 1..(20L * 1024 * 1024)) { "Image must be between 1 byte and 20 MiB; render fewer pixels per page" }
-                val bytes = provider.readFileBytes(path) ?: error("Failed to read image bytes")
-                require(bytes.size.toLong() == size) { "Image changed while reading; retry with a stable file" }
-                val mime = if (fileExt == "jpg") "image/jpeg" else "image/$fileExt"
-                val id = com.ai.assistance.operit.util.ImagePoolManager.addImageFromBase64(
-                    android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP), mime
-                )
-                check(id != "error") { "Image registration failed; no OCR substitution was performed" }
-                return ToolResult(toolName = tool.name, success = true,
-                    result = FileContentData(path = path, content = "<link type=\"image\" id=\"$id\"></link>",
-                        size = size, env = "linux"), error = "")
+                require(size in 1..FileMediaReadPolicy.MAX_TRANSFER_BYTES.toLong()) { "Media transfer must be between 1 byte and 20 MiB" }
+                val bytes = provider.readFileBytes(path) ?: error("Failed to read media bytes")
+                require(bytes.size.toLong() == size) { "Media changed while reading; retry with a stable file" }
+                return FileMediaReader.fromBytes(tool, path, format, "linux", bytes)
+            }
+            require(FileMediaReadPolicy.format(path) == null) {
+                "Media files require the matching direct_image, direct_audio or direct_video parameter in Linux; binary media cannot be read as text"
             }
 
             if (fileExt in listOf("doc", "docx", "pdf", "jpg", "jpeg", "png", "gif", "bmp", "webp")) {
@@ -177,7 +171,7 @@ class LinuxFileSystemTools(context: Context) : StandardFileSystemTools(context) 
 
             // 检查文件是否是文本文件（如果启用了 text_only）
             if (textOnly) {
-                val sample = fs.readFileSample(path, 512)
+                val sample = provider.readFileSample(path, 512)
                 if (sample == null || !FileUtils.isTextLike(sample)) {
                     return ToolResult(
                         toolName = tool.name,
@@ -188,7 +182,7 @@ class LinuxFileSystemTools(context: Context) : StandardFileSystemTools(context) 
                 }
             }
 
-            val content = fs.readFile(path)
+            val content = provider.readFile(path)
             if (content == null) {
                 return ToolResult(
                     toolName = tool.name,
@@ -198,7 +192,7 @@ class LinuxFileSystemTools(context: Context) : StandardFileSystemTools(context) 
                 )
             }
 
-            val fileSize = fs.getFileSize(path)
+            val fileSize = provider.getFileSize(path)
             return ToolResult(
                 toolName = tool.name,
                 success = true,
@@ -210,6 +204,8 @@ class LinuxFileSystemTools(context: Context) : StandardFileSystemTools(context) 
                 ),
                 error = ""
             )
+        } catch (cancelled: kotlinx.coroutines.CancellationException) {
+            throw cancelled
         } catch (e: Exception) {
             AppLogger.e(TAG, "Error reading file (full)", e)
             return ToolResult(
@@ -382,6 +378,8 @@ class LinuxFileSystemTools(context: Context) : StandardFileSystemTools(context) 
 
             val fileExt = path.substringAfterLast('.', "").lowercase()
 
+            if (FileMediaReadPolicy.requested(tool) || FileMediaReadPolicy.format(path) != null) return readFileFull(tool)
+
             // 特殊文件类型不支持
             if (fileExt in listOf("doc", "docx", "pdf", "jpg", "jpeg", "png", "gif", "bmp", "webp")) {
                 // 对于特殊类型，先尝试读取完整文件
@@ -420,6 +418,8 @@ class LinuxFileSystemTools(context: Context) : StandardFileSystemTools(context) 
                 // 文件大小合适，读取完整内容
                 return readFileFull(tool)
             }
+        } catch (cancelled: kotlinx.coroutines.CancellationException) {
+            throw cancelled
         } catch (e: Exception) {
             AppLogger.e(TAG, "Error reading file", e)
             return ToolResult(

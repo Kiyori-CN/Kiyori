@@ -1533,7 +1533,7 @@ class SafFileSystemTools(
     }
 
     suspend fun readFileFull(tool: AITool): ToolResult {
-        if (tool.parameters.any { it.name == "read_mode" }) return executeBoundedTextRead(tool, "saf")
+        if (tool.parameters.any { it.name == "read_mode" } && !FileMediaReadPolicy.requested(tool)) return executeBoundedTextRead(tool, "saf")
         val path = tool.parameters.find { it.name == "path" }?.value ?: ""
         val textOnly = tool.parameters.find { it.name == "text_only" }?.value?.toBoolean() ?: false
         val environment = tool.parameters.find { it.name == "environment" }?.value
@@ -1543,6 +1543,10 @@ class SafFileSystemTools(
 
         return withContext(Dispatchers.IO) {
             try {
+                FileMediaReadPolicy.resolve(tool, path, contentResolver.getType(uri))?.let { format ->
+                    val input = contentResolver.openInputStream(uri) ?: error("Failed to open media uri")
+                    return@withContext FileMediaReader.fromStream(tool, path, format, envLabel, input)
+                }
                 if (textOnly) {
                     val sample = readUpToBytes(uri, 512).first
                     if (!FileUtils.isTextLike(sample)) {
@@ -1557,6 +1561,8 @@ class SafFileSystemTools(
                 }
                 val content = bytes.toString(Charsets.UTF_8)
                 ToolResult(toolName = tool.name, success = true, result = FileContentData(path = path, content = content, size = querySize(uri) ?: bytes.size.toLong(), env = envLabel), error = "")
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
             } catch (e: Exception) {
                 AppLogger.e("SafFileSystemTools", "Error reading repository file full: $path", e)
                 ToolResult(toolName = tool.name, success = false, result = StringResultData(""), error = "Error reading file: ${e.message}")
@@ -1565,6 +1571,7 @@ class SafFileSystemTools(
     }
 
     suspend fun readFile(tool: AITool): ToolResult {
+        if (FileMediaReadPolicy.requested(tool)) return readFileFull(tool)
         val path = tool.parameters.find { it.name == "path" }?.value ?: ""
         val environment = tool.parameters.find { it.name == "environment" }?.value
         val envLabel = resolveEnvLabel(environment)
@@ -1584,6 +1591,8 @@ class SafFileSystemTools(
                     contentWithLineNumbers += "\n\n... (file content truncated) ..."
                 }
                 ToolResult(toolName = tool.name, success = true, result = FileContentData(path = path, content = contentWithLineNumbers, size = contentWithLineNumbers.length.toLong(), env = envLabel), error = "")
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
             } catch (e: Exception) {
                 AppLogger.e("SafFileSystemTools", "Error reading repository file: $path", e)
                 ToolResult(toolName = tool.name, success = false, result = StringResultData(""), error = "Error reading file: ${e.message}")

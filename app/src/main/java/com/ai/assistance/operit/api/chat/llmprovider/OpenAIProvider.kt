@@ -815,9 +815,15 @@ open class OpenAIProvider(
     }
 
     protected open fun buildInputAudioPayload(link: MediaLink): JSONObject {
+        val format = audioFormatFromMime(link.mimeType)
+        if (modelCapabilityProfile.providerContractAuthority == ProviderContractAuthority.OPENAI_OFFICIAL) {
+            require(!useResponsesApi && format in setOf("wav", "mp3")) {
+                "Official OpenAI audio input requires Chat Completions and WAV or MP3; explicitly convert the audio or select a supported protocol"
+            }
+        }
         return JSONObject().apply {
             put("data", link.base64Data)
-            put("format", audioFormatFromMime(link.mimeType))
+            put("format", format)
         }
     }
 
@@ -827,6 +833,7 @@ open class OpenAIProvider(
      * @return 纯文本字符串或包含图片和文本的JSONArray
      */
     fun buildContentField(context: Context, text: String): Any {
+        MediaLinkParser.requireAvailableInput(text, supportsVision, supportsAudio, supportsVideo)
         val hasImages = MediaLinkParser.hasImageLinks(text)
         val hasMedia = MediaLinkParser.hasMediaLinks(text)
 
@@ -848,16 +855,6 @@ open class OpenAIProvider(
         }
         textWithoutLinks = textWithoutLinks.trim()
 
-        if (audioLinks.isNotEmpty() && !supportsAudio) {
-            AppLogger.w("AIService", "检测到音频链接，但当前Provider不支持音频多模态输入，已移除音频。原始文本长度: ${text.length}, 处理后: ${textWithoutLinks.length}")
-        }
-        if (videoLinks.isNotEmpty() && !supportsVideo) {
-            AppLogger.w("AIService", "检测到视频链接，但当前Provider不支持视频多模态输入，已移除视频。原始文本长度: ${text.length}, 处理后: ${textWithoutLinks.length}")
-        }
-        if (imageLinks.isNotEmpty() && !supportsVision) {
-            AppLogger.w("AIService", "检测到图片链接，但当前Provider不支持图片处理，已移除图片。原始文本长度: ${text.length}, 处理后: ${textWithoutLinks.length}")
-        }
-
         val hasAnySupportedRichContent = hasSupportedMedia || (supportsVision && imageLinks.isNotEmpty())
         if (!hasAnySupportedRichContent) {
             if (textWithoutLinks.isNotEmpty()) return textWithoutLinks
@@ -871,38 +868,27 @@ open class OpenAIProvider(
 
         val contentArray = JSONArray()
 
-        if (supportsAudio) {
-            audioLinks.forEach { link ->
-                contentArray.put(JSONObject().apply {
-                    put("type", "input_audio")
-                    put("input_audio", buildInputAudioPayload(link))
-                })
+        for (tag in MediaLinkParser.extractAttachmentTags(text)) {
+            val part = JSONObject()
+            when (tag.type) {
+                "image" -> {
+                    val link = imageLinks.single { it.id == tag.id }
+                    part.put("type", "image_url")
+                    part.put("image_url", JSONObject().put("url", "data:${link.mimeType};base64,${link.base64Data}"))
+                }
+                "audio" -> {
+                    val link = audioLinks.single { it.id == tag.id }
+                    part.put("type", "input_audio")
+                    part.put("input_audio", buildInputAudioPayload(link))
+                }
+                "video" -> {
+                    val link = videoLinks.single { it.id == tag.id }
+                    part.put("type", "video_url")
+                    part.put("video_url", JSONObject().put("url", "data:${link.mimeType};base64,${link.base64Data}"))
+                }
+                else -> error("Unsupported media input type: ${tag.type}")
             }
-        }
-
-        if (supportsVideo) {
-            videoLinks.forEach { link ->
-                contentArray.put(JSONObject().apply {
-                    put("type", "video_url")
-                    put(
-                        "video_url",
-                        JSONObject().apply {
-                            put("url", "data:${link.mimeType};base64,${link.base64Data}")
-                        }
-                    )
-                })
-            }
-        }
-
-        if (supportsVision) {
-            imageLinks.forEach { link ->
-                contentArray.put(JSONObject().apply {
-                    put("type", "image_url")
-                    put("image_url", JSONObject().apply {
-                        put("url", "data:${link.mimeType};base64,${link.base64Data}")
-                    })
-                })
-            }
+            contentArray.put(part)
         }
 
         if (textWithoutLinks.isNotEmpty()) {

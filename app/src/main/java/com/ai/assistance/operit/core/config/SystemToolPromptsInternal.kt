@@ -1404,7 +1404,7 @@ object SystemToolPromptsInternal {
                     listOf(
                         ToolPrompt(
                             name = "read_file_full",
-                            description = "Read the full content of a file without enforcing size limit.",
+                            description = "Read a file. For native multimodal models, set the matching direct_image/direct_audio/direct_video parameter to return a media link instead of OCR/text extraction.",
                             parametersStructured =
                                 listOf(
                                     ToolParameterSchema(
@@ -1423,6 +1423,27 @@ object SystemToolPromptsInternal {
                                         name = "text_only",
                                         type = "boolean",
                                         description = "optional",
+                                        required = false,
+                                        default = "false"
+                                    ),
+                                    ToolParameterSchema(
+                                        name = "direct_image",
+                                        type = "boolean",
+                                        description = "optional; use only when the model's image capability is enabled",
+                                        required = false,
+                                        default = "false"
+                                    ),
+                                    ToolParameterSchema(
+                                        name = "direct_audio",
+                                        type = "boolean",
+                                        description = "optional; use only when the model's audio capability is enabled",
+                                        required = false,
+                                        default = "false"
+                                    ),
+                                    ToolParameterSchema(
+                                        name = "direct_video",
+                                        type = "boolean",
+                                        description = "optional; use only when the model's video capability is enabled",
                                         required = false,
                                         default = "false"
                                     )

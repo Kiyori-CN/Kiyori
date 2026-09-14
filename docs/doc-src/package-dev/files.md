@@ -17,7 +17,7 @@
 ### `FileEnvironment`
 
 ```ts
-type FileEnvironment = 'android' | 'linux'
+type FileEnvironment = 'android' | 'linux' | `repo:${string}`
 ```
 
 多数 API 都支持显式指定执行环境；默认环境以类型定义里的注释为准，通常是 `android`。
@@ -48,13 +48,38 @@ Tools.Files
 
 ```ts
 read(path: string): Promise<FileContentData>
-read({ path, environment?, intent?, direct_image? }): Promise<FileContentData>
+read({ path, environment?, intent?, direct_image?, direct_audio?, direct_video?, text_only? }): Promise<FileContentData>
 ```
 
 第二个重载额外支持：
 
 - `intent?`：读取意图说明。
-- `direct_image?`：是否按图片直出方式处理。
+- `direct_image?` / `direct_audio?` / `direct_video?`：显式注册对应媒体，返回媒体池链接。
+  一次只传一个匹配参数；当前模型必须开启对应原生处理能力，API 协议也必须支持该输入。
+- `text_only?`：拒绝非文本，不能与直接媒体读取混用。
+
+`Tools.Files.read(options)` 委托现有 `read_file_full`；普通 Agent 使用 `read_file`，两者共用
+直接媒体处理。必须将返回的 `content` 保留在工具结果中，宿主才能把媒体送入后续请求；
+只返回路径、日志或“已读取”不会获得视觉/听觉输入。不要手工构造没有池内容的链接 ID。
+
+Android 读取真实本地文件；`linux` 使用当前 Linux/SSH 文件提供者；`repo:<名称>` 使用已授权
+SAF 仓库。Linux/SSH 媒体读取前后校验大小，最大 20 MiB；SAF 流读取严格限制 20 MiB。
+Android 音视频沿用附件池既有容量处理，图片沿用归一化、方向与缩放规则。媒体解码和供应商
+支持范围不同，HEIC/HEIF/AVIF 等仍取决于 Android 解码能力；GIF 按图片池生成静态标准图。
+
+PDF、Office 和其他文档不是图片；使用既有文档工具提取文本，或渲染页图后逐页直接读取。
+显式直接读取失败不自动改用 OCR、后端模型或元数据。模型/API 不支持或历史媒体池失效时，
+请求提交前明确失败；用户可重新读取/附加文件，或明确选择其他处理方式。
+
+```ts
+const image = await Tools.Files.read({
+  path: '/sdcard/Download/Kiyori/chart.png',
+  environment: 'android',
+  direct_image: true
+});
+// 将 image.content 原样纳入当前工具返回值，不能只写入 console 日志。
+complete({ content: image.content });
+```
 
 #### `readPart(path, startLine?, endLine?, environment?)`
 

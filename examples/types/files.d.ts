@@ -11,7 +11,7 @@ import {
 /**
  * Execution environment for file operations
  */
-export type FileEnvironment = "android" | "linux";
+export type FileEnvironment = "android" | "linux" | `repo:${string}`;
 
 export type ApplyFileType = "replace" | "delete" | "create";
 
@@ -37,6 +37,10 @@ export namespace Files {
         environment?: FileEnvironment;
         intent?: string;
         direct_image?: boolean;
+        direct_audio?: boolean;
+        direct_video?: boolean;
+        /** Reject non-text input; cannot be combined with a direct media flag. */
+        text_only?: boolean;
     }
 
     function read(options: ReadFileOptions): Promise<FileContentData>;

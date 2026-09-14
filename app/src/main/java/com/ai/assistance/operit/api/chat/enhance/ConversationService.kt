@@ -902,6 +902,16 @@ class ConversationService(
                 "tool" -> {
                     segments.add(PromptTurn(kind = PromptTurnKind.TOOL_CALL, content = tagContent))
                 }
+                "link" -> {
+                    // 媒体来源仍为工具/助手历史，但输入媒体必须以输入角色重放，不能伪装为模型输出。
+                    val attachments = com.ai.assistance.operit.api.chat.llmprovider.MediaLinkParser.extractAttachmentTags(tagContent)
+                    if (attachments.isNotEmpty()) {
+                        segments.add(PromptTurn(kind = PromptTurnKind.USER,
+                            content = "Media from previous tool/assistant output:\n$tagContent"))
+                    } else {
+                        segments.add(PromptTurn(kind = PromptTurnKind.ASSISTANT, content = tagContent))
+                    }
+                }
                 else -> {
                     segments.add(PromptTurn(kind = PromptTurnKind.ASSISTANT, content = tagContent))
                 }

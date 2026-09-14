@@ -6,6 +6,61 @@ status: verification_pending
 
 # GPT-5.6 可恢复执行与统一模型能力
 
+## 2026-09-14 绝对路径多模态读取修复
+
+状态：`verification_pending`，源码修复与本地验证已完成。起点为
+`main / 442e616630a31e1c6569c8f6cf1ec51b66c4afe5`，接续并复核上一轮四个未提交文件。
+
+- 目标：Agent 读取图片、音频、视频绝对路径时可以使用当前模型已开启且协议支持的原生输入，
+  无需人工添加附件；显式直接读取不静默改为 OCR、后端识别或媒体元数据。
+- 根因：`SystemToolPrompts` 的中英文 `read_file` 动态 schema 无条件过滤三个 `direct_*`；
+  上一轮只补内部 `read_file_full`；结果格式化和并行事务重放只为图片保留独立媒体位置。
+- 方案选择：修复原生工具与现有媒体池、Provider 请求链。扩展脚本继续调用同一工具契约，
+  不新增插件、第二媒体池、第二配置源或后台自动模型调用。
+- 阶段一：统一直接媒体参数、格式判定和错误语义，贯通 Android、Linux 当前文件提供者和 SAF；
+  保留文本、PDF/Office 文本提取入口，网络存储未实现读取继续明确拒绝。
+- 阶段二：按配置与协议能力暴露参数，三类媒体统一在工具信封外传递，保持并行调用与历史重放闭合；
+  不支持的媒体和丢失的媒体内容必须可见，不能发送“已经看过”的纯文本替代。
+- 阶段三：测试参数组合、格式/容量/失败边界、混合媒体、并行工具及 Provider 请求；串行构建
+  `:app:assembleDebug`，检查 APK 后精确审计提交推送；回滚点为本轮独立提交。
+- 验收：针对性 JVM 测试、文档结构及候选树、Debug APK、Git 远端 ref 分层记录。
+  Android 解码、SAF 授权、Linux/SSH 文件读取与真实供应商识别效果保持 `verification_pending`。
+- 非目标：不改包名、持久化协议、浏览器/播放器，不安装设备、不调用真实模型 API、不修改发行附件。
+
+### 本轮实现与验证证据
+
+- 已完成：中英文 Agent 参数暴露、三类媒体共用读取策略、扩展类型补齐、Android/高权限/Linux/SSH/SAF
+  入口接线、混合媒体顺序、并行工具与后续历史重放、配置/协议/实际本地模型能力交集及可见错误。
+- 沿用既有媒体池容量与生命周期；失效历史媒体不再被静默删除后继续请求。处理方式见
+  [用户指南](../../user-guide/files_and_workspaces.md#让-ai-查看路径中的图片音频和视频)，
+  具体协议与格式边界见 [AI 契约](../../doc-src/contracts/ai_execution.md#绝对路径与多模态输入) 和
+  [扩展文件 API](../../doc-src/package-dev/files.md#readpath--readoptions)。
+- 2026-09-14 最终冻结源码回归：13 套件、110 测试，零失败/错误/跳过。其中历史重放 42 项，
+  参数与能力组合、容量失败、混合媒体及真实 Provider 请求构建均有 JVM 证据；Android 解码与远端
+  服务使用隔离夹具，不能作为实际识别效果证据。
+- 命令：`:app:testDebugUnitTest`，筛选 `FileMediaReadPolicyTest`、`ModelMediaInputCapabilitiesTest`、
+  `ToolMediaInputPipelineTest`、`ConversationMarkupManagerToolHistoryTest`、
+  `OpenAIResponsesImageHistoryRequestTest`、`MediaLinkParser*Test`、`AssistantReplayHistory*Test`、
+  `ProtocolServiceRouting*Test`；均使用 `--no-daemon --console=plain`。
+- `npm run test:toolpkg:types` 通过；`check_architecture_boundaries.py --repository . --require-main`
+  和 `check_formal_readiness.py --repository . --require-main` 通过；
+  `check_documentation.py --repository . --base 442e616630a31e1c6569c8f6cf1ec51b66c4afe5`
+  检查 521 个文档、零问题。未运行无关全仓单元测试、Lint 或 Release 构建。
+- 中间验证曾发现新增测试使用旧日志 mock，已改用唯一日志 owner；曾在编译期间补充本地模型
+  代码而造成一项测试与生产类版本不一致，已停止编辑并冻结全部 27 个源码文件，最终回归和独立
+  APK 构建后核对 SHA-256 一致。上述中间结果不作为最终通过证据。
+- 串行 `./gradlew.bat :app:assembleDebug --no-daemon --console=plain` 通过，实际产物为
+  `app/build/outputs/apk/debug/app-debug.apk`，2026-09-14 09:59:45（Asia/Shanghai），
+  485554371 字节。SHA-256：`F9DCC72FFCF2447E810C9FF3EAA57EEFC15DFDAC05E6F27066226E4C98DCFD32`。
+- `aapt dump badging` 核对 `com.kiyori / 45 / 0.1.0`、min SDK 26、target SDK 34、
+  `arm64-v8a` 与 Debug 标志；`apksigner verify --verbose` 和 `zipalign -c -P 16 4` 通过。
+- 交付允许清单为 27 个源码/类型/测试/资源文件与 4 个文档，未含私密配置、产物、工作检查点、
+  符号链接或异常大文件；`terminal` 保持 `bc4aeed3e791f0a6157496f3859f70357766f90f` 且工作树干净。
+  候选提交、新鲜克隆与远端 ref 属于随后交付步骤，以提交记录及本次交付报告为准。
+- 待现场验收：普通及高权限 Android 图片（含无文字图、旋转图片）、SAF/SSH 实际读取、音频
+  语义、视频时序、模型开关/协议切换及重启后历史媒体行为；记录模型、协议、设备、APK 哈希和
+  真实请求证据，不把模型仅回答“已读取”判为通过。远端 CI 同样未验收。
+
 ## 目标
 
 本计划将 Kiyori 现有按 provider 分散实现的模型请求改为统一能力与执行架构。第一完整实现

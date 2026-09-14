@@ -524,16 +524,18 @@ object SystemToolPrompts {
 
                 val filteredParams = (tool.parametersStructured ?: emptyList()).filter { param ->
                     when (param.name) {
-                        "direct_image" -> false
-                        "direct_audio" -> false
-                        "direct_video" -> false
+                        "direct_image" -> chatModelHasDirectImage
+                        "direct_audio" -> chatModelHasDirectAudio
+                        "direct_video" -> chatModelHasDirectVideo
                         "intent" -> shouldExposeIntent
                         else -> true
                     }
                 }
 
                 val adjustedDescription =
-                    if (shouldExposeIntent) {
+                    if (chatModelHasDirectImage || chatModelHasDirectAudio || chatModelHasDirectVideo) {
+                        "Read file content. For media, prefer the matching exposed direct_image/direct_audio/direct_video=true parameter to perceive the actual media with this model. A path alone is not visual/audio evidence. Do not replace direct input with OCR or metadata. Use exactly one matching parameter; supported in Android, Linux/SSH and attached repositories. PDF/Office: extract text or render pages using document tools, then read page images."
+                    } else if (shouldExposeIntent) {
                         "Read the content of a file. For media files, you can also provide an 'intent' parameter to use a backend recognition model for analysis."
                     } else {
                         tool.description
@@ -599,16 +601,18 @@ object SystemToolPrompts {
 
                 val filteredParams = (tool.parametersStructured ?: emptyList()).filter { param ->
                     when (param.name) {
-                        "direct_image" -> false
-                        "direct_audio" -> false
-                        "direct_video" -> false
+                        "direct_image" -> chatModelHasDirectImage
+                        "direct_audio" -> chatModelHasDirectAudio
+                        "direct_video" -> chatModelHasDirectVideo
                         "intent" -> shouldExposeIntent
                         else -> true
                     }
                 }
 
                 val adjustedDescription =
-                    if (shouldExposeIntent) {
+                    if (chatModelHasDirectImage || chatModelHasDirectAudio || chatModelHasDirectVideo) {
+                        "读取文件内容。媒体文件优先传入当前已暴露的对应 direct_image/direct_audio/direct_video=true，让本模型实际感知媒体；仅知道路径不代表看过或听过内容，不得用 OCR/元数据冒充。一次只传一个匹配参数；支持 Android、Linux/SSH 与附加储存仓库。PDF/Office 使用文档工具提取文本或渲染页图后读取图片。"
+                    } else if (shouldExposeIntent) {
                         "读取文件内容。对于媒体文件，你也可以提供 intent 参数，使用后端识别模型进行分析。"
                     } else {
                         tool.description

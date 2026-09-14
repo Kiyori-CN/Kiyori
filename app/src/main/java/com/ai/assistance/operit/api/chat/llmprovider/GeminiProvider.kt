@@ -124,7 +124,10 @@ class GeminiProvider(
     private val customHeaders: Map<String, String> = emptyMap(),
     private val providerType: ApiProviderType = ApiProviderType.GOOGLE,
     private val enableGoogleSearch: Boolean = false,
-    private val enableToolCall: Boolean = false // 是否启用Tool Call接口（预留，Gemini有原生tool支持）
+    private val enableToolCall: Boolean = false,
+    private val supportsVision: Boolean = true,
+    private val supportsAudio: Boolean = true,
+    private val supportsVideo: Boolean = true
 ) : AIService, ProviderUsageReporting, ProviderReplayMetadataConsumer {
     override val consumedReplayMetadataKinds: Set<ProviderReplayMetadataKind> =
         setOf(
@@ -567,6 +570,7 @@ class GeminiProvider(
      * 构建包含文本和图片的parts数组
      */
     private fun buildPartsArray(text: String): JSONArray {
+        MediaLinkParser.requireAvailableInput(text, supportsVision, supportsAudio, supportsVideo, file = true)
         val partsArray = JSONArray()
 
         val hasImages = MediaLinkParser.hasImageLinks(text)
@@ -585,24 +589,16 @@ class GeminiProvider(
             }
             textWithoutLinks = textWithoutLinks.trim()
 
-            // 添加媒体（音频/视频）
-            mediaLinks.forEach { link ->
-                partsArray.put(JSONObject().apply {
-                    put("inline_data", JSONObject().apply {
-                        put("mime_type", link.mimeType)
-                        put("data", link.base64Data)
-                    })
-                })
-            }
-
-            // 添加图片
-            imageLinks.forEach { link ->
-                partsArray.put(JSONObject().apply {
-                    put("inline_data", JSONObject().apply {
-                        put("mime_type", link.mimeType)
-                        put("data", link.base64Data)
-                    })
-                })
+            for (tag in MediaLinkParser.extractAttachmentTags(text)) {
+                val (mimeType, base64) = if (tag.type == "image") {
+                    val image = imageLinks.single { it.id == tag.id }
+                    image.mimeType to image.base64Data
+                } else {
+                    val media = mediaLinks.single { it.type == tag.type && it.id == tag.id }
+                    media.mimeType to media.base64Data
+                }
+                partsArray.put(JSONObject().put("inline_data",
+                    JSONObject().put("mime_type", mimeType).put("data", base64)))
             }
 
             // 添加文本（如果有）
