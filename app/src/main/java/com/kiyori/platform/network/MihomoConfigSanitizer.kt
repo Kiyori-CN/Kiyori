@@ -247,7 +247,9 @@ object MihomoConfigSanitizer {
                 "allow-lan" to false,
                 "bind-address" to "127.0.0.1",
                 "mode" to "rule",
-                "log-level" to "warning",
+                // INFO 的 TCP 路由行提供真实命中规则与出站。只记录 warning 无法区分
+                // 核心内 DIRECT 和代理节点；输出仍经有界、脱敏的 ProxyLogStore。
+                "log-level" to "info",
                 "external-controller" to "127.0.0.1:$controllerPort",
                 "secret" to controllerSecret,
                 "find-process-mode" to "off",

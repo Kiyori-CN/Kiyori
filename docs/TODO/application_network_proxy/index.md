@@ -11,6 +11,7 @@ date: 2026-08-23
 <details>
 <summary>本页导航</summary>
 
+- [2026-09-14 内置代理导致 AI 流中断](#2026-09-14-内置代理导致-ai-流中断)
 - [2026-09-07 系统兼容性、路由与设置完整性](#2026-09-07-系统兼容性路由与设置完整性)
 - [2026-08-30 runtime 指纹内存溢出修复](#2026-08-30-runtime-指纹内存溢出修复)
 - [2026-08-28 Mihomo Geo* 规则回归修复](#2026-08-28-mihomo-geo-规则回归修复)
@@ -42,6 +43,62 @@ date: 2026-08-23
 
 </details>
 <!-- doc-toc:end -->
+
+## 2026-09-14 内置代理导致 AI 流中断
+
+状态：`PARTIAL FIXES VERIFIED / DEBUG APK VERIFIED / LIVE EOF ROOT CAUSE PENDING`。本轮基线
+`f91821492d0a48b930894397b7a2001a43ce8675`，用户授权完成验证后提交推送到 `main`。
+
+- 目标：修复内置核心的错误生命周期，覆盖首包等待与长 SSE；范围为 Mihomo 创建线程、相关回归及网络契约。
+- 用户对照：关闭内置代理或仅开启外部 Clash 后 Astra 正常；内置 RULE 配合域名关键词 DIRECT 仍中断。
+  RULE 的 DIRECT 是核心内出站，CONNECT 仍经过核心，不能排除核心退出的影响。
+- 已确认缺陷：生产 launcher 设置 `PR_SET_PDEATHSIG(SIGTERM)`，而两个 `ProcessBuilder.start()`
+  入口运行在可回收 IO worker。Linux 监听创建子进程的父线程退出，宿主 JVM 存活不阻止信号。
+  Linux 本地用生产 launcher 复现：创建线程结束后子进程退出 `-15`，保持创建线程等待则子进程存活。
+- 实现：唯一 runtime 继续持有 Process；创建线程持续 `waitFor`，中断等待不间接终止核心；启动异常保留
+  原因，调用线程中断后先交还句柄，核心退出后创建线程释放。主核心、订阅 probe 和 `-t` 共用入口。
+- 验证计划：线程退场/中断/启动失败/即时退出单测；Linux 真实 launcher 与生产创建函数集成；
+  规则 DIRECT 的本地流转发；相关代理与 Responses 回归；串行 Debug APK、候选提交和远端 ref。
+- 风险与回滚：单个活动子进程新增一个等待线程，随进程退出释放；保留 parent-death 清理，不改变
+  规则顺序、模型协议、未知提交重试策略或服务器。回滚为本轮提交的精确逆向变更。
+- 后续现场证据修正：用户 17:34 导出的代理日志中，17:14:57 的 AI 首包 EOF 耗时 5174 ms，核心 generation 1
+  当时健康，17:15:12 才按 `proxy_route_disabled` 停止。因此已复现的父线程缺陷不能解释这一次失败。
+  云端同一 `X-Request-ID` 已匹配，安全检查 `allow`，Nginx 在同秒记录 `499 / 0 bytes`；核心没有重启。
+  17:20:46 另有一次 DIRECT `Socket closed`，旧代理日志没有取消字段，不能推断同一原因。
+- 可观测性：核心 INFO 路由行通过既有有界脱敏日志保存真实规则命中与出站；请求失败增加底层取消标志和
+  runtime phase，避免停机后保留的最后健康快照被误认为当前仍在运行。没有将日志改进当作断流修复。
+- 另一个已确认缺陷：原动态代理日志只包围 `chain.proceed`，响应头后的流读取异常不会记入代理日志。
+  现在按需观察原正文，区分 `REQUEST_OR_HEADERS / RESPONSE_BODY`，保持异常、取消、超时和单 POST
+  边界，部分字节不丢失，读取与关闭触发同一个错误时只记录一次。
+- 现场边界：父线程缺陷与早期“宿主未退出、核心收到停止信号且无主动停止记录”相符，新附件却明确包含
+  核心存活时断流。新 APK 必须按用户三组网络条件复测，不能将 Linux 证明写成手机验收通过。
+
+验证证据（2026-09-14）：
+
+- `:app:testDebugUnitTest` 选择 `MihomoProcessLifetimeTest`、`NetworkResponseFailureObserverTest`、
+  `KiyoriMihomoRuntimeProcessPolicyTest`、`KiyoriNetworkProxy*Test`、`MihomoConfigSanitizerTest`、
+  `MihomoRuleCompatibilityTest`、`OpenAIResponses*Test`、`LlmTransportDiagnosticsTest`：
+  18 组、122 项，零失败、零错误、零跳过。
+- [Linux 集成入口](../../../tools/mihomo_parent_launcher/LifetimeIntegrationTest.java) 使用实际 C launcher
+  与编译后的生产 Kotlin 函数，在 JDK 的 `FORK`、`POSIX_SPAWN` 下均证明：旧入口在线程退出时收到
+  SIGTERM；新入口存活；强杀宿主仍终止子进程。四项 JVM 单测另覆盖中断、启动错误及即时退出。
+- 生命周期语义来源：[Linux PR_SET_PDEATHSIG 手册](https://man7.org/linux/man-pages/man2/PR_SET_PDEATHSIG.2const.html)。
+  CONNECT 转发依据 [Mihomo v1.19.30 HTTP 入口](https://github.com/MetaCubeX/mihomo/blob/v1.19.30/listener/http/proxy.go)。
+- 本地 Linux 同版本 Mihomo、生产 RULE 配置生成器、DOMAIN-KEYWORD DIRECT、有效测试证书与 OkHttp
+  4.12.0 / HTTP/1.1 隔离策略下，8 秒首包等待、8 秒正文停顿、75 秒持续流均完整；每场景只有一个 POST。
+  最终重测包含生产正文观察器：三条完整流之外，第四条主动截断的 TLS/chunked 流原样抛出 IOException，
+  只记录一次正文失败；四条核心 TCP 日志均明确 `DomainKeyword(newapi) using DIRECT`，共四个 POST。
+  测试不调用真实模型、不重放用户请求，不替代 Android 网络栈或真实订阅验证。
+- `:app:assembleDebug --no-daemon --console=plain` 用时 2 分 24 秒成功；唯一 launcher、脚本代理与
+  播放器 runtime packaging 检查通过。APK 为 `app/build/outputs/apk/debug/app-debug.apk`，
+  2026-09-14 18:02:23 +08:00 生成，485557435 bytes，SHA-256
+  `4c0f597a29d9186ed73d5d80f04ce9d38c77a7c6d411a3b72d56ed27c89a10b3`。
+  包身份 `com.kiyori / 45 / 0.1.0`，Debug v2 单 signer 和 16 KiB zipalign 通过；DEX 含新增生命周期和
+  正文观察实现，未安装设备或发布 APK。
+- 文档检查 521 文件零问题，正式准备检查通过。候选链接、新鲜克隆与最终远端 ref 在交付时另行核验。
+- 必需后续：原手机使用新 APK 保持相同订阅和 RULE/关键词 DIRECT 条件复测；若仍断流，同时提供本次
+  对话诊断与代理日志，核对真实出站、`callCancelled`、`failureStage` 与同一请求编号。
+  现有 17:14:57 失败也仍需其对话诊断中的取消及传输阶段字段；没有将未知原因归咎于模型限制。
 
 ## 2026-09-07 系统兼容性、路由与设置完整性
 

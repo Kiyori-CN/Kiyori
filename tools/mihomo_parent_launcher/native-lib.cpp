@@ -17,6 +17,8 @@ int main(int argc, char** argv) {
         fprintf(stderr, "Kiyori parent process is unavailable\n");
         return 70;
     }
+    // Linux 监听创建本进程的父线程退出。宿主必须让该线程存活到核心结束，
+    // 不能从会回收的协程 worker 启动后立即返回；见 MihomoProcessLifetime.kt。
     if (prctl(PR_SET_PDEATHSIG, SIGTERM) != 0) {
         fprintf(stderr, "Unable to bind Mihomo lifetime to Kiyori: %s\n", strerror(errno));
         return 71;

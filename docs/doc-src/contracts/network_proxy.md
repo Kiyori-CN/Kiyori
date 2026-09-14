@@ -17,6 +17,10 @@
 - VLESS 仅保留可验证的 TCP、WebSocket、gRPC、TLS 与 Reality 字段；Hysteria2 保留 SNI、证书跳过、证书指纹、Salamander 混淆和端口跳跃。未知字段不静默丢弃。YAML 继续拒绝重复键、无有效出站和非法 provider。
 - 订阅 URL、清洗后的 YAML 和控制器密钥由 Android Keystore 加密，保存在 no-backup 私有目录。
 - 内嵌核心只监听随机 loopback mixed-port，不启用 TUN、LAN 入站或订阅 Controller。依赖外部 GeoSite/GeoIP/ASN 或远程 rule-provider 的规则被明确计数排除，校验不在代理启动前下载数据库。
+- RULE 中命中 DIRECT 仍由核心转发 CONNECT/TCP，核心退出会中断该连接；它不同于模块 DIRECT 绕过内置核心。
+- launcher 的 Linux `PDEATHSIG` 绑定创建子进程的父线程。主核心、probe 与配置校验均由专用创建线程启动，
+  该线程等待子进程退出，避免协程 worker 回收误停核心；既有 runtime 保持唯一 Process 与停止所有权。
+  创建/等待线程中断不代表停止授权，启动异常原样返回，宿主进程死亡仍由 launcher 终止核心。
 - 自定义规则独立保存，订阅更新只替换订阅规则；不覆盖自定义规则。
 - 默认拒绝与外部系统 VPN 并存；用户明确允许后路径为应用 Mihomo → 系统 VPN → 节点。
 - 首次 URL 导入在没有 active subscription 时使用 Android 系统网络，因此可以由系统 VPN 提供可达性；已有活动订阅且需要内嵌代理时，更新必须使用当前 Kiyori 路由，失败不会静默改走直连。外部 Clash 只开放本机 mixed-port 而未接入 Android VPN/TUN 时，Kiyori 不扫描或自动接管该端口。
@@ -40,6 +44,11 @@
 - `:player` 只接收已解析目标与 transport ID，不创建代理 manager、不观察或修改 Mihomo；系统网络快照中 `proxy=absent` 不等于应用路由直连。
 - 分段下载必须收到 `206`；服务端忽略 Range 返回 `200` 时明确失败，不能把完整响应写入分段文件。
 - 主进程日志记录 generation、就绪、端口健康、耗时、核心尾行和明确停止原因；播放器进程只记录被动网络与 native 证据。
+- 核心 INFO 日志记录 TCP 实际命中的规则及出站链；请求失败同时记录 `callCancelled` 和 runtime phase。
+  最后一次端口健康快照不能证明停机后的核心仍运行，`route=RULE` 也不能代替实际 DIRECT/节点命中证据。
+- 动态 OkHttp 路由将收到响应头前和读取正文时的失败分别记录为 `REQUEST_OR_HEADERS`、`RESPONSE_BODY`，
+  模式标签固定为请求开始时的配置。正文观察不预读、不重试，保留原超时与异常，同一正文读取/关闭失败只记一次；
+  正常 EOF 仍由协议层判断是否语义完成，代理层不伪造完成事件。
 - 日志保留最近 1000 条进程内记录，导出标明进程/PID；URL 凭据、路径、Bearer、secret/password/token、UUID 和私有路径先脱敏。
 - 同类控制台事件在一秒窗口合并但保留 `repeatCount`，不得把重复数当成丢弃数。具体 TLS、HTTP、端口和网络错误仍是独立事实。
 

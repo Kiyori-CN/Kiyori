@@ -853,7 +853,7 @@ class KiyoriMihomoRuntime private constructor(context: Context) {
                 "-f",
                 configFile.absolutePath,
                 workDirectory = workDirectory,
-            ).start()
+            ).let { builder -> startMihomoParentBoundProcess(builder::start) }
         val output = collectProcessOutput(process, "Mihomo 校验")
         if (!process.waitFor(TEST_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
             process.destroyForcibly()
@@ -907,7 +907,7 @@ class KiyoriMihomoRuntime private constructor(context: Context) {
             "-secret",
             secret,
             workDirectory = workDirectory,
-        ).start()
+        ).let { builder -> startMihomoParentBoundProcess(builder::start) }
 
     private fun processBuilder(
         launcher: File,

@@ -1835,6 +1835,7 @@ class KiyoriNetworkProxyManager private constructor(context: Context) {
                     request = chain.request(),
                     startedAtEpochMillis = startedAt,
                     error = error,
+                    callCancelled = chain.call().isCanceled(),
                 )
                 val proxyRoute = route is KiyoriNetworkRoute.EmbeddedProxy
                 throw KiyoriNetworkException(
@@ -1860,15 +1861,27 @@ class KiyoriNetworkProxyManager private constructor(context: Context) {
     ) {
         builder.addInterceptor { chain ->
             val startedAt = System.currentTimeMillis()
+            val routeAtStart = currentDiagnosticRoute(module)
             try {
-                chain.proceed(chain.request())
+                chain.proceed(chain.request()).observeBodyFailure { error ->
+                    logConnectionFailure(
+                        module = module,
+                        route = routeAtStart,
+                        request = chain.request(),
+                        startedAtEpochMillis = startedAt,
+                        error = error,
+                        callCancelled = chain.call().isCanceled(),
+                        failureStage = "RESPONSE_BODY",
+                    )
+                }
             } catch (error: IOException) {
                 logConnectionFailure(
                     module = module,
-                    route = currentDiagnosticRoute(module),
+                    route = routeAtStart,
                     request = chain.request(),
                     startedAtEpochMillis = startedAt,
                     error = error,
+                    callCancelled = chain.call().isCanceled(),
                 )
                 throw error
             }
@@ -1881,12 +1894,16 @@ class KiyoriNetworkProxyManager private constructor(context: Context) {
         request: Request,
         startedAtEpochMillis: Long,
         error: IOException,
+        callCancelled: Boolean,
+        failureStage: String = "REQUEST_OR_HEADERS",
     ) {
         val state = runtimeState.value
         proxyLog.error(
             "网络请求",
             "连接失败 module=${module.name} route=$route method=${request.method} " +
                 "url=${request.url} type=${error::class.java.simpleName} " +
+                "callCancelled=$callCancelled runtimePhase=${state.phase} " +
+                "failureStage=$failureStage " +
                 "runtimeGeneration=${state.runtimeGeneration ?: "none"} " +
                 "endpointPort=${state.mixedPort ?: "none"} " +
                 "controllerHealthy=${state.controllerHealthy ?: "unknown"} " +

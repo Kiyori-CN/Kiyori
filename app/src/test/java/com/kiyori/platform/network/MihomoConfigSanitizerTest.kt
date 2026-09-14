@@ -73,6 +73,7 @@ class MihomoConfigSanitizerTest {
 
         assertTrue(runtime.yaml.contains("mixed-port: 31001"))
         assertTrue(runtime.yaml.contains("bind-address: 127.0.0.1"))
+        assertTrue(runtime.yaml.contains("log-level: info"))
         assertTrue(runtime.yaml.contains(MihomoConfigSanitizer.ROUTE_GROUP_NAME))
         assertTrue(runtime.yaml.contains("MATCH,${MihomoConfigSanitizer.ROUTE_GROUP_NAME}"))
     }
