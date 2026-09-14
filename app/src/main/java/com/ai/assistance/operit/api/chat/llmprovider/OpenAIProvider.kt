@@ -1947,6 +1947,7 @@ open class OpenAIProvider(
             builder.addHeader(key, value)
         }
         applyResponsesAcceptHeader(builder, stream)
+        applyResponsesRequestCorrelation(builder, requestTraceId)
 
         val request = builder.post(requestBody).build()
         AppLogger.d(
@@ -1996,6 +1997,7 @@ open class OpenAIProvider(
             builder.addHeader(key, value)
         }
         applyResponsesAcceptHeader(builder, stream = true)
+        applyResponsesRequestCorrelation(builder, requestTraceId)
         val request = builder.build()
         AppLogger.d(
             "AIService",
@@ -2003,6 +2005,17 @@ open class OpenAIProvider(
                 "startingAfter=$startingAfter, attempt=$attemptNumber",
         )
         return request
+    }
+
+    private fun applyResponsesRequestCorrelation(builder: Request.Builder, requestTraceId: String) {
+        if (!useResponsesApi) return
+        // 首包前断开也必须能由服务端查到同一 attempt。标准头与兼容中转请求头都只是
+        // 关联标识，不是幂等键；未知提交仍不得重发，显式自定义头保持用户所有权。
+        for (name in listOf("X-Client-Request-Id", "X-Request-ID")) {
+            if (customHeaders.keys.none { it.equals(name, ignoreCase = true) }) {
+                builder.header(name, requestTraceId)
+            }
+        }
     }
 
     /**
@@ -3447,9 +3460,9 @@ open class OpenAIProvider(
             val attemptNumber = retryCount + 1
             val requestTraceId =
                 if (responseId == null) {
-                    "resp_submit_${attemptNumber}_${UUID.randomUUID().toString().take(8)}"
+                    "resp_submit_${attemptNumber}_${UUID.randomUUID()}"
                 } else {
-                    "resp_resume_${attemptNumber}_${UUID.randomUUID().toString().take(8)}"
+                    "resp_resume_${attemptNumber}_${UUID.randomUUID()}"
                 }
             val request =
                 if (responseId == null) {
@@ -4093,7 +4106,7 @@ open class OpenAIProvider(
                     tokenCacheManager.outputTokenCount
                 )
                 val attemptNumber = retryCount + 1
-                val requestTraceId = "llm_${attemptNumber}_${UUID.randomUUID().toString().substring(0, 8)}"
+                val requestTraceId = "llm_${attemptNumber}_${UUID.randomUUID()}"
                 val request =
                     createRequest(
                         requestBody = requestBody,

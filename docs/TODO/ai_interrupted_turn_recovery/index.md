@@ -11,6 +11,7 @@ observed_at: 2026-09-03 Asia/Shanghai
 <details>
 <summary>本页导航</summary>
 
+- [Astra 复发断流与实际中转对照（2026-09-14 第二轮）](#astra-复发断流与实际中转对照2026-09-14-第二轮)
 - [Responses 断流与尾事件保留（2026-09-14）](#responses-断流与尾事件保留2026-09-14)
 - [历史页图导致持续 400 与诊断重复展开（2026-09-11 第三轮）](#历史页图导致持续-400-与诊断重复展开2026-09-11-第三轮)
 - [EOF 断流与全链路稳定性复查（2026-09-11 第二轮）](#eof-断流与全链路稳定性复查2026-09-11-第二轮)
@@ -41,6 +42,73 @@ observed_at: 2026-09-03 Asia/Shanghai
 
 </details>
 <!-- doc-toc:end -->
+
+## Astra 复发断流与实际中转对照（2026-09-14 第二轮）
+
+起点为干净 `main` / `a9f1de2a99c7a238af8250d1e9957bc32c3c0757`。用户授权读取云端
+sub2api 与相关日志、进行必要模型实测、客户端修复及提交推送；设备未纳入操作范围。
+本阶段目标是区分模型适配、客户端限制、下游链路与客户端生命周期，按实证修复。
+不自动重发未知 POST、不伪装 Codex、不改变模型/协议/代理路径，不做无关服务器更新。
+
+### 现场证据与判断
+
+- 新诊断中，功能介绍收到 479 个字符、最后 `response.output_text.delta` / sequence 310 后
+  发生 HTTP chunk EOF；联网测试第一请求在发送 21,909 bytes 后、响应头前发生 EOF，
+  随后的三个 Astra 工具回合均收到 `response.completed`。
+- 实际容器为 sub2api `0.2.4`，镜像 revision
+  `5de5e2bed035d43591a2e10e51f420ef6a84eb98`；容器健康且重启次数为 0。
+  对应源码、反向代理配置、日志与只读用量查询均已核对，不以公共最新版本代替部署事实。
+- 12:47:05（Asia/Shanghai）首包前失败在 Nginx 中为 `499 / 0 bytes`；中转随后记录
+  下游断开、继续读取上游。12:49:52 开始的功能介绍与客户端 response ID 完全匹配，
+  中转同样在写入下游时断开，继续收集上游用量。两个请求分别记录 91 / 348 个输出 token。
+- 安全检查明确 `allow`，未出现客户端限制拒绝；失败与成功请求使用同一上游账号，
+  `upstream_response_model=gpt-6-astra`。同窗口 Codex 请求也为 HTTP/1.1。
+  这些证据不支持本次 EOF 由简单客户端白名单或模型不匹配引起，也不证明具体哪个中间节点断开。
+
+### 实施与验收计划
+
+1. 使用同版 OkHttp、生产 HTTP/1.1 隔离策略、真实 Astra 独立长回复进行对照；不执行模型工具。
+2. 修复请求关联缺口：Responses 请求以完整随机编号发送标准 `X-Client-Request-Id`，
+   并发送兼容中转实际读取的 `X-Request-ID`；保留显式自定义头，两个头均不是幂等或续接承诺。
+3. 扩展既有传输快照，保留真实代理类型、地址族、OkHttp 取消、阶段耗时及请求关联哈希；
+   不持久化原始地址、凭据或自定义头值。修复成功建连后仍残留旧建连失败标记的问题。
+4. 使用真实本地 HTTP 验证取消、失败阶段、头部覆盖和单 POST；串行构建 Debug APK，
+   文档及候选提交审计后推送。回滚边界为本轮差异，无数据迁移、服务部署或协议切换。
+
+真实手机链路的最终根因与修复验收仍为 `verification_pending`；增强诊断不能被报告成已消除 EOF。
+
+### 本轮验证证据
+
+- 真实调用共 6 次，均用授权的同一个 API 账号/组、Astra 模型及 HTTP/1.1，禁用自动重发。
+  四条独立长回复分别约 49 / 124 / 63 / 77 秒，默认 OkHttp 与 Kiyori UA 均成功。
+  当前调度上游账号已与附件时点不同，两者属于同一上游站点；不能把当前成功当作旧账号复现。
+- 原附件语义输入通过生产编译器生成 developer/user 请求、18 个原生工具和 `medium` 档位，
+  两次实测分别约 11 / 12 秒，收到 306 / 331 个事件及 `response.completed`。
+  中转日志中的 `request_id` 与新传入编号逐字匹配；`client_request_id` 被中转重新生成。
+  这是实际部署的请求关联行为，不能只依据标准头假定所有中转一致。
+  对应部署源码为
+  [RequestLogger](https://github.com/Wei-Shaw/sub2api/blob/5de5e2bed035d43591a2e10e51f420ef6a84eb98/backend/internal/server/middleware/request_logger.go)
+  与 [ClientRequestID](https://github.com/Wei-Shaw/sub2api/blob/5de5e2bed035d43591a2e10e51f420ef6a84eb98/backend/internal/server/middleware/client_request_id.go)。
+- 两份真实 SSE 经本地 HTTP 交回生产 `sendMessage` / 解析器，输出与各自终态正文逐字一致，
+  无重复 POST。私有输入、SSE、临时实验入口和密钥不进入提交；未调用任何模型输出的工具。
+- 首次定向 28 项通过，其中 1 项为临时语义夹具生成；独立真实 SSE 回放测试通过。
+  临时测试已移除，最终正式 `:app:testDebugUnitTest` 回归为 16 组 / 117 项，失败、错误、
+  跳过均为 0；覆盖上一轮的供应商/提交边界与本轮关联、取消、建连恢复及原生工具编译。
+- 串行 `:app:assembleDebug --no-daemon --console=plain` 于 2026-09-14 通过，耗时 2 分 20 秒；
+  launcher、脚本代理与播放器运行时打包检查通过。APK 为 `com.kiyori / 45 / 0.1.0`，
+  13:29:32（Asia/Shanghai）生成，485,557,435 bytes，v2 签名验证通过。
+  SHA-256：`0459598f7e4cb42aa473455cf92395a6475e58d4507226b2ff72e265a4a489f5`。
+  APK DEX 已核对包含新增传输诊断符号；未安装到设备。
+- 源码反向复查覆盖 Provider session、Call/Response 释放、消息取消、共享流和动态代理入口，
+  未发现与此次短时 EOF 对应的模型专用超时或取消证据。Nginx 无该请求的客户端白名单规则，
+  读取/发送超时 1200 秒，应用读取/写入超时 1000 秒；未修改超时或部署。
+- 实际部署的 [gateway 路由](https://github.com/Wei-Shaw/sub2api/blob/5de5e2bed035d43591a2e10e51f420ef6a84eb98/backend/internal/server/routes/gateway.go)
+  没有注册 `GET /responses/:id` 恢复接口；`GET /responses` 为 WebSocket 入口，不能据此
+  假定旧 HTTP 请求可续接。未以重复 POST 或猜测恢复 GET 掩盖原请求的不确定状态。
+
+后续验收需要原手机的 Wi-Fi/移动网络、系统 VPN 与应用内代理状态，以及同一失败请求的新
+关联编号与取消/路由快照。仅凭服务器 `499` 和客户端 EOF 不能确定是手机、VPN、路由器或
+中间链路哪一处结束了连接；本轮不宣称已经根治现场中断。
 
 ## Responses 断流与尾事件保留（2026-09-14）
 

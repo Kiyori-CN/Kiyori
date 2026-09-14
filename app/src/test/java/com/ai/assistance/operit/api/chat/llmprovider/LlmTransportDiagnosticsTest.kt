@@ -1,6 +1,7 @@
 package com.ai.assistance.operit.api.chat.llmprovider
 
 import java.io.IOException
+import java.net.Proxy
 import java.util.concurrent.TimeUnit
 import com.ai.assistance.operit.util.AppLogger
 import okhttp3.OkHttpClient
@@ -165,6 +166,64 @@ class LlmTransportDiagnosticsTest {
         assertEquals(16, first?.length)
         assertFalse(first.orEmpty().contains("response-id"))
         assertNull(LlmTransportDiagnostics.redactCorrelationId(" "))
+    }
+
+    @Test
+    fun acquiredConnectionClearsEarlierConnectFailureBeforeBodyInterruption() {
+        val state = LlmRequestTraceState()
+        state.markConnecting()
+        state.markConnectionFailed()
+        state.markConnectionAcquired("http/1.1", "HTTP", "IPv4")
+        state.markRequestBodyCompleted(2048)
+        state.markResponseHeadersCompleted(200, null)
+        state.markResponseBodyStarted()
+        val diagnostics = state.snapshot(IOException("chunk EOF"))
+        assertFalse(diagnostics.connectionFailed)
+        assertEquals("LLM_TRANSPORT_RESPONSE_BODY_INTERRUPTED", diagnostics.diagnosticCode)
+        assertEquals("HTTP", diagnostics.proxyType)
+        assertEquals("IPv4", diagnostics.addressFamily)
+        assertFalse(diagnostics.callCancelled)
+    }
+
+    @Test
+    fun realCallCancellationAndRequestCorrelationRemainDistinctFromRemoteEof() {
+        server.enqueue(MockResponse().setSocketPolicy(SocketPolicy.NO_RESPONSE))
+        val state = LlmRequestTraceState()
+        val client = clientFor(state).newBuilder().proxy(Proxy.NO_PROXY).build()
+        val call = client.newCall(Request.Builder().url(server.url("/v1/responses"))
+            .tag(LlmRequestTraceContext::class.java, traceContext(state))
+            .header("X-Client-Request-Id", "private-custom-value")
+            .header("X-Request-ID", "relay-custom-value")
+            .post("{}".toRequestBody()).build())
+        val finished = java.util.concurrent.CountDownLatch(1)
+        call.enqueue(object : okhttp3.Callback {
+            override fun onFailure(call: okhttp3.Call, e: IOException) { finished.countDown() }
+            override fun onResponse(call: okhttp3.Call, response: okhttp3.Response) {
+                response.close()
+                finished.countDown()
+            }
+        })
+        try {
+            assertNotNull(server.takeRequest(5, TimeUnit.SECONDS))
+            assertFalse(state.snapshot().callCancelled)
+            call.cancel()
+            assertTrue(finished.await(5, TimeUnit.SECONDS))
+            val diagnostics = state.snapshot(IOException("cancelled"))
+            assertTrue(diagnostics.callCancelled)
+            assertEquals("DIRECT", diagnostics.proxyType)
+            assertEquals("IPv4", diagnostics.addressFamily)
+            assertNotNull(diagnostics.requestBodySentAtMs)
+            assertTrue(diagnostics.elapsedMs >= diagnostics.requestBodySentAtMs!!)
+            assertNull(diagnostics.responseHeadersAtMs)
+            assertEquals(LlmTransportDiagnostics.redactCorrelationId("private-custom-value"), diagnostics.clientRequestIdHash)
+            assertEquals(LlmTransportDiagnostics.redactCorrelationId("relay-custom-value"), diagnostics.requestIdHash)
+            assertFalse(diagnostics.summary().contains("private-custom-value"))
+            assertFalse(diagnostics.summary().contains("relay-custom-value"))
+            assertEquals(1, server.requestCount)
+        } finally {
+            call.cancel()
+            client.dispatcher.executorService.shutdown()
+        }
     }
 
     private fun clientFor(state: LlmRequestTraceState): OkHttpClient =

@@ -13,6 +13,8 @@ import com.kiyori.platform.network.KiyoriNetworkModule
 import com.kiyori.platform.network.applyKiyoriNetworkProxy
 import java.io.IOException
 import java.net.InetAddress
+import java.net.Inet4Address
+import java.net.Inet6Address
 import java.net.InetSocketAddress
 import java.net.Proxy
 import java.util.concurrent.TimeUnit
@@ -188,7 +190,15 @@ private class LlmNetworkEventListener(
 
     override fun connectionAcquired(call: Call, connection: Connection) {
         val route = runCatching { formatSocketAddress(connection.route().socketAddress) }.getOrDefault("unknown")
-        traceContext?.state?.markConnectionAcquired(connection.protocol().toString())
+        traceContext?.state?.markConnectionAcquired(
+            protocolName = connection.protocol().toString(),
+            actualProxyType = connection.route().proxy.type().name,
+            actualAddressFamily = when (connection.route().socketAddress.address) {
+                is Inet4Address -> "IPv4"
+                is Inet6Address -> "IPv6"
+                else -> "UNRESOLVED"
+            },
+        )
         log("connectionAcquired", "route=$route, protocol=${connection.protocol()}")
     }
 
@@ -203,6 +213,9 @@ private class LlmNetworkEventListener(
     }
 
     override fun requestHeadersEnd(call: Call, request: Request) {
+        traceContext?.state?.markRequestCorrelation(
+            request.header("X-Client-Request-Id"), request.header("X-Request-ID"),
+        )
         log("requestHeadersEnd", describeRequest(request))
     }
 
@@ -243,6 +256,12 @@ private class LlmNetworkEventListener(
     override fun callEnd(call: Call) {
         traceContext?.state?.markCallCompleted()
         log("callEnd")
+    }
+
+    override fun canceled(call: Call) {
+        // 传输取消只记录事实；是否用户停止仍由 provider session 与回合 owner 决定。
+        traceContext?.state?.markCallCancelled()
+        log("canceled")
     }
 
     override fun callFailed(call: Call, ioe: IOException) {

@@ -158,6 +158,16 @@
   和 AI 请求保留 `HTTP_2 + HTTP_1_1` 与 10 条空闲连接，但同样禁用透明连接失败重试。
   该传输选择不改变序列化 `ApiProtocol`、
   endpoint、provider、model、key 或 at-most-once 提交状态机；未知提交状态仍不重新 POST。
+- Responses 每个 POST/续接 GET 使用完整随机 attempt 编号，默认发送 `X-Client-Request-Id`
+  及兼容网关读取的 `X-Request-ID`；自定义头大小写不敏感且不覆盖。编号只供关联，不能
+  当作幂等键、重发许可或远端恢复能力。标准头依据
+  [OpenAI 请求关联说明](https://developers.openai.com/api/reference/overview)（2026-09-14 核对）。
+  实际中转可重写任一头，关联须按其实际日志合同核对。
+- 既有 `LlmRequestTraceState` 记录成功取得连接时的代理类型及地址族、OkHttp `canceled`
+  回调、请求体发送/响应头到达的单调时钟耗时；审计只增加这些有界元数据及实际关联头的
+  哈希，不导出原始网络地址或自定义头。`DIRECT` 不代表系统 VPN 未启用，底层取消也不
+  等同于用户停止。成功取得连接清除先前建连失败标记，避免后续提交/响应中断被错分为
+  `CONNECT_FAILED`；历史建连失败仍留在原传输日志。
 - `OpenAIResponsesExecutionPersistence` 是可恢复 Responses 协调器的持久化依赖边界；生产
   唯一实现直接委托 `ProviderExecutionRepository`，不持有第二份执行状态。本地 JVM 故障注入
   从公开 `sendMessage` 流进入同一生产协调器，通过 loopback HTTP 返回首个

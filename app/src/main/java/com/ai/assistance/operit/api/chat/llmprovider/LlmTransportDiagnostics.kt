@@ -24,6 +24,17 @@ internal enum class LlmTransportStage {
  * and response bodies do not belong here.
  */
 internal class LlmRequestTraceState {
+    private val startedAtNs = System.nanoTime()
+
+    private fun elapsedMs(): Long = (System.nanoTime() - startedAtNs) / 1_000_000
+
+    @Volatile private var proxyType: String? = null
+    @Volatile private var addressFamily: String? = null
+    @Volatile private var callCancelled = false
+    @Volatile private var requestBodySentAtMs: Long? = null
+    @Volatile private var responseHeadersAtMs: Long? = null
+    @Volatile private var clientRequestIdHash: String? = null
+    @Volatile private var requestIdHash: String? = null
     @Volatile
     var stage: LlmTransportStage = LlmTransportStage.CREATED
         private set
@@ -103,8 +114,16 @@ internal class LlmRequestTraceState {
         stage = LlmTransportStage.FAILED
     }
 
-    fun markConnectionAcquired(protocolName: String) {
+    fun markConnectionAcquired(
+        protocolName: String,
+        actualProxyType: String? = null,
+        actualAddressFamily: String? = null,
+    ) {
+        // 建连失败后可能在同一 Call 内完成另一条连接；历史失败不能覆盖最终已提交的事实。
+        connectionFailed = false
         protocol = protocolName
+        proxyType = actualProxyType
+        addressFamily = actualAddressFamily
         connectionReused = !connectStarted
         stage = LlmTransportStage.REQUEST_HEADERS
     }
@@ -120,6 +139,7 @@ internal class LlmRequestTraceState {
 
     fun markRequestBodyCompleted(bytes: Long) {
         requestBodyBytes = bytes
+        requestBodySentAtMs = elapsedMs()
         stage = LlmTransportStage.WAITING_FOR_RESPONSE_HEADERS
     }
 
@@ -133,6 +153,7 @@ internal class LlmRequestTraceState {
     ) {
         responseHeadersReceived = true
         responseStatusCode = statusCode
+        responseHeadersAtMs = elapsedMs()
         responseCorrelationId = correlationId
         stage = LlmTransportStage.RESPONSE_HEADERS
     }
@@ -148,6 +169,16 @@ internal class LlmRequestTraceState {
 
     fun markCallCompleted() {
         stage = LlmTransportStage.COMPLETED
+    }
+
+    fun markCallCancelled() {
+        callCancelled = true
+    }
+
+    fun markRequestCorrelation(clientRequestId: String?, requestId: String?) {
+        // 显式自定义头可能包含用户数据，仅保留不可逆哈希用于跨端比对。
+        clientRequestIdHash = LlmTransportDiagnostics.redactCorrelationId(clientRequestId)
+        requestIdHash = LlmTransportDiagnostics.redactCorrelationId(requestId)
     }
 
     @Synchronized
@@ -187,6 +218,14 @@ internal class LlmRequestTraceState {
             connectionFailed = connectionFailed,
             failureType = failure?.javaClass?.simpleName,
             responseCorrelationId = responseCorrelationId,
+            proxyType = proxyType,
+            addressFamily = addressFamily,
+            callCancelled = callCancelled,
+            elapsedMs = elapsedMs(),
+            requestBodySentAtMs = requestBodySentAtMs,
+            responseHeadersAtMs = responseHeadersAtMs,
+            clientRequestIdHash = clientRequestIdHash,
+            requestIdHash = requestIdHash,
         )
     }
 
@@ -215,6 +254,14 @@ internal data class LlmTransportDiagnostics(
     val connectionFailed: Boolean,
     val failureType: String?,
     val responseCorrelationId: String?,
+    val proxyType: String? = null,
+    val addressFamily: String? = null,
+    val callCancelled: Boolean = false,
+    val elapsedMs: Long = 0L,
+    val requestBodySentAtMs: Long? = null,
+    val responseHeadersAtMs: Long? = null,
+    val clientRequestIdHash: String? = null,
+    val requestIdHash: String? = null,
 ) {
     fun summary(): String =
         buildString {
@@ -229,6 +276,14 @@ internal data class LlmTransportDiagnostics(
             append(", status=").append(responseStatusCode ?: "none")
             append(", connectionReused=").append(connectionReused ?: "unknown")
             append(", connectionFailed=").append(connectionFailed)
+            append(", proxyType=").append(proxyType ?: "unknown")
+            append(", addressFamily=").append(addressFamily ?: "unknown")
+            append(", callCancelled=").append(callCancelled)
+            append(", elapsedMs=").append(elapsedMs)
+            requestBodySentAtMs?.let { append(", requestBodySentAtMs=").append(it) }
+            responseHeadersAtMs?.let { append(", responseHeadersAtMs=").append(it) }
+            clientRequestIdHash?.let { append(", clientRequestIdHash=").append(it) }
+            requestIdHash?.let { append(", requestIdHash=").append(it) }
             failureType?.let { append(", failureType=").append(it) }
             responseCorrelationId?.let { append(", responseCorrelationId=").append(it) }
         }

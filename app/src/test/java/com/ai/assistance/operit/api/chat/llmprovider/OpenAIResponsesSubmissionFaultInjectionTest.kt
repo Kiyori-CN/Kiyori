@@ -54,6 +54,45 @@ import org.mockito.kotlin.whenever
 
 class OpenAIResponsesSubmissionFaultInjectionTest {
     @Test
+    fun responsesRequestsHaveDistinctCorrelationIdsAndRespectCustomHeaders() = runTest {
+        Mockito.mockStatic(AppLogger::class.java).use {
+            MockWebServer().use { server ->
+                server.start()
+                val ids = mutableSetOf<String>()
+                for (headers in listOf(emptyMap(), emptyMap(), mapOf(
+                    "x-client-request-id" to "explicit-client", "x-request-id" to "explicit-relay",
+                ))) {
+                    server.enqueue(MockResponse().setHeader("Content-Type", "text/event-stream")
+                        .setBody(completedResponsesSse("done")))
+                    val provider = FaultInjectionResponsesProvider(
+                        endpoint = server.url("/v1/responses").toString(),
+                        persistence = RepositoryOpenAIResponsesExecutionPersistence(mock()),
+                        supportsStreamResumption = false,
+                        headers = headers,
+                    )
+                    provider.sendMessage(context = createContext(), chatHistory = testHistory("trace"),
+                        modelParameters = emptyList(), enableThinking = true, stream = true,
+                        onTokensUpdated = { _, _, _ -> }, onNonFatalError = {}, enableRetry = true,
+                    ).collect {}
+                    val request = server.takeRequest()
+                    assertEquals(1, request.headers.values("X-Client-Request-Id").size)
+                    assertEquals(1, request.headers.values("X-Request-ID").size)
+                    if (headers.isEmpty()) {
+                        val id = requireNotNull(request.getHeader("X-Client-Request-Id"))
+                        assertTrue(id.matches(Regex("llm_1_[0-9a-f-]{36}")))
+                        assertEquals(id, request.getHeader("X-Request-ID"))
+                        assertTrue(ids.add(id))
+                    } else {
+                        assertEquals("explicit-client", request.getHeader("X-Client-Request-Id"))
+                        assertEquals("explicit-relay", request.getHeader("X-Request-ID"))
+                    }
+                }
+                assertEquals(3, server.requestCount)
+            }
+        }
+    }
+
+    @Test
     fun astraCompatibleRequestsKeepFiveLevelsAndCompleteLongStreamsAcrossRelayFraming() = runTest {
         Mockito.mockStatic(AppLogger::class.java).use {
             val fullText = "中文回答🙂".repeat(2048)
@@ -80,11 +119,13 @@ class OpenAIResponsesSubmissionFaultInjectionTest {
                         supportsStreamResumption = false,
                         requestModel = "gpt-6-astra",
                         astraQualityLevel = level + 1,
+                        toolsEnabled = true,
                     )
                     val output = StringBuilder()
                     provider.sendMessage(
                         context = createContext(), chatHistory = testHistory("Astra 连续回答"),
                         modelParameters = emptyList(), enableThinking = true, stream = true,
+                        availableTools = listOf(ToolPrompt(name = "lookup", description = "Read-only lookup")),
                         providerRequestContext = requestContext("astra-$level"),
                         onTokensUpdated = { _, _, _ -> }, onNonFatalError = {}, enableRetry = true,
                     ).collect(output::append)
@@ -99,6 +140,8 @@ class OpenAIResponsesSubmissionFaultInjectionTest {
                     assertTrue(body.has("input"))
                     assertTrue(!body.has("messages"))
                     assertTrue(!body.has("background"))
+                    assertEquals("function", body.getJSONArray("tools").getJSONObject(0).getString("type"))
+                    assertEquals("lookup", body.getJSONArray("tools").getJSONObject(0).getString("name"))
                     verifyNoInteractions(repository)
                 }
             }
@@ -1022,6 +1065,8 @@ class OpenAIResponsesSubmissionFaultInjectionTest {
         dns: Dns = Dns.SYSTEM,
         private val requestModel: String = "gpt-5.6-sol",
         private val astraQualityLevel: Int? = null,
+        headers: Map<String, String> = emptyMap(),
+        toolsEnabled: Boolean = false,
     ) : OpenAIProvider(
         apiEndpoint = endpoint,
         apiKeyProvider =
@@ -1031,6 +1076,8 @@ class OpenAIResponsesSubmissionFaultInjectionTest {
                 override suspend fun getCandidateKeyCount(): Int = 1
             },
         modelName = requestModel,
+        customHeaders = headers,
+        enableToolCall = toolsEnabled,
         client =
             LlmHttpClientProtocolPolicy.responsesPolicy
                 .applyTo(

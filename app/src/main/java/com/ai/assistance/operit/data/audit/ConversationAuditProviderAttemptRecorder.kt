@@ -106,6 +106,14 @@ internal object ConversationAuditProviderAttemptRecorder {
                 .put("connectionFailed", diagnostics.connectionFailed)
                 .put("failureType", diagnostics.failureType ?: JSONObject.NULL)
                 .put("responseCorrelationId", diagnostics.responseCorrelationId ?: JSONObject.NULL)
+                .put("proxyType", diagnostics.proxyType ?: JSONObject.NULL)
+                .put("addressFamily", diagnostics.addressFamily ?: JSONObject.NULL)
+                .put("callCancelled", diagnostics.callCancelled)
+                .put("elapsedMs", diagnostics.elapsedMs)
+                .put("requestBodySentAtMs", diagnostics.requestBodySentAtMs ?: JSONObject.NULL)
+                .put("responseHeadersAtMs", diagnostics.responseHeadersAtMs ?: JSONObject.NULL)
+                .put("clientRequestIdHash", diagnostics.clientRequestIdHash ?: JSONObject.NULL)
+                .put("requestIdHash", diagnostics.requestIdHash ?: JSONObject.NULL)
         }
         throwable?.let { error ->
             metadata
