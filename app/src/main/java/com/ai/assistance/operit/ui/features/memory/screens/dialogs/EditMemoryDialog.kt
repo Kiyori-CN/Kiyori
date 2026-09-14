@@ -7,6 +7,8 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.ExpandLess
+import androidx.compose.material.icons.outlined.ExpandMore
 
 import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material3.*
@@ -34,6 +36,7 @@ fun EditMemoryDialog(
     isSaving: Boolean = false,
     error: String? = null,
     initialFolderPath: String = "",
+    libraryKind: String = MemoryLibraryPolicy.MEMORY,
     onDismiss: () -> Unit,
     onSave: (
         memory: Memory?,
@@ -55,18 +58,21 @@ fun EditMemoryDialog(
     var title by rememberSaveable(memory?.id) { mutableStateOf(memory?.title ?: "") }
     var content by rememberSaveable(memory?.id) { mutableStateOf(memory?.content ?: "") }
     var contentType by rememberSaveable(memory?.id) { mutableStateOf(memory?.contentType ?: "text/plain") }
-    var source by rememberSaveable(memory?.id) { mutableStateOf(memory?.source ?: "user_input") }
+    val initialSource = memory?.source?.takeUnless { it == "user_input" }.orEmpty()
+    var source by rememberSaveable(memory?.id) { mutableStateOf(initialSource) }
     var credibility by rememberSaveable(memory?.id) { mutableStateOf(memory?.credibility ?: 0.8f) }
     var importance by rememberSaveable(memory?.id) { mutableStateOf(memory?.importance ?: 0.5f) }
     var folderPath by rememberSaveable(memory?.id) { mutableStateOf(memory?.folderPath ?: defaultFolder) }
     var tags by rememberSaveable(memory?.id) { mutableStateOf(memory?.tags?.map { it.name } ?: emptyList<String>()) }
+    var tagDraft by rememberSaveable(memory?.id) { mutableStateOf("") }
     
+    var showAdvanced by rememberSaveable { mutableStateOf(false) }
     var showDiscard by remember { mutableStateOf(false) }
     val dirty = title != (memory?.title ?: "") || content != (memory?.content ?: "") ||
-        contentType != (memory?.contentType ?: "text/plain") || source != (memory?.source ?: "user_input") ||
+        contentType != (memory?.contentType ?: "text/plain") || source != initialSource ||
         category != (memory?.let(MemoryLibraryPolicy::category) ?: "other") ||
         folderPath != (memory?.folderPath ?: defaultFolder) || credibility != (memory?.credibility ?: 0.8f) ||
-        importance != (memory?.importance ?: 0.5f) || tags != (memory?.tags?.map { it.name } ?: emptyList<String>())
+        importance != (memory?.importance ?: 0.5f) || tags != (memory?.tags?.map { it.name } ?: emptyList<String>()) || tagDraft.isNotBlank()
     val requestDismiss = { if (!isSaving) { if (dirty) showDiscard = true else onDismiss() } }
     if (showDiscard) {
         AlertDialog(
@@ -91,8 +97,8 @@ fun EditMemoryDialog(
         ) {
             Surface(
                 modifier = Modifier
+                    .widthIn(max = 600.dp)
                     .fillMaxWidth()
-                    .widthIn(max = 560.dp)
                     .fillMaxHeight(0.9f)
                     .imePadding(),
                 shape = MaterialTheme.shapes.extraLarge,
@@ -101,7 +107,7 @@ fun EditMemoryDialog(
                 Column(modifier = Modifier.fillMaxSize()) {
                     Text(
                         text = if (memory == null) {
-                            stringResource(R.string.memory_create_new)
+                            stringResource(if (libraryKind == MemoryLibraryPolicy.KNOWLEDGE) R.string.library_new_note else R.string.library_new_memory)
                         } else {
                             stringResource(R.string.memory_edit_memory)
                         },
@@ -121,7 +127,8 @@ fun EditMemoryDialog(
                             onValueChange = { title = it },
                             label = { Text(stringResource(R.string.memory_title)) },
                             modifier = Modifier.fillMaxWidth(),
-                            singleLine = true
+                            singleLine = true,
+                            enabled = !isSaving
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         OutlinedTextField(
@@ -130,14 +137,14 @@ fun EditMemoryDialog(
                             label = { Text(stringResource(R.string.memory_content)) },
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .heightIn(min = 100.dp, max = 200.dp),
-                            enabled = memory?.isDocumentNode != true
+                                .heightIn(min = 160.dp, max = 280.dp),
+                            enabled = !isSaving && memory?.isDocumentNode != true
                         )
                         Spacer(modifier = Modifier.height(16.dp))
 
                         var categoryExpanded by remember { mutableStateOf(false) }
                         Box {
-                            OutlinedButton(onClick = { categoryExpanded = true }) { Text(memoryCategoryLabel(category)) }
+                            OutlinedButton(onClick = { categoryExpanded = true }, enabled = !isSaving) { Text(stringResource(R.string.library_category) + " · " + memoryCategoryLabel(category)) }
                             DropdownMenu(expanded = categoryExpanded, onDismissRequest = { categoryExpanded = false }) {
                                 MemoryLibraryPolicy.categories.forEach { value ->
                                     DropdownMenuItem(text = { Text(memoryCategoryLabel(value)) }, onClick = { category = value; categoryExpanded = false })
@@ -147,12 +154,13 @@ fun EditMemoryDialog(
                         error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                         FolderSelector(
                             allFolderPaths = allFolderPaths,
+                            isSaving = isSaving,
                             selectedPath = folderPath,
                             onPathSelected = { folderPath = it }
                         )
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        TagsEditor(tags = tags, onTagsChanged = { tags = it })
+                        TagsEditor(tags = tags, enabled = !isSaving, newTagText = tagDraft, onDraftChange = { tagDraft = it }, onTagsChanged = { tags = it })
                         Spacer(modifier = Modifier.height(16.dp))
 
                         OutlinedTextField(
@@ -160,14 +168,22 @@ fun EditMemoryDialog(
                             onValueChange = { source = it },
                             label = { Text(stringResource(R.string.memory_source)) },
                             modifier = Modifier.fillMaxWidth(),
-                            singleLine = true
+                            singleLine = true,
+                            enabled = !isSaving
                         )
                         Spacer(modifier = Modifier.height(16.dp))
 
+                        TextButton(onClick = { showAdvanced = !showAdvanced }) {
+                            Text(stringResource(R.string.library_advanced))
+                            Spacer(Modifier.width(8.dp))
+                            Icon(if (showAdvanced) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore, null)
+                        }
+                        if (showAdvanced) {
                         Text("${stringResource(R.string.memory_credibility)}: ${String.format(currentLocale, "%.2f", credibility)}")
                         Slider(
                             value = credibility,
                             onValueChange = { credibility = it },
+                            enabled = !isSaving,
                             valueRange = 0f..1f
                         )
                         Spacer(modifier = Modifier.height(8.dp))
@@ -176,8 +192,10 @@ fun EditMemoryDialog(
                         Slider(
                             value = importance,
                             onValueChange = { importance = it },
+                            enabled = !isSaving,
                             valueRange = 0f..1f
                         )
+                        }
                     }
 
                     HorizontalDivider()
@@ -199,11 +217,11 @@ fun EditMemoryDialog(
                                     title,
                                     content,
                                     contentType,
-                                    source,
+                                    source.trim().ifBlank { "user_input" },
                                     credibility,
                                     importance,
                                     folderPath,
-                                    tags.toList(),
+                                    (tags + tagDraft.trim()).filter { it.isNotBlank() }.distinct(),
                                     category
                                 )
                             }
@@ -230,12 +248,13 @@ private fun FolderSelector(
 
     ExposedDropdownMenuBox(
         expanded = expanded,
-        onExpandedChange = { expanded = !expanded }
+        onExpandedChange = { if (!isSaving) expanded = !expanded }
     ) {
         OutlinedTextField(
             value = selectedPath,
             onValueChange = onPathSelected,
             readOnly = false,
+            enabled = !isSaving,
             label = { Text(stringResource(R.string.memory_folder_label2)) },
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
             modifier = Modifier
@@ -263,9 +282,11 @@ private fun FolderSelector(
 @Composable
 private fun TagsEditor(
     tags: List<String>,
+    enabled: Boolean,
+    newTagText: String,
+    onDraftChange: (String) -> Unit,
     onTagsChanged: (List<String>) -> Unit
 ) {
-    var newTagText by remember { mutableStateOf("") }
     val keyboardController = LocalSoftwareKeyboardController.current
 
     Column {
@@ -278,43 +299,39 @@ private fun TagsEditor(
         ) {
             tags.forEach { tag ->
                 InputChip(
+                    enabled = enabled,
                     selected = false,
-                    onClick = { /* Not used */ },
+                    onClick = { onTagsChanged(tags - tag) },
                     label = { Text(tag) },
-                    trailingIcon = {
-                        IconButton(
-                            onClick = { onTagsChanged(tags - tag) },
-                            modifier = Modifier.size(18.dp)
-                        ) {
-                            Icon(Icons.Default.Cancel, contentDescription = "Remove tag")
-                        }
-                    }
+                    trailingIcon = { Icon(Icons.Default.Cancel, stringResource(R.string.library_remove_filter), Modifier.size(18.dp)) }
+
                 )
             }
         }
         Spacer(modifier = Modifier.height(8.dp))
         OutlinedTextField(
             value = newTagText,
-            onValueChange = { newTagText = it },
+            onValueChange = onDraftChange,
+            enabled = enabled,
             placeholder = { Text(stringResource(R.string.memory_add_tag_hint)) },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
             keyboardActions = KeyboardActions(onDone = {
-                if (newTagText.isNotBlank() && newTagText !in tags) {
-                    onTagsChanged(tags + newTagText)
-                    newTagText = ""
+                if (enabled && newTagText.isNotBlank() && newTagText !in tags) {
+                    onTagsChanged((tags + newTagText.trim()).distinct())
+                    onDraftChange("")
                 }
                 keyboardController?.hide()
             }),
             trailingIcon = {
-                IconButton(onClick = {
-                    if (newTagText.isNotBlank() && newTagText !in tags) {
-                        onTagsChanged(tags + newTagText)
-                        newTagText = ""
+                IconButton(enabled = enabled, onClick = {
+                    if (enabled && newTagText.isNotBlank() && newTagText !in tags) {
+                        onTagsChanged((tags + newTagText.trim()).distinct())
+                        onDraftChange("")
                     }
                 }) {
-                    Icon(Icons.Outlined.Add, contentDescription = "Add tag")
+                    Icon(Icons.Outlined.Add, contentDescription = stringResource(R.string.memory_add_tag_hint))
                 }
             }
         )

@@ -98,4 +98,23 @@ class MemoryRepositoryCompatibilityTest {
         assertEquals(listOf(document.id), repository.searchMemories("alpha*omega", libraryKind = "knowledge", semanticWeight = 0f, edgeWeight = 0f).map { it.id })
         assertEquals(listOf(archived.id), repository.searchMemories("nebula", archived = true, semanticWeight = 0f, edgeWeight = 0f).map { it.id })
     }
+
+    @Test fun folderRenameAndRemovalCoverDescendantsWithoutDeletingContent() = withRepository { repository, store ->
+        val box = store.boxFor(Memory::class.java)
+        val parent = Memory(title = "父目录条目", folderPath = "项目")
+        val child = Memory(title = "子目录资料", folderPath = "项目/资料", isDocumentNode = true)
+        val sibling = Memory(title = "相近名称", folderPath = "项目备份")
+        box.put(listOf(parent, child, sibling))
+        val chunk = DocumentChunk(content = "保留正文").also { it.memory.target = child }
+        store.boxFor(DocumentChunk::class.java).put(chunk)
+        assertTrue(repository.renameFolder("项目", "新项目"))
+        assertEquals("新项目/资料", box.get(child.id).folderPath)
+        assertEquals("项目备份", box.get(sibling.id).folderPath)
+        repository.deleteFolder("新项目")
+        assertNull(box.get(parent.id).folderPath)
+        assertNull(box.get(child.id).folderPath)
+        assertEquals("项目备份", box.get(sibling.id).folderPath)
+        assertEquals("保留正文", store.boxFor(DocumentChunk::class.java).get(chunk.id).content)
+        assertEquals(3L, box.count())
+    }
 }

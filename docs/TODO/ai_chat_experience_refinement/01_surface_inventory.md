@@ -244,7 +244,7 @@ status: in_progress
 | [MemorySearchSimulationDialog.kt](../../../app/src/main/java/com/ai/assistance/operit/ui/features/memory/screens/dialogs/MemorySearchSimulationDialog.kt) | `MemorySearchSimulationDialog` | 1 | 待查 |
 | [ToolTestDialog.kt](../../../app/src/main/java/com/ai/assistance/operit/ui/features/memory/screens/dialogs/ToolTestDialog.kt) | `ToolTestDialog` | 1 | 待查 |
 | [FolderNavigator.kt](../../../app/src/main/java/com/ai/assistance/operit/ui/features/memory/screens/FolderNavigator.kt) | `FolderContextMenu`、`FolderCreateDialog`、`FolderRenameDialog`、`FolderDeleteDialog` | 7 | 待查 |
-| [MemoryAppBar.kt](../../../app/src/main/java/com/ai/assistance/operit/ui/features/memory/screens/MemoryAppBar.kt) | 行内弹层 | 1 | 待查 |
+| [MemoryLibraryContent.kt](../../../app/src/main/java/com/ai/assistance/operit/ui/features/memory/screens/MemoryLibraryContent.kt) | 记忆库更多与添加菜单 | 2 | 2026-09-15 替代未使用的 MemoryAppBar；现场验收见记忆库专项 |
 | [MemoryScreen.kt](../../../app/src/main/java/com/ai/assistance/operit/ui/features/memory/screens/MemoryScreen.kt) | `MemoryScreen` | 0 | 待查 |
 
 ## 助手与设置

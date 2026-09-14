@@ -1,53 +1,35 @@
 package com.ai.assistance.operit.ui.features.memory.screens
 
-import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.UploadFile
-import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Delete
-import androidx.compose.material.icons.outlined.Add
-import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.SelectAll
 
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.runtime.saveable.rememberSaveable
+import com.kiyori.design.theme.KiyoriUiShapes
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import com.ai.assistance.operit.ui.components.CustomScaffold
@@ -82,63 +64,13 @@ import java.util.UUID
 import android.provider.OpenableColumns
 import android.widget.Toast
 import com.ai.assistance.operit.util.AppLogger
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.filled.Folder
 
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.input.ImeAction
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.ui.features.memory.screens.dialogs.MemorySearchSettingsDialog
 import com.ai.assistance.operit.ui.features.memory.screens.dialogs.MemorySearchSimulationDialog
 import com.ai.assistance.operit.ui.main.components.LocalIsCurrentScreen
-
-@Composable
-fun MemorySearchBar(
-    query: String,
-    onQueryChange: (String) -> Unit,
-    onSearch: () -> Unit,
-    onSettingsClick: () -> Unit,
-    onMenuClick: () -> Unit
-) {
-    val keyboardController = LocalSoftwareKeyboardController.current
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        IconButton(onClick = onMenuClick) {
-            Icon(
-                Icons.Default.Folder, 
-                contentDescription = "Toggle Folders",
-                tint = MaterialTheme.colorScheme.primary
-            )
-        }
-        OutlinedTextField(
-            value = query,
-            onValueChange = onQueryChange,
-            modifier = Modifier.weight(1f),
-            placeholder = { Text(stringResource(R.string.memory_search_hint)) },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-            keyboardActions = KeyboardActions(onSearch = {
-                keyboardController?.hide()
-                onSearch()
-            })
-        )
-        IconButton(onClick = onSettingsClick) {
-            Icon(
-                Icons.Outlined.Settings,
-                contentDescription = stringResource(R.string.memory_search_settings_title),
-                tint = MaterialTheme.colorScheme.secondary
-            )
-        }
-    }
-}
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -152,18 +84,10 @@ fun MemoryScreen() {
     // 获取所有配置文件的名称映射(id -> name)
     val profileNameMap = remember { mutableStateMapOf<String, String>() }
 
-    // 加载所有配置文件名称
-    LaunchedEffect(profileList) {
-        profileList.forEach { profileId ->
-            val profile = preferencesManager.getMemorySpaceFlow(profileId).first()
-            profileNameMap[profileId] = profile.name
-        }
-    }
+    val selectedProfileId = activeProfileId
+    var showFolderNavigator by rememberSaveable { mutableStateOf(false) }
+    var isImporting by remember { mutableStateOf(false) }
 
-    var selectedProfileId by remember { mutableStateOf(activeProfileId) }
-    var showFolderNavigator by remember { mutableStateOf(false) }
-
-    LaunchedEffect(activeProfileId) { selectedProfileId = activeProfileId }
 
     val viewModel: MemoryViewModel =
         viewModel(
@@ -171,9 +95,39 @@ fun MemoryScreen() {
             factory = MemoryViewModelFactory(context, selectedProfileId)
         )
     val uiState by viewModel.uiState.collectAsState()
+    var importProfileId by rememberSaveable { mutableStateOf<String?>(null) }
+    var importFolderPath by rememberSaveable { mutableStateOf("") }
+    // 系统文件选择器可能经历 Activity 重建，保存目标身份而不是仅保存对象引用。
+    val pendingImportViewModel = importProfileId?.let { id ->
+        viewModel<MemoryViewModel>(key = id, factory = MemoryViewModelFactory(context, id))
+    }
     val keyboardController = LocalSoftwareKeyboardController.current
     val scope = rememberCoroutineScope()
     val isCurrentScreen = LocalIsCurrentScreen.current
+    var spaceBusy by remember { mutableStateOf(false) }
+    var spaceError by remember { mutableStateOf<String?>(null) }
+    fun manageSpace(action: suspend () -> Unit) {
+        if (spaceBusy) return
+        spaceBusy = true
+        spaceError = null
+        scope.launch {
+            try { action() }
+            catch (e: CancellationException) { throw e }
+            catch (e: Exception) { spaceError = resources.getString(R.string.library_space_error, e.message ?: e.javaClass.simpleName) }
+            finally { spaceBusy = false }
+        }
+    }
+
+    // 加载所有配置文件名称
+    LaunchedEffect(profileList) {
+        try {
+        profileList.forEach { profileId ->
+            val profile = preferencesManager.getMemorySpaceFlow(profileId).first()
+            profileNameMap[profileId] = profile.name
+        }
+        } catch (e: CancellationException) { throw e }
+        catch (e: Exception) { spaceError = resources.getString(R.string.library_space_error, e.message ?: e.javaClass.simpleName) }
+    }
 
     LaunchedEffect(isCurrentScreen, selectedProfileId) {
         if (isCurrentScreen) {
@@ -192,6 +146,14 @@ fun MemoryScreen() {
         contract = ActivityResultContracts.OpenDocument(),
         onResult = { uri ->
             uri?.let { fileUri ->
+                val importViewModel = pendingImportViewModel
+                if (importViewModel == null) {
+                    Toast.makeText(context, resources.getString(R.string.library_import_retry), Toast.LENGTH_LONG).show()
+                    return@rememberLauncherForActivityResult
+                }
+                val importFolder = importFolderPath
+                importProfileId = null
+                isImporting = true
                 scope.launch {
                     var tempFile: File? = null
                     try {
@@ -230,7 +192,7 @@ fun MemoryScreen() {
                                     }
                                     text.toString() }
                             }
-                            viewModel.importDocument(fileName, fileUri.toString(), content)
+                            importViewModel.importDocument(fileName, fileUri.toString(), content, importFolder)
                         } else {
                             // For binary files, use the tool
                             val extension =
@@ -284,7 +246,7 @@ fun MemoryScreen() {
                                 } else {
                                     resultData.toString()
                                 }
-                                viewModel.importDocument(fileName, fileUri.toString(), content)
+                                importViewModel.importDocument(fileName, fileUri.toString(), content, importFolder)
                             } else {
                                 throw IOException("read_file_full failed: ${result.error}")
                             }
@@ -302,6 +264,7 @@ fun MemoryScreen() {
                             Toast.LENGTH_LONG,
                         ).show()
                     } finally {
+                        isImporting = false
                         tempFile?.let { file ->
                             if (file.exists() && !file.delete()) {
                                 AppLogger.w(
@@ -323,17 +286,17 @@ fun MemoryScreen() {
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 // 只有在框选模式下才显示"确认删除"按钮
-                if (uiState.isBoxSelectionMode) {
+                if (uiState.showGraph && uiState.isBoxSelectionMode && uiState.boxSelectedNodeIds.isNotEmpty()) {
                     FloatingActionButton(
                         onClick = { viewModel.showBatchDeleteConfirm() },
                         containerColor = MaterialTheme.colorScheme.errorContainer,
                         modifier = Modifier.size(48.dp)
                     ) {
-                        Icon(Icons.Outlined.Delete, contentDescription = "Delete Selected")
+                        Icon(Icons.Outlined.Delete, contentDescription = stringResource(R.string.library_delete_selected))
                     }
                 }
 
-                if (uiState.showGraph) {
+                if (uiState.showGraph && uiState.memories.isNotEmpty() && !showFolderNavigator) {
                 // 框选模式切换按钮
                 FloatingActionButton(
                     onClick = {
@@ -346,7 +309,7 @@ fun MemoryScreen() {
                     containerColor = if (uiState.isBoxSelectionMode) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.secondaryContainer,
                     modifier = Modifier.size(48.dp)
                 ) {
-                    Icon(Icons.Default.SelectAll, contentDescription = "Toggle Box Selection Mode")
+                    Icon(Icons.Default.SelectAll, contentDescription = stringResource(R.string.library_select_nodes))
                 }
 
                 FloatingActionButton(
@@ -360,7 +323,7 @@ fun MemoryScreen() {
                     containerColor = if (uiState.isLinkingMode) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primaryContainer,
                     modifier = Modifier.size(48.dp)
                 ) {
-                    Icon(Icons.Default.Link, contentDescription = "Toggle Linking Mode")
+                    Icon(Icons.Default.Link, contentDescription = stringResource(R.string.library_link_nodes))
                 }
                 }
             }
@@ -376,21 +339,20 @@ fun MemoryScreen() {
                 state = uiState,
                 viewModel = viewModel,
                 spaceName = profileNameMap[selectedProfileId] ?: selectedProfileId,
-                onFolders = { showFolderNavigator = true },
+                onFolders = { keyboardController?.hide(); showFolderNavigator = true },
+                isImporting = isImporting,
                 onImport = {
+                    importProfileId = selectedProfileId
+                    importFolderPath = uiState.selectedFolderPath
                     filePickerLauncher.launch(arrayOf("text/*", "application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"))
                 }
             )
-            BackHandler(enabled = isCurrentScreen && showFolderNavigator) { showFolderNavigator = false }
-            if (showFolderNavigator) {
-                Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.45f)).clickable { showFolderNavigator = false })
-            }
-            // 左侧文件夹导航 (Overlay)
-            AnimatedVisibility(
-                visible = showFolderNavigator,
-                enter = slideInHorizontally(initialOffsetX = { -it }),
-                exit = slideOutHorizontally(targetOffsetX = { -it })
-            ) {
+            if (showFolderNavigator && isCurrentScreen) {
+                ModalBottomSheet(
+                    onDismissRequest = { showFolderNavigator = false },
+                    sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+                    shape = KiyoriUiShapes.sheet
+                ) {
                 FolderNavigator(
                     folderPaths = uiState.folderPaths,
                     selectedFolderPath = uiState.selectedFolderPath,
@@ -403,42 +365,42 @@ fun MemoryScreen() {
                     },
                     onFolderDelete = { folderPath -> viewModel.deleteFolder(folderPath) },
                     onFolderCreate = { folderPath -> viewModel.createFolder(folderPath) },
-                    onRefresh = { viewModel.refreshFolderList() },
+                    isBusy = spaceBusy || uiState.isLoading,
+                    error = spaceError ?: uiState.error,
                     profileList = profileList,
                     profileNameMap = profileNameMap,
                     selectedProfileId = selectedProfileId,
                     onProfileSelected = { id ->
-                        scope.launch {
+                        manageSpace {
                             preferencesManager.setActiveMemorySpace(id)
-                            selectedProfileId = id
                         }
                     },
                     onMemorySpaceCreate = { name ->
-                        scope.launch {
+                        manageSpace {
                             val id = preferencesManager.createMemorySpace(name)
                             preferencesManager.setActiveMemorySpace(id)
-                            selectedProfileId = id
                         }
                     },
                     onMemorySpaceRename = { id, name ->
-                        scope.launch {
+                        manageSpace {
                             val space = preferencesManager.getMemorySpaceFlow(id).first()
                             preferencesManager.updateMemorySpace(space.copy(name = name))
                             profileNameMap[id] = name
                         }
                     },
                     onMemorySpaceDelete = { id ->
-                        scope.launch {
+                        manageSpace {
                             preferencesManager.deleteMemorySpace(id)
                             profileNameMap.remove(id)
-                            selectedProfileId = "default"
                         }
                     },
                     onDismissRequest = { showFolderNavigator = false }
                 )
+                }
             }
 
             // 对话框层
+            if (isCurrentScreen) {
             if (uiState.isSearchSettingsDialogVisible) {
                 MemorySearchSettingsDialog(
                     currentConfig = uiState.searchConfig,
@@ -489,10 +451,16 @@ fun MemoryScreen() {
                         uiState.selectedDocumentChunks.forEach { put(it.id, it.content) }
                     }
                 }
+                val originalChunks = remember(uiState.selectedMemory?.id) {
+                    mutableStateMapOf<Long, String>().apply {
+                        uiState.selectedDocumentChunks.forEach { put(it.id, it.content) }
+                    }
+                }
                 // 当chunks列表变化时，同步状态
                 LaunchedEffect(uiState.selectedDocumentChunks) {
                     uiState.selectedDocumentChunks.forEach { chunk ->
                         if (chunk.id !in chunkStates) chunkStates[chunk.id] = chunk.content
+                        if (chunk.id !in originalChunks) originalChunks[chunk.id] = chunk.content
                     }
                 }
 
@@ -510,6 +478,9 @@ fun MemoryScreen() {
                     error = uiState.error,
                     onSave = { viewModel.saveDocument(memoryTitle, chunkStates.toMap()) },
                     onDelete = { viewModel.deleteMemory(uiState.selectedMemory!!.id) },
+                    onArchive = { viewModel.archiveMemory(uiState.selectedMemory!!) },
+                    archived = uiState.selectedMemory!!.archived,
+                    isDirty = memoryTitle != uiState.selectedMemory!!.title || chunkStates.any { (id, content) -> originalChunks[id] != content },
                     folderPath = uiState.selectedMemory?.folderPath ?: ""
                 )
             } else if (uiState.selectedMemory != null) {
@@ -520,7 +491,11 @@ fun MemoryScreen() {
                         viewModel.startEditing(uiState.selectedMemory)
                         viewModel.clearSelection() // 关闭当前对话框
                     },
-                    onDelete = { viewModel.deleteMemory(uiState.selectedMemory!!.id) }
+                    onDelete = { viewModel.deleteMemory(uiState.selectedMemory!!.id) },
+                    onArchive = { viewModel.archiveMemory(uiState.selectedMemory!!) },
+                    isSaving = uiState.isSaving,
+                    error = uiState.error,
+                    cloudConfig = uiState.cloudEmbeddingConfig
                 )
             }
 
@@ -563,6 +538,7 @@ fun MemoryScreen() {
                 EditMemoryDialog(
                     memory = uiState.editingMemory,
                     initialFolderPath = uiState.selectedFolderPath,
+                    libraryKind = uiState.libraryKind,
                     allFolderPaths = uiState.folderPaths,
                     isSaving = uiState.isSaving,
                     error = uiState.error,
@@ -607,5 +583,7 @@ fun MemoryScreen() {
                     onConfirm = { viewModel.deleteSelectedNodes() }
                 )
             }
+            }
         }
-    }}
+    }
+}

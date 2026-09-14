@@ -9,12 +9,15 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.MoreVert
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.selected
+import com.kiyori.design.theme.KiyoriUiShapes
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -27,7 +30,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.width
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.ui.common.rememberLocal
 import kotlinx.serialization.Serializable
@@ -53,7 +55,8 @@ private fun ProfileSelector(
     onProfileSelected: (String) -> Unit,
     onMemorySpaceCreate: (String) -> Unit,
     onMemorySpaceRename: (String, String) -> Unit,
-    onMemorySpaceDelete: (String) -> Unit
+    onMemorySpaceDelete: (String) -> Unit,
+    enabled: Boolean
 ) {
     var expanded by remember { mutableStateOf(false) }
     var showCreateDialog by remember { mutableStateOf(false) }
@@ -62,50 +65,33 @@ private fun ProfileSelector(
     var editedName by remember { mutableStateOf("") }
     val selectedProfileName = profileNameMap[selectedProfileId] ?: selectedProfileId
 
-    Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
-        Box {
-            OutlinedButton(
-                onClick = { expanded = true },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(selectedProfileName, modifier = Modifier.weight(1f))
-                Icon(Icons.Default.ArrowDropDown, contentDescription = stringResource(R.string.memory_space_select))
+    var manageExpanded by remember { mutableStateOf(false) }
+    Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.weight(1f)) {
+            OutlinedButton(onClick = { expanded = true }, enabled = enabled, modifier = Modifier.fillMaxWidth(), shape = KiyoriUiShapes.control) {
+                Column(Modifier.weight(1f), horizontalAlignment = Alignment.Start) {
+                    Text(stringResource(R.string.memory_space_select), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(selectedProfileName, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+                Icon(Icons.Default.ArrowDropDown, null)
             }
-
-            DropdownMenu(
-                expanded = expanded,
-                onDismissRequest = { expanded = false },
-                modifier = Modifier.width(218.dp)
-            ) {
+            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
                 profileList.forEach { profileId ->
-                    val profileName = profileNameMap[profileId] ?: profileId
-                    DropdownMenuItem(
-                        text = { Text(profileName) },
-                        onClick = {
-                            onProfileSelected(profileId)
-                            expanded = false
-                        }
-                    )
+                    DropdownMenuItem(text = { Text(profileNameMap[profileId] ?: profileId, maxLines = 2, overflow = TextOverflow.Ellipsis) },
+                        trailingIcon = { if (profileId == selectedProfileId) Icon(Icons.Default.Check, null) },
+                        onClick = { onProfileSelected(profileId); expanded = false })
                 }
             }
         }
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-            IconButton(onClick = { showCreateDialog = true }, modifier = Modifier.size(40.dp)) {
-                Icon(Icons.Outlined.Add, contentDescription = stringResource(R.string.memory_space_create))
-            }
-            IconButton(
-                onClick = {
-                    editedName = selectedProfileName
-                    showRenameDialog = true
-                },
-                modifier = Modifier.size(40.dp)
-            ) {
-                Icon(Icons.Outlined.Edit, contentDescription = stringResource(R.string.memory_space_rename))
-            }
-            if (selectedProfileId != "default") {
-                IconButton(onClick = { showDeleteDialog = true }, modifier = Modifier.size(40.dp)) {
-                    Icon(Icons.Outlined.Delete, contentDescription = stringResource(R.string.memory_space_delete))
-                }
+        Box {
+            IconButton(onClick = { manageExpanded = true }, enabled = enabled) { Icon(Icons.Outlined.MoreVert, stringResource(R.string.library_manage_spaces)) }
+            DropdownMenu(expanded = manageExpanded, onDismissRequest = { manageExpanded = false }) {
+                DropdownMenuItem(text = { Text(stringResource(R.string.memory_space_create)) }, leadingIcon = { Icon(Icons.Outlined.Add, null) },
+                    onClick = { manageExpanded = false; editedName = ""; showCreateDialog = true })
+                DropdownMenuItem(text = { Text(stringResource(R.string.memory_space_rename)) }, leadingIcon = { Icon(Icons.Outlined.Edit, null) },
+                    onClick = { manageExpanded = false; editedName = selectedProfileName; showRenameDialog = true })
+                if (selectedProfileId != "default") DropdownMenuItem(text = { Text(stringResource(R.string.memory_space_delete), color = MaterialTheme.colorScheme.error) },
+                    leadingIcon = { Icon(Icons.Outlined.Delete, null) }, onClick = { manageExpanded = false; showDeleteDialog = true })
             }
         }
     }
@@ -201,7 +187,8 @@ fun FolderNavigator(
     onFolderRename: ((String, String) -> Unit)? = null,
     onFolderDelete: ((String) -> Unit)? = null,
     onFolderCreate: ((String) -> Unit)? = null,
-    onRefresh: (() -> Unit)? = null,
+    isBusy: Boolean = false,
+    error: String? = null,
     // New parameters for profile selection
     profileList: List<String>,
     profileNameMap: Map<String, String>,
@@ -220,154 +207,61 @@ fun FolderNavigator(
 
     // 使用 rememberLocal 持久化展开状态（默认为空，即全部折叠）
     var expandedState by rememberLocal(
-        key = "folder_navigator_expanded_state",
+        key = "folder_navigator_expanded_state_$selectedProfileId",
         defaultValue = FolderExpandedState(),
         serializer = serializer()
     )
     
     // 对话框状态
-    var showCreateDialog by remember { mutableStateOf(false) }
-    var showRenameDialog by remember { mutableStateOf(false) }
-    var showDeleteDialog by remember { mutableStateOf(false) }
+    var showCreateDialog by remember(selectedProfileId) { mutableStateOf(false) }
+    var showRenameDialog by remember(selectedProfileId) { mutableStateOf(false) }
+    var showDeleteDialog by remember(selectedProfileId) { mutableStateOf(false) }
     var contextMenuFolder by remember { mutableStateOf<String?>(null) }
 
-    Surface(
-        modifier = modifier
-            .fillMaxHeight()
-            .width(250.dp),
-        color = MaterialTheme.colorScheme.surface,
-        tonalElevation = 2.dp,
-        shadowElevation = 4.dp
-    ) {
-            // 展开状态：显示完整文件夹树
-            Column(modifier = Modifier.fillMaxSize()) {
-                // 标题和收起按钮
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Folder,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(24.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = stringResource(R.string.folder_navigator_folder),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.weight(1f)
-                    )
-                    
-                    // 收起按钮
-                    IconButton(
-                        onClick = onDismissRequest
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.ChevronLeft,
-                            contentDescription = stringResource(R.string.foldernav_close_sidebar),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-
-                ProfileSelector(
-                    profileList = profileList,
-                    profileNameMap = profileNameMap,
-                    selectedProfileId = selectedProfileId,
-                    onProfileSelected = onProfileSelected,
-                    onMemorySpaceCreate = onMemorySpaceCreate,
-                    onMemorySpaceRename = onMemorySpaceRename,
-                    onMemorySpaceDelete = onMemorySpaceDelete
-                )
-                
-                // 新建文件夹按钮和刷新按钮
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)
-                ) {
-                    // 刷新按钮
-                    if (onRefresh != null) {
-                        IconButton(
-                            onClick = onRefresh,
-                            modifier = Modifier.size(40.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.Refresh,
-                                contentDescription = stringResource(R.string.foldernav_refresh_folders),
-                                tint = MaterialTheme.colorScheme.secondary
-                            )
-                        }
-                    }
-
-                    // 新建文件夹按钮
-                    IconButton(
-                        onClick = { showCreateDialog = true },
-                        modifier = Modifier.size(40.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.CreateNewFolder,
-                            contentDescription = stringResource(R.string.foldernav_new_folder),
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                }
-
-                // "全部"选项
-                FolderItem(
-                    name = stringResource(R.string.folder_navigator_all),
-                    fullPath = "",
-                    level = 0,
-                    isSelected = selectedFolderPath.isEmpty(),
-                    isExpanded = false,
-                    hasChildren = false,
-                    onToggleExpand = {},
-                    onClick = { onFolderSelected("") },
-                    onLongClick = null
-                )
-
-                // 文件夹树
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .weight(1f)
-                ) {
-                    renderFolderTree(
-                        nodes = rootNode.children,
-                        level = 0,
-                        selectedPath = selectedFolderPath,
-                        expandedPaths = expandedState.expandedPaths,
-                        onToggleExpand = { path ->
-                            // 持久化展开状态
-                            expandedState = if (path in expandedState.expandedPaths) {
-                                expandedState.copy(expandedPaths = expandedState.expandedPaths - path)
-                            } else {
-                                expandedState.copy(expandedPaths = expandedState.expandedPaths + path)
-                            }
-                        },
-                        onFolderSelected = onFolderSelected,
-                        onFolderLongClick = { path ->
-                            contextMenuFolder = path
-                        }
-                    )
-                }
+    Surface(modifier = modifier.fillMaxWidth().fillMaxHeight(0.78f), color = MaterialTheme.colorScheme.surface) {
+        Column {
+            Row(Modifier.fillMaxWidth().padding(start = 24.dp, end = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(stringResource(R.string.library_location), style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+                IconButton(onClick = onDismissRequest) { Icon(Icons.Outlined.Close, stringResource(R.string.memory_close)) }
             }
+            Box(Modifier.fillMaxWidth().height(4.dp)) { if (isBusy) LinearProgressIndicator(Modifier.fillMaxWidth()) }
+            // 空间和目录操作跟随列表滚动，横屏/大字体时仍给目录留下可用空间。
+            LazyColumn(Modifier.weight(1f).fillMaxWidth(), contentPadding = PaddingValues(bottom = 16.dp)) {
+                item {
+                    error?.let { Text(it, Modifier.padding(horizontal = 24.dp, vertical = 8.dp), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+                    ProfileSelector(profileList, profileNameMap, selectedProfileId, onProfileSelected,
+                        onMemorySpaceCreate, onMemorySpaceRename, onMemorySpaceDelete, enabled = !isBusy)
+                    Row(Modifier.fillMaxWidth().padding(start = 24.dp, end = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text(stringResource(R.string.folder_navigator_folder), style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
+                        TextButton(onClick = { showCreateDialog = true }, enabled = !isBusy) {
+                            Icon(Icons.Outlined.Add, null, Modifier.size(18.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text(stringResource(R.string.foldernav_new_folder))
+                        }
+                    }
+                    FolderItem(name = stringResource(R.string.folder_navigator_all), fullPath = "", level = 0,
+                        isSelected = selectedFolderPath.isEmpty(), isExpanded = false, hasChildren = false,
+                        onToggleExpand = {}, onClick = { onFolderSelected("") }, onLongClick = null)
+                }
+                if (rootNode.children.isEmpty()) item {
+                    Text(stringResource(R.string.library_no_folders), Modifier.padding(horizontal = 24.dp, vertical = 16.dp), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                renderFolderTree(nodes = rootNode.children, level = 0, selectedPath = selectedFolderPath,
+                    expandedPaths = expandedState.expandedPaths,
+                    onToggleExpand = { path ->
+                        expandedState = if (path in expandedState.expandedPaths) expandedState.copy(expandedPaths = expandedState.expandedPaths - path)
+                            else expandedState.copy(expandedPaths = expandedState.expandedPaths + path)
+                    }, onFolderSelected = onFolderSelected, onFolderLongClick = { contextMenuFolder = it })
+            }
+        }
     }
-    
+
     // 对话框
     if (showCreateDialog) {
         FolderCreateDialog(
             onDismiss = { showCreateDialog = false },
             onCreate = { newPath ->
-                onFolderCreate?.invoke(newPath)
+                onFolderCreate?.invoke(com.ai.assistance.operit.data.repository.MemoryRepository.normalizeFolderPath(newPath) ?: newPath)
                 showCreateDialog = false
             }
         )
@@ -381,7 +275,7 @@ fun FolderNavigator(
                 contextMenuFolder = null
             },
             onRename = { newPath ->
-                onFolderRename?.invoke(contextMenuFolder!!, newPath)
+                onFolderRename?.invoke(contextMenuFolder!!, com.ai.assistance.operit.data.repository.MemoryRepository.normalizeFolderPath(newPath) ?: newPath)
                 showRenameDialog = false
                 contextMenuFolder = null
             }
@@ -505,10 +399,11 @@ private fun FolderItem(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 8.dp, vertical = 2.dp)
-            .clip(RoundedCornerShape(8.dp))
+            .clip(KiyoriUiShapes.control)
+            .semantics { selected = isSelected }
             .background(backgroundColor)
             .then(
-                if (onLongClick != null) {
+                if (onLongClick != null && fullPath != stringResource(R.string.memory_uncategorized)) {
                     Modifier.combinedClickable(
                         onClick = onClick,
                         onLongClick = onLongClick
@@ -517,14 +412,15 @@ private fun FolderItem(
                     Modifier.clickable { onClick() }
                 }
             )
-            .padding(start = (8 + level * 16).dp, top = 10.dp, bottom = 10.dp, end = 12.dp),
+            .heightIn(min = 52.dp)
+            .padding(start = (16 + level.coerceAtMost(5) * 12).dp, end = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         // 展开/折叠图标
         if (hasChildren) {
             IconButton(
                 onClick = onToggleExpand,
-                modifier = Modifier.size(40.dp)
+                modifier = Modifier.size(48.dp)
             ) {
                 Icon(
                     imageVector = Icons.Default.ChevronRight,
@@ -537,13 +433,13 @@ private fun FolderItem(
             }
             Spacer(modifier = Modifier.width(4.dp))
         } else {
-            Spacer(modifier = Modifier.width(40.dp))
+            // 叶子行省去箭头槽，减少无效缩进。
         }
 
         // 文件夹图标
         Icon(
             imageVector = if (hasChildren && isExpanded) Icons.Default.FolderOpen else Icons.Default.Folder,
-            contentDescription = stringResource(R.string.foldernav_folder),
+            contentDescription = null,
             tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.size(20.dp)
         )
@@ -555,8 +451,12 @@ private fun FolderItem(
             text = name,
             style = MaterialTheme.typography.bodyMedium,
             color = textColor,
-            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
+            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+            modifier = Modifier.weight(1f), maxLines = 2, overflow = TextOverflow.Ellipsis
         )
+        if (onLongClick != null && fullPath != stringResource(R.string.memory_uncategorized)) IconButton(onClick = onLongClick) {
+            Icon(Icons.Outlined.MoreVert, stringResource(R.string.library_folder_actions, name), Modifier.size(20.dp))
+        }
     }
 }
 
@@ -593,6 +493,11 @@ private fun buildFolderTree(paths: List<String>): FolderNode {
         }
     }
 
+    fun sort(node: FolderNode) {
+        node.children.sortBy { it.name.lowercase() }
+        node.children.forEach(::sort)
+    }
+    sort(root)
     return root
 }
 
@@ -689,7 +594,7 @@ private fun FolderRenameDialog(
     onDismiss: () -> Unit,
     onRename: (String) -> Unit
 ) {
-    var newName by remember { mutableStateOf(currentPath) }
+    var newName by remember(currentPath) { mutableStateOf(currentPath) }
     
     androidx.compose.material3.AlertDialog(
         onDismissRequest = onDismiss,

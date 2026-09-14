@@ -5981,7 +5981,7 @@
     <string name="memory_new_path">新路径</string>
     <string name="memory_confirm_delete_folder">删除文件夹</string>
     <string name="memory_confirm_delete_folder_message">确定要删除文件夹吗？</string>
-    <string name="memory_delete_folder_warning">注意：该文件夹下的所有记忆将被移至"未分类"文件夹。</string>
+    <string name="memory_delete_folder_warning">该文件夹及子文件夹中的内容将移至未分类。记忆、资料正文与关联都会保留。</string>
     <string name="memory_confirm_delete_action">确认删除</string>
     <string name="memory_expand">展开</string>
     <string name="memory_collapse">折叠</string>

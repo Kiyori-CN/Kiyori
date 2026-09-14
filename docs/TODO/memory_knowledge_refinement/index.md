@@ -4,6 +4,45 @@ status: verification_pending
 
 # 记忆与知识库重构
 
+## 2026-09-15 界面精修轮
+
+起点 `main / 11f12ee8476bc369e9b5b2adf1b8aeb0053216b0`，工作区干净。用户提供两张真机截图，
+要求专门优化界面和相关逻辑，授权最终提交推送。截图是现状证据，不代表新界面已经验收。
+
+- 目标：缩减首屏固定操作区，突出内容；统一 Material 主题、图标、排版和文案；完善位置、筛选、阅读与编辑闭环。
+- 范围：MemoryLibraryContent、FolderNavigator、MemoryScreen、相关详情/编辑对话框、MemoryViewModel，以及必要的目录逻辑与中英文资源。
+- 非目标：不改数据库 schema、Agent 协议、全局主题或 AI 抽屉归属，不升级依赖，不安装或操作设备。
+- 设计：顶部类型切换与更多菜单，填充式搜索，位置与筛选同排；低频操作进入菜单；位置/筛选使用标准模态底部面板。
+  空库直接提供新建或导入，非空列表只保留一个主操作；卡片先标题与摘要，再压缩后的主题/来源/日期，详情承载技术元数据。
+- 交互：搜索草稿与已提交查询分离，明确忙碌和错误状态；目录操作更新子路径选择；文档未保存修改离开前确认；保存期间禁止修改。
+- 参考：当前 Kiyori 主题 `KiyoriUiTokens.kt` 与本轮截图；本地 Operit `f323d6c50fa661837fad06d4618462861779b562`
+  的 `MemoryAppBar.kt` 核对主题使用。页面组合按本轮用户要求重新设计，不照搬旧多排工具栏。
+- 风险与回滚：关注筛选范围、草稿丢失、模态 Back、窄屏和大字体；回滚本轮提交即可恢复上一轮，持久数据格式不变。
+- 验证计划：对目录与查询状态选择针对性测试，静态审阅布局/资源/差异，串行 Debug APK 构建，文档与候选提交检查；
+  深浅色、键盘、TalkBack、横屏和真机视觉保持 `verification_pending`，不以编译代替视觉证据。
+
+本轮实现已完成：移除未使用的旧搜索/顶栏入口；首页三层结构、位置/筛选底部面板、内容卡片、
+阅读详情和编辑表单均复用既有 Material/Kiyori token。空文件夹保留添加入口，标签输入未点加号也随保存提交。
+导入目标在打开系统选择器前保存空间 ID 与目录，并支持 Activity 重建后恢复目标；处理中显示进度。
+普通详情提供归档/恢复与删除菜单，文档详情补齐草稿离开确认、保存锁与归档前草稿约束。
+目录删除不删除正文，而是用一次事务解除目录及子目录归属；重命名子路径选择按完整路径段更新，避免匹配相似目录名。
+
+2026-09-15 本地验证结果：
+
+- 专项测试 22 项通过、0 失败/错误：MemoryLibraryPolicy 12、MemoryObjectBoxCompatibility 2、
+  MemoryRepositoryCompatibility 5、MemoryUiPolicy 3。新增覆盖父/子目录重命名与删除后文档正文保留、相似目录名隔离。
+- 命令：`gradlew.bat :app:testDebugUnitTest --tests '*MemoryUiPolicyTest' --tests '*MemoryRepositoryCompatibilityTest' --tests '*MemoryObjectBoxCompatibilityTest' --tests '*MemoryLibraryPolicyTest' --no-daemon --console=plain`。
+- 最终 `gradlew.bat :app:assembleDebug --no-daemon --console=plain` 成功，耗时 1m41s；238 个任务，27 执行。
+  Debug 单启动器与脚本代理/播放器打包检查通过。最后的空文件夹入口与导入恢复调整包含在最终 APK 中。
+- `check_documentation.py --repository . --base 11f12ee8476bc369e9b5b2adf1b8aeb0053216b0` 检查 525 文件、0 问题；
+  `check_formal_readiness.py --repository . --require-main` 通过。中英文记忆库资源 87 键一致，21 文件精确允许清单审计通过。
+- APK：`app/build/outputs/apk/debug/app-debug.apk`，生成于 02:46:36 +08:00，487117295 字节；
+  `com.kiyori` / `0.1.0` / code 45，min SDK 26、target SDK 34，`arm64-v8a`。
+- SHA-256：`097A47A8C7E9B3AFB6AB3131C56EEE282EBB88B5333EE4C6E23A063F2C3E02E4`；
+  `apksigner verify --verbose` v2 有效、1 个签名者；`zipalign -c -P 16 4` 通过。
+- 未运行安装、设备操作、真实模型、Release 或远端 CI；真实视觉、键盘、横屏、TalkBack 和 Back/草稿恢复保持 `verification_pending`。
+  下一步使用此 APK 覆盖安装并按上述矩阵验收；不能把本地编译和 native 测试等同于真机通过。
+
 ## 任务契约
 
 2026-09-15 首轮开始时基线为 `main` / `5823c60ab39de48e8b198f38e0433db657c131b4`，工作树干净。

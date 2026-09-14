@@ -2714,11 +2714,16 @@ class MemoryRepository(private val context: Context, profileId: String) {
             val memories = if (normalizedTarget == null || folderPath == context.getString(R.string.memory_uncategorized)) {
                 memoryBox.all.filter { normalizeStoredFolderPath(it.folderPath) == null }
             } else {
-                memoryBox.all.filter { normalizeStoredFolderPath(it.folderPath) == normalizedTarget }
+                memoryBox.all.filter {
+                    val path = normalizeStoredFolderPath(it.folderPath)
+                    path == normalizedTarget || path?.startsWith("$normalizedTarget/") == true
+                }
             }
-            memories.forEach { memory ->
-                memory.folderPath = null
-                memoryBox.put(memory)
+            // 删除目录结构，保留所有正文、文档块和关系；子目录必须一起解除归属，
+            // 否则虚拟树会立即从子路径重新生成刚刚删除的父目录。
+            store.runInTx {
+                memories.forEach { memory -> memory.folderPath = null }
+                memoryBox.put(memories)
             }
             com.ai.assistance.operit.util.AppLogger.d("MemoryRepo", "Deleted folder '$folderPath', moved ${memories.size} memories to uncategorized")
         }
