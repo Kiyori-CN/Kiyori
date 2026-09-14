@@ -120,8 +120,6 @@ val playerRequiredLibcxxSymbols =
         "_ZNSt6__ndk127__from_chars_floating_pointIdEENS_19__from_chars_resultIT_EEPKcS5_NS_12chars_formatE",
     )
 val playerNativeZipAlignment = 16 * 1024L
-val scriptProxyMihomoSha256 =
-    "94344144936968f25e7089bbeac2d87f3caf67574ba433511424724ad7435dad"
 val scriptProxyLauncherSha256 =
     "93399232fa7a6b786a142e45dd1658ea0690aeb9ac9ebaa4a656a77d8c1e2c67"
 
@@ -990,6 +988,8 @@ val verifyDebugScriptProxyRuntimePackaging =
         description = "Verifies the pinned Mihomo runtime and parent-death launcher in the Debug APK."
         val debugApk = layout.buildDirectory.file("outputs/apk/debug/app-debug.apk")
         inputs.file(debugApk)
+        val builtMihomo = layout.buildDirectory.file("generated/mihomoRuntime/jniLibs/arm64-v8a/libkiyori_mihomo.so")
+        inputs.file(builtMihomo)
         doLast {
             val apk = debugApk.get().asFile
             check(apk.isFile) { "Debug APK is missing: $apk" }
@@ -1008,7 +1008,7 @@ val verifyDebugScriptProxyRuntimePackaging =
 
                 val required =
                     linkedMapOf(
-                        "lib/arm64-v8a/libkiyori_mihomo.so" to scriptProxyMihomoSha256,
+                        "lib/arm64-v8a/libkiyori_mihomo.so" to builtMihomo.get().asFile.sha256Hex(),
                         "lib/arm64-v8a/libkiyori_mihomo_launcher.so" to
                             scriptProxyLauncherSha256,
                     )
@@ -1075,16 +1075,11 @@ val buildShellIdentityLauncher =
 
 val prepareMihomoRuntime =
     tasks.register<PrepareMihomoRuntimeTask>("prepareMihomoRuntime") {
-        description = "Downloads and verifies the pinned arm64 Mihomo runtime."
-        releaseUrl.set(
-            "https://github.com/MetaCubeX/mihomo/releases/download/v1.19.30/" +
-                "mihomo-android-arm64-v8-v1.19.30.gz"
-        )
-        archiveSize.set(17_932_346L)
-        archiveSha256.set("19AFEB40FCA190FC2E3906A4E3B87C74A0C2120626FD3CB3AE0CF4092CB780AD")
-        executableSize.set(52_586_488L)
-        executableSha256.set("94344144936968F25E7089BBEAC2D87F3CAF67574BA433511424724AD7435DAD")
-        cacheFile.set(layout.projectDirectory.file("libs/mihomo-android-arm64-v8-v1.19.30.gz"))
+        description = "Builds verified Mihomo sources with the recoverable syscall interruption patch."
+        sourceDirectory.set(rootProject.layout.projectDirectory.dir("tools/mihomo_runtime"))
+        goExecutable.set(providers.gradleProperty("kiyori.go.executable").orElse("go"))
+        ndkVersion.set(providers.gradleProperty("kiyori.android.ndkVersion"))
+        ndkDirectory.set(androidComponents.sdkComponents.ndkDirectory)
         outputDirectory.set(layout.buildDirectory.dir("generated/mihomoRuntime/jniLibs"))
     }
 

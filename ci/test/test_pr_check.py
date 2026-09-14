@@ -52,6 +52,11 @@ class ScopeClassificationTest(unittest.TestCase):
         self.assertFalse(plan.android_full)
         self.assertFalse(plan.docs)
 
+    def test_mihomo_source_patch_uses_full_android_lane(self) -> None:
+        plan = classify_paths(["tools/mihomo_runtime/splice_linux.go"])
+        self.assertTrue(plan.android_full)
+        self.assertFalse(plan.android_jvm)
+
     def test_default_strings_use_jvm_lane(self) -> None:
         plan = classify_paths(["app/src/main/res/values/strings.xml"])
 

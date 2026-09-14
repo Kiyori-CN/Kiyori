@@ -1,159 +1,127 @@
 package com.kiyori.buildlogic.tasks
 
+import groovy.json.JsonSlurper
+import java.io.ByteArrayOutputStream
 import java.io.File
-import java.net.HttpURLConnection
-import java.net.URI
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
 import java.security.MessageDigest
-import java.util.zip.GZIPInputStream
+import java.util.Properties
+import javax.inject.Inject
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.DirectoryProperty
-import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.Property
-import org.gradle.api.tasks.CacheableTask
 import org.gradle.api.tasks.Input
-import org.gradle.api.tasks.LocalState
+import org.gradle.api.tasks.InputDirectory
+import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.OutputDirectory
+import org.gradle.api.tasks.PathSensitive
+import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
+import org.gradle.process.ExecOperations
+import org.gradle.work.DisableCachingByDefault
 
-@CacheableTask
-abstract class PrepareMihomoRuntimeTask : DefaultTask() {
-    @get:Input
-    abstract val releaseUrl: Property<String>
-
-    @get:Input
-    abstract val archiveSize: Property<Long>
-
-    @get:Input
-    abstract val archiveSha256: Property<String>
-
-    @get:Input
-    abstract val executableSize: Property<Long>
-
-    @get:Input
-    abstract val executableSha256: Property<String>
-
-    @get:LocalState
-    abstract val cacheFile: RegularFileProperty
-
-    @get:OutputDirectory
-    abstract val outputDirectory: DirectoryProperty
+@DisableCachingByDefault(because = "Builds pinned Go sources using the host Android NDK toolchain.")
+abstract class PrepareMihomoRuntimeTask @Inject constructor(
+    private val execOperations: ExecOperations,
+) : DefaultTask() {
+    @get:InputDirectory
+    @get:PathSensitive(PathSensitivity.RELATIVE)
+    abstract val sourceDirectory: DirectoryProperty
+    @get:Input abstract val goExecutable: Property<String>
+    @get:Input abstract val ndkVersion: Property<String>
+    @get:Internal abstract val ndkDirectory: DirectoryProperty
+    @get:OutputDirectory abstract val outputDirectory: DirectoryProperty
 
     @TaskAction
     fun prepare() {
-        val archive = cacheFile.get().asFile
-        if (!isValidArchive(archive)) {
-            downloadArchive(archive)
-        }
-        check(isValidArchive(archive)) {
-            "Cached Mihomo archive failed the pinned size or SHA-256 contract: $archive"
-        }
-
-        val generatedRoot = outputDirectory.get().asFile
-        check(!generatedRoot.exists() || generatedRoot.deleteRecursively()) {
-            "Unable to clear generated Mihomo runtime directory: $generatedRoot"
-        }
-        val executable = generatedRoot.resolve("arm64-v8a/libkiyori_mihomo.so")
-        check(executable.parentFile.mkdirs() || executable.parentFile.isDirectory) {
-            "Unable to create generated Mihomo ABI directory: ${executable.parentFile}"
-        }
-        val temporary = executable.resolveSibling("${executable.name}.tmp")
-        GZIPInputStream(archive.inputStream().buffered()).use { input ->
-            temporary.outputStream().buffered().use(input::copyTo)
-        }
-        check(temporary.length() == executableSize.get()) {
-            "Mihomo ELF size mismatch: expected=${executableSize.get()} actual=${temporary.length()}"
-        }
-        val actualSha256 = calculateSha256(temporary)
-        check(actualSha256.equals(executableSha256.get(), ignoreCase = true)) {
-            "Mihomo ELF SHA-256 mismatch: $actualSha256"
-        }
-        validateAndroidArm64Elf(temporary)
-        Files.move(temporary.toPath(), executable.toPath())
-        logger.lifecycle(
-            "Verified Mihomo runtime: size=${executable.length()} SHA-256=${calculateSha256(executable)}"
+        val input = sourceDirectory.get().asFile
+        val pins = Properties().apply { input.resolve("source.properties").inputStream().use(::load) }
+        fun pin(name: String) = requireNotNull(pins.getProperty(name)) { "Missing Mihomo source pin: $name" }
+        val env = mutableMapOf(
+            "GOTOOLCHAIN" to pin("go.version"), "GOWORK" to "off", "GOFLAGS" to "",
+            "GOOS" to "android", "GOARCH" to "arm64", "CGO_ENABLED" to "1",
         )
+        val work = temporaryDir.resolve("source")
+        check(!work.exists() || work.deleteRecursively()) { "Unable to clear generated source: $work" }
+        check(work.mkdirs())
+        fun go(dir: File, vararg arguments: String): String {
+            val output = ByteArrayOutputStream()
+            execOperations.exec {
+                workingDir(dir)
+                executable(goExecutable.get())
+                args(*arguments)
+                environment(env)
+                standardOutput = output
+            }.assertNormalExitValue()
+            return output.toString(Charsets.UTF_8)
+        }
+        check(go(work, "env", "GOVERSION").trim() == pin("go.version")) { "Go toolchain pin mismatch" }
+        go(work, "mod", "init", "kiyori.invalid/mihomo-source-verification")
+        fun module(name: String): File {
+            val path = "github.com/metacubex/$name"
+            val result = JsonSlurper().parseText(go(work, "mod", "download", "-json", "$path@${pin("$name.version")}")) as Map<*, *>
+            check(result["Sum"] == pin("$name.sum")) { "$name source checksum mismatch" }
+            go(work, "mod", "edit", "-require", "$path@${pin("$name.version")}")
+            // A recorded module sum alone does not detect edits to an already-extracted cache.
+            check(go(work, "mod", "verify").contains("all modules verified"))
+            val cached = File(result["Dir"] as String)
+            val destination = work.resolve(name)
+            // Never patch the shared module cache: each build owns these disposable copies.
+            cached.copyRecursively(destination, overwrite = false)
+            destination.walkTopDown().filter { it.isFile }.forEach { it.setWritable(true) }
+            return destination
+        }
+        val mihomo = module("mihomo")
+        val sing = module("sing")
+        val original = sing.resolve("common/bufio/splice_linux.go")
+        check(calculateSha256(original) == pin("sing.splice.sha256")) { "Unexpected upstream splice implementation" }
+        // Validate the original dependency graph before replacing the single reviewed source file.
+        go(mihomo, "mod", "download")
+        check(go(mihomo, "mod", "verify").contains("all modules verified"))
+        Files.copy(input.resolve("splice_linux.go").toPath(), original.toPath(), StandardCopyOption.REPLACE_EXISTING)
+        // Upstream release CI populates this otherwise empty embed. Preserve the existing release's trust roots.
+        val certificates = input.resolve("ca-certificates.crt")
+        check(calculateSha256(certificates) == pin("ca.sha256")) { "Embedded CA bundle checksum mismatch" }
+        Files.copy(certificates.toPath(), mihomo.resolve("component/ca/ca-certificates.crt").toPath(), StandardCopyOption.REPLACE_EXISTING)
+        go(mihomo, "mod", "edit", "-replace", "github.com/metacubex/sing=../sing")
+        val osName = System.getProperty("os.name").lowercase()
+        val hostTag = when {
+            osName.contains("windows") -> "windows-x86_64"
+            osName.contains("linux") -> "linux-x86_64"
+            osName.contains("mac") || osName.contains("darwin") -> "darwin-x86_64"
+            else -> error("Unsupported Mihomo build host: $osName")
+        }
+        val suffix = if (osName.contains("windows")) ".cmd" else ""
+        val compiler = ndkDirectory.get().asFile.resolve("toolchains/llvm/prebuilt/$hostTag/bin/aarch64-linux-android34-clang$suffix")
+        check(compiler.isFile) { "Android compiler is missing: $compiler" }
+        env["CC"] = "\"${compiler.absolutePath}\""
+        val candidate = work.resolve("libkiyori_mihomo.so")
+        go(mihomo, "build", "-mod=readonly", "-tags", "with_gvisor", "-trimpath", "-buildvcs=false",
+            "-ldflags", "-w -s -buildid= -extldflags=-Wl,-z,max-page-size=16384 " +
+                "-X github.com/metacubex/mihomo/constant.Version=${pin("runtime.version")} " +
+                "-X github.com/metacubex/mihomo/constant.BuildTime=source-pinned",
+            "-o", candidate.absolutePath, ".")
+        validateAndroidArm64Elf(candidate)
+        val destination = outputDirectory.get().asFile.resolve("arm64-v8a/libkiyori_mihomo.so")
+        check(destination.parentFile.mkdirs() || destination.parentFile.isDirectory)
+        Files.move(candidate.toPath(), destination.toPath(), StandardCopyOption.REPLACE_EXISTING)
+        logger.lifecycle("Verified source-built Mihomo ${pin("runtime.version")}: SHA-256=${calculateSha256(destination)}")
     }
 
-    private fun isValidArchive(file: File): Boolean =
-        file.isFile &&
-            file.length() == archiveSize.get() &&
-            calculateSha256(file).equals(archiveSha256.get(), ignoreCase = true)
-
-    private fun calculateSha256(file: File): String {
+    internal fun calculateSha256(file: File): String {
         val digest = MessageDigest.getInstance("SHA-256")
-        file.inputStream().buffered().use { input ->
+        file.inputStream().buffered().use { stream ->
             val buffer = ByteArray(1024 * 1024)
             while (true) {
-                val read = input.read(buffer)
-                if (read < 0) break
-                digest.update(buffer, 0, read)
+                val count = stream.read(buffer)
+                if (count < 0) break
+                digest.update(buffer, 0, count)
             }
         }
-        return digest.digest().joinToString("") { byte -> "%02x".format(byte) }
+        return digest.digest().joinToString("") { "%02x".format(it) }
     }
-
-    private fun downloadArchive(destination: File) {
-        check(destination.parentFile.mkdirs() || destination.parentFile.isDirectory) {
-            "Unable to create Mihomo cache directory: ${destination.parentFile}"
-        }
-        val temporary = destination.resolveSibling("${destination.name}.download")
-        if (temporary.exists()) check(temporary.delete()) { "Unable to replace $temporary" }
-        var current = URI(releaseUrl.get())
-        repeat(6) { redirectIndex ->
-            check(current.scheme.equals("https", ignoreCase = true)) {
-                "Mihomo download must remain HTTPS: $current"
-            }
-            val connection = current.toURL().openConnection() as HttpURLConnection
-            connection.instanceFollowRedirects = false
-            connection.connectTimeout = 15_000
-            connection.readTimeout = 30_000
-            connection.setRequestProperty("User-Agent", "Kiyori-Mihomo-Build/1")
-            try {
-                when (val code = connection.responseCode) {
-                    in 200..299 -> {
-                        connection.inputStream.use { input ->
-                            temporary.outputStream().buffered().use { output ->
-                                val buffer = ByteArray(1024 * 1024)
-                                var written = 0L
-                                while (true) {
-                                    val read = input.read(buffer)
-                                    if (read < 0) break
-                                    written += read
-                                    check(written <= archiveSize.get()) {
-                                        "Mihomo archive exceeded the pinned size"
-                                    }
-                                    output.write(buffer, 0, read)
-                                }
-                            }
-                        }
-                        check(isValidArchive(temporary)) {
-                            "Downloaded Mihomo archive failed the pinned size or SHA-256 contract"
-                        }
-                        Files.move(
-                            temporary.toPath(),
-                            destination.toPath(),
-                            StandardCopyOption.REPLACE_EXISTING,
-                        )
-                        return
-                    }
-                    in 300..399 -> {
-                        val location = connection.getHeaderField("Location")
-                            ?: error("Mihomo redirect has no Location header")
-                        current = current.resolve(location)
-                    }
-                    else -> error("Mihomo download failed with HTTP $code")
-                }
-            } finally {
-                connection.disconnect()
-            }
-            check(redirectIndex < 5) { "Mihomo download exceeded the redirect limit" }
-        }
-        error("Mihomo download did not produce an archive")
-    }
-
-    private fun validateAndroidArm64Elf(file: File) {
+    internal fun validateAndroidArm64Elf(file: File) {
         val bytes = file.readBytes()
         check(
             bytes.size >= 64 &&

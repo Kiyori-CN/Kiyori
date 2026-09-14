@@ -46,6 +46,37 @@ date: 2026-08-23
 
 ## 2026-09-14 内置代理导致 AI 流中断
 
+18:17 复发后的核心修复（基线 `de365e1f9268d2195bbc7fa008d5f3de48cc3f34`）：
+
+- 新无工具对话收到 HTTP 200、359 个事件和 581 个字符后，在 13579 ms 发生 chunked EOF；
+  `callCancelled=false`，核心仍健康，关键词 DIRECT 已命中。云端限时 TCP 元数据捕获未见更早
+  的服务端 FIN/RST，随后收到客户端方向 RST；这只能定位到下游链路，不能单独证明手机代码根因。
+- 已复现另一确定缺陷：Mihomo v1.19.30 所用 sing v0.5.7 在 Linux splice 返回 EINTR 时关闭
+  TCP 转发。官方 Linux 核心故障注入中，正常 204800 字节完整，注入一次 EINTR 后仅收到 3072 字节，
+  核心仍存活且不记录复制错误。该缺陷是否触发手机现场问题仍为 `verification_pending`。
+- 实施范围：固定原核心/依赖版本，从可校验源码构建，仅修复 splice 的可恢复系统调用中断；
+  不改变模型协议、路由、上游、应用请求重试或核心数量。Android 继续使用项目固定 NDK。
+- 阶段：源码补丁及可重复构建接线；读/写方向 EINTR、正常传输、真实断连回归；Android ELF、
+  APK 校验；精确审阅后提交推送。源码和构建输入固定，回滚为本轮提交的逆向变更。
+- 风险：源构建首次需要 Go 工具链和锁定依赖缓存；Linux 故障注入不能替代目标手机验证。
+
+本次验证（2026-09-14，状态 `CORE FIX VERIFIED / DEBUG APK VERIFIED / DEVICE VERIFICATION PENDING`）：
+
+- 统一回归入口对原官方 Linux 核心：正常 524288 字节通过，注入 EINTR 时 3072 字节后断流，
+  测试按预期失败；修复核心正常与注入场景均通过，97 次实际注入覆盖读/写方向，数据逐字节一致，
+  每个场景仅一个请求且确认命中关键词 DIRECT。
+- 使用生产配置生成器与 OkHttp 4.12.0 的 HTTPS 回归：首包延迟 8 秒、正文暂停 8 秒、连续
+  75 秒 SSE 均完成；主动 TLS/chunked 截断原样报错并只观察一次，四个场景共四个 POST。
+- `:buildSrc:test`：3 suites / 14 tests，无失败；CI 路由测试 17 项通过；工作流 YAML 严格解析通过。
+- `:app:assembleDebug --no-daemon --console=plain`：9m03s，通过包内核心逐字节、唯一 launcher、
+  播放器包装校验。Android 核心含修复标记、版本与原 CA 原文，AArch64/PIE/16 KiB 对齐通过。
+- Debug APK：`app/build/outputs/apk/debug/app-debug.apk`，18:50:44 +08:00，478634470 字节，
+  `com.kiyori / 45 / 0.1.0`，APK v2 签名与 zipalign 16 KiB 检查通过；SHA-256：
+  `1061f4bda463ff157f5c2235c6c1dae78acc0ee7a4d9f8a830d7645b8ecf6dce`。
+- 文档 522 个文件零问题、正式准备检查通过。没有操作手机或修改云端服务；此次未运行完整应用
+  单测、Lint、Release 和远端 CI。下一验收是在原手机开启内置 RULE/DIRECT，新建 Astra 对话，
+  覆盖首包、长回答与工具后续请求；未捕获手机 EINTR 前不能把该候选机制定为现场唯一根因。
+
 状态：`PARTIAL FIXES VERIFIED / DEBUG APK VERIFIED / LIVE EOF ROOT CAUSE PENDING`。本轮基线
 `f91821492d0a48b930894397b7a2001a43ce8675`，用户授权完成验证后提交推送到 `main`。
 

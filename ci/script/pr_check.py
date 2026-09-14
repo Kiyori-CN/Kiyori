@@ -58,6 +58,7 @@ ANDROID_FULL_PATTERNS = (
     # The production whitelist changes generated APK assets and must run the full Android lane.
     "tools/example_packages/packages_whitelist.txt",
     "tools/native_ripgrep/**",
+    "tools/mihomo_runtime/**",
 )
 ANDROID_MODULE_ROOTS = (
     "dragonbones",

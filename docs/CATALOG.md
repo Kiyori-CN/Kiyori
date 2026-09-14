@@ -1029,6 +1029,12 @@
 | --- | --- |
 | [README.md](../tools/mcp_bridge/README.md) | MCP TCP 桥接器 |
 
+## tools/mihomo_runtime
+
+| 文档 | 用途或标题 |
+| --- | --- |
+| [README.md](../tools/mihomo_runtime/README.md) | Mihomo 固定源码构建 |
+
 ## 根目录
 
 | 文档 | 用途或标题 |

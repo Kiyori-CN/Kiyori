@@ -18,6 +18,9 @@
 - 订阅 URL、清洗后的 YAML 和控制器密钥由 Android Keystore 加密，保存在 no-backup 私有目录。
 - 内嵌核心只监听随机 loopback mixed-port，不启用 TUN、LAN 入站或订阅 Controller。依赖外部 GeoSite/GeoIP/ASN 或远程 rule-provider 的规则被明确计数排除，校验不在代理启动前下载数据库。
 - RULE 中命中 DIRECT 仍由核心转发 CONNECT/TCP，核心退出会中断该连接；它不同于模块 DIRECT 绕过内置核心。
+- 内嵌核心从固定版本源码构建，输入与验证见 [Mihomo 构建契约](../../../tools/mihomo_runtime/README.md)。
+  Linux splice 的读、写 `EINTR` 只继续原系统调用，保留当前字节位置，不终止连接或重发应用请求；
+  其他传输错误仍由原路径处理。每条复制流各方向最多记录一次 EINTR 处理日志。
 - launcher 的 Linux `PDEATHSIG` 绑定创建子进程的父线程。主核心、probe 与配置校验均由专用创建线程启动，
   该线程等待子进程退出，避免协程 worker 回收误停核心；既有 runtime 保持唯一 Process 与停止所有权。
   创建/等待线程中断不代表停止授权，启动异常原样返回，宿主进程死亡仍由 launcher 终止核心。

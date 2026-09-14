@@ -13,7 +13,7 @@
 | `GenerateBundledToolPkgAssetsTask` | 生产白名单、已构建示例；验证路径、敏感文件、大小与重名 | 每个 Variant 的生成 assets |
 | `BuildNativeRipgrepTask` | Cargo manifest/lock、Rust 源码、固定 Rust/NDK/API | arm64 ripgrep JNI 库 |
 | `BuildShellIdentityLauncherTask` | 指定 C++ 源码、固定 NDK/API；验证 linker、ABI 与 16 KB 对齐 | shell asset 或 Mihomo parent-death launcher |
-| `PrepareMihomoRuntimeTask` | 固定 URL、大小与哈希；优先验证本地归档缓存 | arm64 Mihomo JNI 输入 |
+| `PrepareMihomoRuntimeTask` | 固定 Go 模块/工具链、源码补丁、CA 与 NDK；验证源码和 ELF | arm64 Mihomo JNI 输入 |
 | `VerifySingleDebugLauncherTask` | AGP 提供的合并 Manifest | 只读验证唯一 launcher，无输出文件 |
 
 任务通过带注解的 Gradle Property 显式声明输入、输出、本地缓存和机器工具链约束。
@@ -25,8 +25,9 @@ manifest 的 `distribution.include` 写了一个新目录就自动收集。随�
 不读取业务单例，不跨项目寻找 Android extension，不向源码 assets 写生成物。
 `@CacheableTask` 只用于确定性资产；本地 Rust/NDK 执行和无输出验证保持显式非缓存声明。
 
-`PrepareMihomoRuntimeTask` 保留既有 HTTPS 下载行为：仅本地归档不满足固定大小/哈希时获取
-精确版本。这里不承担包管理器安装、依赖版本决策或发布。
+`PrepareMihomoRuntimeTask` 通过 Go 获取固定模块并验证缓存，在独立临时副本应用
+[`Mihomo 源码修复`](../tools/mihomo_runtime/README.md)。APK 必须与本次已验证 ELF 字节一致；
+不覆盖共享模块缓存，不把二进制或工具链写入源码树。
 
 ## 工具链与测试
 
@@ -40,7 +41,7 @@ manifest 的 `distribution.include` 写了一个新目录就自动收集。随�
 ```
 
 行为测试使用 Gradle `ProjectBuilder` 和临时目录，覆盖真实归档内容、无效输入、Manifest 与
-固定缓存解包；不联网、不执行 native 程序、不操作设备。Rust/NDK 编译及 Android Variant
+Mihomo ELF ABI/PIE/对齐；不联网、不执行 native 程序、不操作设备。Go/Rust/NDK 编译及 Android Variant
 接线通过最终 `:app:assembleDebug` 验证。`buildSrc/build/`、`.gradle/` 等输出不提交。
 
 新增任务时必须同步 [CI 路由](../ci/script/pr_check.py)、受影响正式文档和相称的行为测试。

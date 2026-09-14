@@ -18,6 +18,7 @@
 | `localization/` | 字符串查询、统计、补齐与翻译 | 查询只读；写入和翻译入口会修改资源或调用外部模型 |
 | `mcp_bridge/` | [终端 MCP 桥](mcp_bridge/README.md) | Node.js 子工程；运行时连接按配置建立 |
 | `mihomo_parent_launcher/` | parent-death launcher C++ 源码 | 由 Gradle 编译，输出进入 app/build |
+| `mihomo_runtime/` | [固定核心源码、splice 修复与回归](mihomo_runtime/README.md) | Gradle 获取校验过的模块并构建；回归只连接本机测试服务 |
 | `native_ripgrep/` | 固定 Cargo lock 与 Rust JNI 源码 | 由 Gradle 构建 arm64 运行库 |
 | `player_native_build/` | 播放器闭包 manifest、pkg-config 与 Meson 辅助 | 由播放器依赖准备与 native 构建脚本消费 |
 | `search_packages/` | `live_verify.mjs` | 真实搜索服务验证，不作为默认离线测试 |

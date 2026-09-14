@@ -3,11 +3,7 @@ package com.kiyori.buildlogic.tasks
 import java.io.File
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
-import java.security.MessageDigest
-import java.util.zip.GZIPOutputStream
 import org.gradle.testfixtures.ProjectBuilder
-import org.junit.Assert.assertArrayEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -34,44 +30,29 @@ class PrepareMihomoRuntimeTaskTest {
         return buffer.array()
     }
 
-    private fun sha256(bytes: ByteArray): String =
-        MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }
-
-    private fun task(payload: ByteArray): PrepareMihomoRuntimeTask {
+    private fun task(): PrepareMihomoRuntimeTask {
         val project = ProjectBuilder.builder().withProjectDir(temporary.root).build()
-        val archive = File(temporary.root, "runtime.gz")
-        GZIPOutputStream(archive.outputStream()).use { it.write(payload) }
-        return project.tasks.register("prepareRuntime", PrepareMihomoRuntimeTask::class.java).get().apply {
-            releaseUrl.set("https://unused.invalid/runtime.gz")
-            archiveSize.set(archive.length())
-            archiveSha256.set(sha256(archive.readBytes()))
-            executableSize.set(payload.size.toLong())
-            executableSha256.set(sha256(payload))
-            cacheFile.set(archive)
-            outputDirectory.set(File(temporary.root, "generated"))
-        }
+        return project.tasks.register("prepareRuntime", PrepareMihomoRuntimeTask::class.java).get()
     }
 
     @Test
-    fun preparesPinnedCachedRuntimeWithoutNetwork() {
-        val payload = elf()
-        task(payload).prepare()
-        assertArrayEquals(payload, File(temporary.root, "generated/arm64-v8a/libkiyori_mihomo.so").readBytes())
+    fun acceptsAndroidPieWithLargePageAlignment() {
+        val file = temporary.newFile().apply { writeBytes(elf()) }
+        task().validateAndroidArm64Elf(file)
     }
 
     @Test
-    fun rejectsIncorrectExecutableHashBeforePublishing() {
-        val task = task(elf()).apply { executableSha256.set("0".repeat(64)) }
-        val error = assertThrows(IllegalStateException::class.java) { task.prepare() }
-        assertTrue(error.message.orEmpty().contains("SHA-256 mismatch"))
-        assertFalse(File(temporary.root, "generated/arm64-v8a/libkiyori_mihomo.so").exists())
+    fun rejectsWrongArchitecture() {
+        val bytes = elf().apply { this[18] = 62 }
+        val file = temporary.newFile().apply { writeBytes(bytes) }
+        val error = assertThrows(IllegalStateException::class.java) { task().validateAndroidArm64Elf(file) }
+        assertTrue(error.message.orEmpty().contains("AArch64"))
     }
 
     @Test
     fun rejectsNativePageMisalignment() {
-        val task = task(elf(0x1000))
-        val error = assertThrows(IllegalStateException::class.java) { task.prepare() }
+        val file = temporary.newFile().apply { writeBytes(elf(0x1000)) }
+        val error = assertThrows(IllegalStateException::class.java) { task().validateAndroidArm64Elf(file) }
         assertTrue(error.message.orEmpty().contains("PT_LOAD alignment"))
-        assertFalse(File(temporary.root, "generated/arm64-v8a/libkiyori_mihomo.so").exists())
     }
 }
