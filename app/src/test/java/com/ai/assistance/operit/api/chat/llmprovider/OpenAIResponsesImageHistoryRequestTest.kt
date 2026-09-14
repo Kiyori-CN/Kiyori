@@ -23,6 +23,23 @@ import org.mockito.Mockito
 import org.mockito.kotlin.mock
 
 class OpenAIResponsesImageHistoryRequestTest {
+    @Test
+    fun deepSeekResponsesRequestKeepsReasoningForLaterUserTurns() {
+        Mockito.mockStatic(AppLogger::class.java).use {
+            val history = listOf(
+                PromptTurn(PromptTurnKind.USER, "read"),
+                PromptTurn(PromptTurnKind.ASSISTANT, "<think>prior reasoning</think>answer"),
+                PromptTurn(PromptTurnKind.USER, "continue"),
+            )
+            val request = RequestCompiler().request(mock(), history)
+            val input = request.getJSONArray("input")
+            assertEquals("reasoning", input.getJSONObject(1).getString("type"))
+            assertEquals("prior reasoning", input.getJSONObject(1).getJSONArray("content").getJSONObject(0).getString("text"))
+            assertEquals("answer", input.getJSONObject(2).getString("content"))
+            assertEquals("continue", input.getJSONObject(3).getString("content"))
+        }
+    }
+
     @get:Rule val temporary = TemporaryFolder()
 
     @Test fun oldConversationWithInterleavedToolPreviewsCompilesForRepeatedFollowups() = runTest {

@@ -35,6 +35,7 @@ import java.net.SocketTimeoutException
 import java.net.UnknownHostException
 import java.util.UUID
 import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.first
 import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -1322,7 +1323,13 @@ class ClaudeProvider(
         }
 
         // 添加extended thinking支持
-        if (enableThinking) {
+        if (providerType == ApiProviderType.DEEPSEEK) {
+            // DeepSeek 默认开启思考，省略字段不能表达关闭；budget_tokens 也不控制其档位。
+            val quality = if (enableThinking) runBlocking {
+                ApiPreferences.getInstance(context).thinkingQualityLevelFlow.first()
+            } else 1
+            DeepSeekAnthropicReasoningCompiler.apply(jsonObject, enableThinking, quality)
+        } else if (enableThinking) {
             val format = getThinkingFormat()
             when (format) {
                 ThinkingFormat.ADAPTIVE -> {

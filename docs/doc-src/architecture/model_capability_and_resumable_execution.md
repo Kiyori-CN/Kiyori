@@ -41,7 +41,7 @@ Chat rendering
 
 ## Responses
 
-官方 `OPENAI_RESPONSES` 的 GPT-5.6 family 长推理使用 `background=true`、`store=false`。
+官方 `OPENAI_RESPONSES` 的 GPT-5.6 family / GPT-6 Astra 长推理使用 `background=true`、`store=false`。
 “官方”不是 provider 枚举名称的别名：只有 provider 类型为官方 OpenAI，且补全后的 endpoint
 精确为 `https://api.openai.com/v1/responses` 时，profile 才能声明官方合同。自定义域名即使
 沿用历史 `OPENAI_RESPONSES` 配置，也按 Responses 兼容 endpoint 编译。
@@ -55,7 +55,8 @@ GET /responses/{response_id}?stream=true&starting_after={last_sequence}
 ```
 
 Responses 兼容 endpoint 不自动声明这项能力，也不自动加入 Prompt Cache、Tool Search、
-`reasoning.summary=auto`、`reasoning.encrypted_content` 或 strict schema。GPT-5.6 的用户五档
+`reasoning.encrypted_content` 或 strict schema。已核实的 GPT-5.6 / Astra 兼容 Responses
+请求 `reasoning.summary=auto`，摘要仍以服务端实际返回为准。GPT-5.6 / Astra 的用户五档
 仍精确编译为 `low / medium / high / xhigh / max`。
 
 `response.created` 前的自动重新提交必须满足 at-most-once 边界：只有明确的 429 限流拒绝

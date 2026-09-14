@@ -61,6 +61,132 @@ status: verification_pending
   语义、视频时序、模型开关/协议切换及重启后历史媒体行为；记录模型、协议、设备、APK 哈希和
   真实请求证据，不把模型仅回答“已读取”判为通过。远端 CI 同样未验收。
 
+## 2026-09-14 跨模型协议可靠性深化
+
+状态：`LOCAL_IMPLEMENTATION_COMPLETE / LOCAL_AI_REGRESSION_PASSED / APK_VERIFIED`；
+真实服务与设备验收保持 `verification_pending`，提交与远端结果以本轮 Git 记录为准。
+本轮基线 `89dd2a4d41a9aca739322f1b2332447102416e46`，开始时 `main` 工作区干净。
+目标是修复可复现的协议、思考、工具连续性、流终态及缓存问题，并提交推送通过本地验证的交付。
+真实 endpoint、Android 交互、服务端缓存命中率及远端 CI 分别保留 `verification_pending`。
+
+### 方案与验收
+
+1. **能力与请求编译**：核实 GPT-6 Astra 与 DeepSeek 当前官方文档；在现有
+   `ModelCapabilityResolver / ModelRequestCompiler` 表达支持档位、思考关闭能力、协议工具限制和
+   不支持的参数。Astra 五档为 `low / medium / high / xhigh / max`，不支持 `none`；
+   原生工具要求 Responses。不自动改模型、协议或用户意图，不把 Codex 客户端额外档位当作公开 API 合同。
+2. **DeepSeek 三协议一致性**：检查 Chat、Responses、Anthropic 的开关与档位实际请求，统一
+   用户五档到 `low / high / max / max / max` 的既有映射。验证历史 reasoning、并行工具 ID、
+   结果闭合、文件读取结果和跨用户轮次重放；不生成缺失的思考或工具结果。
+3. **摘要与流终态**：检查 reasoning delta、summary、完成快照、无摘要响应、工具参数和正文的
+   去重；验证 EOF、HTTP 错误、取消、迟到回调及无输出退出。修复已证实问题，保留唯一失败 owner
+   和未知提交不重新 POST 的边界。
+4. **缓存与使用量**：核对稳定 system/tools 前缀、模型和路由身份、缓存键及真实 usage；
+   接入 Astra 当前支持的缓存请求字段及计量，兼容端点不自动获得官方能力。缓存不复用工具执行结果，
+   不把估算当真实命中；跨轮 effort 配置项仅在历史 owner 和协议支持均可证明时采用。
+5. **验证与交付**：新增有实际反例的 JVM 回归，运行受影响 Provider、工具历史、摘要、缓存、
+   终态和媒体测试；检查架构边界及文档，再串行构建 Debug APK，核验元数据与 SHA-256。
+   审计精确允许清单、敏感内容、子模块及远端状态，形成候选提交后检查候选树并推送 `main`。
+
+依赖现有 Provider、replay projector、execution repository、tool ledger 和共享文件能力，
+不创建第二历史或执行状态 owner。风险主要是能力误判、工具副作用重复、摘要快照重复和历史兼容性；
+各修复须在网络提交前或其既有所有者处闭环。回滚以本轮提交为单位保留 Git 可逆性，不回滚用户数据。
+本轮不操作设备、不部署或更新发行附件、不使用私密凭据调用付费模型、不新增异步工具执行架构。
+
+### 本轮权威来源
+
+- [GPT-6 Astra 模型](https://developers.openai.com/api/docs/models/gpt-6-astra)
+  与 [迁移指南](https://developers.openai.com/api/docs/guides/latest-model/gpt-6-astra)：
+  2026-09-14 实际获取，五档、无 `none`、Responses 工具限制、采样参数及缓存迁移。
+- [Background](https://developers.openai.com/api/docs/guides/background)：
+  同日核实 `store=false`、临时保留、同一 response 的 sequence 续接。
+- [DeepSeek Thinking Mode](https://api-docs.deepseek.com/guides/thinking_mode)：
+  同日核实三个协议的开关、档位和带 tools 的完整 reasoning 回传。
+- [DeepSeek Responses](https://api-docs.deepseek.com/guides/responses_api) 与
+  [Anthropic 兼容](https://api-docs.deepseek.com/guides/anthropic_api)：同日核实明文 reasoning input、
+  非流式 reasoning content、无 stateful resume、显式 thinking 开关与 effort。
+- [Prompt Caching](https://developers.openai.com/api/docs/guides/prompt-caching)：同日核实
+  `prompt_cache_options.ttl=30m`、默认 implicit、缓存写入计费桶及真实 usage 口径。
+- [GPT-5.4](https://developers.openai.com/api/docs/models/gpt-5.4)、
+  [GPT-5.5](https://developers.openai.com/api/docs/models/gpt-5.5)、
+  [GPT-4.1](https://developers.openai.com/api/docs/models/gpt-4.1)：同日核实四档与非思考边界。
+
+### 缺陷、修复与验收矩阵
+
+| 触发条件 | 根因与处理 | 自动验证与现场边界 |
+| --- | --- | --- |
+| Astra 第四/五档 | 原来落入普通三档；接入 xhigh/max 能力 | Chat/Responses、官方/兼容组合；实际服务待验收 |
+| Astra 关闭思考或 Chat 原生工具 | 服务端不支持；提交前提示合法配置，保留选择权 | 请求编译拒绝，不通过重发或切换协议消除错误 |
+| Astra 旧采样/缓存配置 | 模型不接受旧参数；按确定模型合同规范请求 | 采样、include、max tokens、缓存 TTL 与自定义 mode 保留 |
+| GPT-4.1 普通聊天 | 原来自动注入 reasoning none；非思考模型不自动生成该字段 | 已知模型及开关两侧；其他未知模型仍按声明处理 |
+| GPT-5.4/5.5 高档位 | 原来统一降为 high；按已核实模型使用 xhigh | 精确模型和日期快照；不扩大为未经核实的任意后缀 |
+| DeepSeek Responses 开关/程度 | 原 profile 没有 reasoning 映射；统一五档 | 与 Anthropic、Chat 映射一致，关闭显式 none |
+| DeepSeek Anthropic 关闭思考 | 省略参数会沿用服务端默认开启；发送 disabled | 真实 createRequestJson 路径；不使用无效 budget 控制档位 |
+| DeepSeek Responses 下一轮/文件工具 | 原来剥离 think；保留并转换真实明文 reasoning item | 真实历史编译、工具 ID、结果顺序、媒体；不修改源历史 |
+| DeepSeek 非流式思考 | 原来只读 summary；补充 reasoning.content | 明文内容解析；不请求不存在的加密或摘要能力 |
+| 摘要完成快照前后空白 | trim 改变已经交付的前缀；按原文比较 | 与既有 part/item/terminal 单调去重同一所有者 |
+| Chat 坏 JSON/服务错误/截断/无终态 EOF | 异常被吞或 EOF 被当成功；传播真实失败 | loopback 故障注入，只有一次 POST、无自动重试 |
+| Chat delta 后重复完整 message 快照 | 原来再次追加完整回答；只补尚未交付尾部，分叉拒绝 | 重复快照 HTTP 回归，正文只显示一次 |
+| Chat finish 后中转迟迟不结束 | 原来继续等待长生成超时；完成后给 usage 尾流最多五秒 | loopback 故意暂停尾流，保留正文并结束；生成中的等待不被缩短 |
+| 非流式 200 但 incomplete/failed | 原来没有检验语义终态；解析前要求成功终态 | Responses status、Chat finish reason；取消仍为取消 |
+| Astra 缓存写入 | 原计量没有读取 cache_write_tokens；互斥桶与总量校验 | 已报告、缺失、溢出/负数与统计累加；不伪造命中率 |
+| OpenAI OBJECT 参数损坏 | 原来当字符串发送；编译前明确失败，参数日志不记录值 | 请求编译及本地失败边界回归 |
+
+### 现场验收与后续里程碑
+
+本轮本地验收以请求形状、状态一致性、异常传播、唯一提交和可复现构建为完成信号。
+真实环境按以下顺序逐项记录模型精确名、供应商、协议、开关、档位、请求次数、工具次数、
+终态、首包/总时长和 usage；不能仅凭模型回答“已读取”判为文件验收通过。
+
+1. **服务矩阵**：DeepSeek 三协议、OpenAI 官方及用户实际中转的 Responses/Chat；合法开关与
+   五档逐项发送短文本，随后做读取文件 → 搜索 → 第二次读取 → 总结 → 下一用户轮次。
+   Astra Chat 只验收无原生工具的普通对话，不把拒绝非法组合计作服务故障。
+2. **工具与文件矩阵**：不存在/无权限文件、中文路径、长文件分段、并行结果乱序、目录和图片
+   读取、媒体失效、工具中取消与授权拒绝；成功必须由真实文件内容或独立结果证明，失败后能继续发送。
+3. **中断矩阵**：首包前断网、正文中断、工具结果前后中断、用户停止、模型配置刷新、后台往返；
+   重复副作用为零，错误保持可见，恢复仅使用已知 response ID，未闭合历史不进入下一请求。
+4. **缓存与流畅度**：固定系统提示/工具/相同历史，连续多轮与切换 effort、模型、压缩分别比较
+   `cached_tokens/cache_write_tokens/input_tokens`、首包、总时长和成本。客户端不承诺命中率阈值；
+   结果必须区分真实 provider usage 和本地估算，缓存写费不能被遗漏。
+5. **独立高级功能**：Astra `configuration_update` 需要把最初 effort 与后续变更 item 纳入现有
+   历史 owner，闭合编辑、分支、压缩和重启行为后再实施；当前直接更新请求 effort，缓存键本身稳定
+   不代表精确前缀不变。异步工具、WebSocket steering 同样需要独立生命周期设计，本轮不以临时字段
+   冒充支持。真实无摘要长推理的 UI、用户主动停止和网络恢复保持现场验收项。
+
+源码、schema 和依赖只做以上范围内修改；不为现场验证调用用户未授权的付费凭据或操作设备。
+
+### 2026-09-14 本地验证记录
+
+- 最终冻结源码回归：74 套件、480 项，零失败、错误和跳过。执行
+  `:app:testDebugUnitTest`，筛选 `com.ai.assistance.operit.api.chat.llmprovider.*`、
+  `*AssistantReplayHistory*`、`*ConversationMarkupManagerToolHistoryTest`、
+  `*FileMediaReadPolicyTest`、`*ToolMediaInputPipelineTest`、`*ModelMediaInputCapabilitiesTest`，
+  使用 `--no-daemon --console=plain`。
+- 串行 `./gradlew.bat :app:assembleDebug --no-daemon --console=plain` 成功，耗时 2 分 52 秒；
+  实际产物 `app/build/outputs/apk/debug/app-debug.apk`，2026-09-14 11:22:03（Asia/Shanghai），
+  485554651 字节，SHA-256 为
+  `A78A36E6B04E9649D94A19D6C12232FDFD39D5BC3A593B02AC53305123830527`。
+  `aapt dump badging` 核对 `com.kiyori / 45 / 0.1.0`、min SDK 26、target SDK 34、
+  `arm64-v8a` 和 Debug 标志；`apksigner verify --verbose` 确认 V2 单签名，
+  `zipalign -c -P 16 4` 通过。构建前后 16 个 app 文件内容摘要保持一致。
+- 74 个相关 JVM 套件首批 `478/478` 通过；随后新增完整 message 快照去重与终态后尾流等待两个
+  loopback 用例。最初将整个 HTTP 请求耗时误当作尾流时间，断言失败；改为从终态块正文到达后
+  计时，仍要求低于 6.5 秒（五秒窗口加调度余量），在完整回归中通过。网络行读取试验没有建立
+  改善证据，已撤回；最终 SSE reader 保持基线，不扩大传输改动。
+- 完整 `:app:testDebugUnitTest --no-daemon --console=plain`：487 套件、2888 项，
+  2871 通过、16 失败、1 跳过。本轮 AI/协议/历史/流新增及相关用例均通过；全仓不是绿色。
+- 16 项失败集中于 `FileManagerDirectoryLifecycleTest`（10）、`FileManagerSelectionLifecycleTest`
+  （4）、`FileManagerBrowseLifecycleTest`（1）、`FileManagerPreferencesTest`（1）。相关源码及测试
+  对本轮 HEAD 无差异；既有 `FileManagerBrowserPolicy` 第 59 行会加入 `..`，历史提交
+  `b8aa8ef42` 已引入向上导航，旧测试仍按没有父目录行的列表计数或调用 `single()`。
+  本轮不修改文件管理 UI 或降低这些断言。跳过项为既有 `BilibiliMediaLiveTest`。
+  四类隔离复跑共 53 项，仍精确复现同样 16 项失败，排除了本轮 Provider 测试顺序污染。
+- `check_architecture_boundaries.py --repository . --require-main` 与
+  `check_formal_readiness.py --repository . --require-main` 通过；文档检查 521 个文件、零问题。
+  使用项目 `.venv`，不运行无关 Lint、Release 或设备操作。
+- 本轮允许清单为 21 个文本文件；检查未发现高置信度凭据、二进制新增、链接、嵌套 `.git`、
+  缓存或产物混入。`terminal` gitlink 及子模块工作区未修改，远端 fetch 后基线无分歧。
+
 ## 目标
 
 本计划将 Kiyori 现有按 provider 分散实现的模型请求改为统一能力与执行架构。第一完整实现

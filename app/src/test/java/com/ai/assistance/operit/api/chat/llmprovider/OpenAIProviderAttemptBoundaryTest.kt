@@ -33,6 +33,104 @@ import org.mockito.kotlin.whenever
 
 class OpenAIProviderAttemptBoundaryTest {
     @Test
+    fun repeatedMessageSnapshotDoesNotRepeatVisibleAnswer() = runTest {
+        Mockito.mockStatic(com.kiyori.platform.logging.KiyoriLogger::class.java).use {
+            MockWebServer().use { server ->
+                server.enqueue(MockResponse().setBody(
+                    "data: {\"choices\":[{\"delta\":{\"content\":\"hello\"}}]}\n\n" +
+                    "data: {\"choices\":[{\"message\":{\"content\":\"hello world\"},\"finish_reason\":\"stop\"}]}\n\n" +
+                    "data: {\"choices\":[{\"message\":{\"content\":\"hello world\"},\"finish_reason\":\"stop\"}]}\n\n" +
+                    "data: [DONE]\n\n"))
+                server.start()
+                val provider = FaultInjectionProvider(server.url("/v1/chat/completions").toString(), OkHttpClient())
+                val output = StringBuilder()
+                provider.sendMessage(mock(), listOf(PromptTurn(PromptTurnKind.USER, "hello")),
+                    emptyList(), false, true, null, providerRequestContext = null).collect { output.append(it) }
+                assertEquals("hello world", output.toString())
+                assertEquals(1, server.requestCount)
+            }
+        }
+    }
+
+    @Test
+    fun completedChatDoesNotWaitForTheLongGenerationTimeoutWhenTailStalls() = runTest {
+        Mockito.mockStatic(com.kiyori.platform.logging.KiyoriLogger::class.java).use {
+            MockWebServer().use { server ->
+                val terminal = "data: {\"choices\":[{\"delta\":{\"content\":\"done\"},\"finish_reason\":\"stop\"}]}\n\n"
+                server.enqueue(MockResponse().setBody(terminal + ": never needed\n\n")
+                    .throttleBody(terminal.toByteArray().size.toLong(), 7, TimeUnit.SECONDS))
+                server.start()
+                val provider = FaultInjectionProvider(server.url("/v1/chat/completions").toString(),
+                    OkHttpClient.Builder().readTimeout(30, TimeUnit.SECONDS).build())
+                val output = StringBuilder()
+                val started = System.nanoTime()
+                var lastContentAt = 0L
+                provider.sendMessage(mock(), listOf(PromptTurn(PromptTurnKind.USER, "hello")),
+                    emptyList(), false, true, null, providerRequestContext = null).collect {
+                    output.append(it)
+                    lastContentAt = System.nanoTime()
+                }
+                val finished = System.nanoTime()
+                val elapsed = TimeUnit.NANOSECONDS.toMillis(finished - lastContentAt)
+                val total = TimeUnit.NANOSECONDS.toMillis(finished - started)
+                assertTrue("terminal tail wait took $elapsed ms; whole request $total ms", lastContentAt > 0 && elapsed < 6500)
+                assertEquals("done", output.toString())
+                assertEquals(1, server.requestCount)
+            }
+        }
+    }
+
+    @Test
+    fun malformedErrorTruncationAndMissingTerminalNeverBecomeSuccessOrRetry() = runTest {
+        Mockito.mockStatic(com.kiyori.platform.logging.KiyoriLogger::class.java).use {
+            val cases = listOf(
+                "data: {bad-json}\n\n",
+                "data: {\"error\":{\"message\":\"provider rejected\",\"type\":\"server_error\"}}\n\n",
+                "data: {\"choices\":[{\"delta\":{\"content\":\"partial\"}}]}\n\n",
+                "data: {\"choices\":[{\"delta\":{},\"finish_reason\":\"length\"}]}\n\n",
+                "data: {\"choices\":[{\"delta\":{},\"finish_reason\":\"content_filter\"}]}\n\n",
+            )
+            for (body in cases) MockWebServer().use { server ->
+                server.enqueue(MockResponse().setBody(body))
+                server.start()
+                val context = mock<Context>()
+                whenever(context.getString(any())).thenReturn("request failed")
+                val provider = FaultInjectionProvider(server.url("/v1/chat/completions").toString(),
+                    OkHttpClient.Builder().retryOnConnectionFailure(false).build())
+                var retryCount = 0
+                val failure = runCatching {
+                    provider.sendMessage(context, listOf(PromptTurn(PromptTurnKind.USER, "hello")),
+                        emptyList(), false, true, null, providerRequestContext = null,
+                        onNonFatalError = { retryCount++ }).collect { }
+                }.exceptionOrNull()
+                assertNotNull(body, failure)
+                assertEquals(1, server.requestCount)
+                assertEquals(0, retryCount)
+                assertFalse(failure is UserCancellationException)
+            }
+        }
+    }
+
+    @Test
+    fun lastDeltaWithFinishReasonIsDeliveredOnceAndUsageOnlyTailIsAccepted() = runTest {
+        Mockito.mockStatic(com.kiyori.platform.logging.KiyoriLogger::class.java).use {
+            MockWebServer().use { server ->
+                server.enqueue(MockResponse().setBody(
+                    "data: {\"choices\":[{\"delta\":{\"content\":\"last\"},\"finish_reason\":\"stop\"}]}\n\n" +
+                    "data: {\"choices\":[],\"usage\":{\"prompt_tokens\":10,\"completion_tokens\":1}}\n\n" +
+                    "data: [DONE]\n\n"))
+                server.start()
+                val provider = FaultInjectionProvider(server.url("/v1/chat/completions").toString(), OkHttpClient())
+                val output = StringBuilder()
+                provider.sendMessage(mock(), listOf(PromptTurn(PromptTurnKind.USER, "hello")),
+                    emptyList(), false, true, null, providerRequestContext = null).collect { output.append(it) }
+                assertEquals("last", output.toString())
+                assertEquals(1, server.requestCount)
+            }
+        }
+    }
+
+    @Test
     fun responseBodyInterruptionDoesNotCreateSecondChatCompletionPost() = runTest {
         Mockito.mockStatic(Log::class.java).use {
             MockWebServer().use { server ->

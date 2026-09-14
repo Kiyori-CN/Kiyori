@@ -69,6 +69,7 @@ data class ModelCapabilityProfile(
     val promptCacheNamespace: String?,
     val toolSchema: ToolSchemaCapability,
     val toolDiscovery: ToolDiscoveryCapability,
+    val supportsDisabledThinking: Boolean = true,
 ) {
     init {
         require(profileId.isNotBlank()) { "profileId must not be blank" }
@@ -179,8 +180,11 @@ object ModelCapabilityResolver {
         val isDeepSeekResponses =
             providerIdentityType == ApiProviderType.DEEPSEEK && isResponses
         val isGpt56Family = normalizedModel.startsWith("gpt-5.6")
+        val isAstra = normalizedModel == "gpt-6-astra" ||
+            Regex("gpt-6-astra-\\d{4}-\\d{2}-\\d{2}").matches(normalizedModel)
 
-        if (isGpt56Family && reasoningWireFormat != ReasoningWireFormat.NONE) {
+        if ((isGpt56Family || isAstra) && !isDeepSeekResponses && reasoningWireFormat != ReasoningWireFormat.NONE) {
+            val family = if (isAstra) "gpt-6-astra" else "gpt-5.6"
             val tier =
                 when (normalizedModel) {
                     "gpt-5.6-sol" -> "sol"
@@ -195,14 +199,15 @@ object ModelCapabilityResolver {
                     ProviderContractAuthority.NOT_APPLICABLE -> "provider"
                 }
             return ModelCapabilityProfile(
-                profileId = "$contractId-gpt-5.6-$tier-v2",
-                modelFamily = "gpt-5.6",
+                profileId = "$contractId-$family-$tier-v2",
+                modelFamily = family,
+                supportsDisabledThinking = !isAstra,
                 providerContractAuthority = providerContractAuthority,
                 reasoningWireFormat = reasoningWireFormat,
                 supportedReasoningEfforts = FIVE_LEVEL_REASONING.toSet(),
                 qualityLevelToReasoningEffort = FIVE_LEVEL_REASONING,
                 reasoningSummary =
-                    if (isOfficialResponses) {
+                    if (isResponses) {
                         ReasoningSummaryCapability.OPENAI_AUTO
                     } else {
                         ReasoningSummaryCapability.NONE
@@ -234,7 +239,7 @@ object ModelCapabilityResolver {
                     },
                 promptCacheNamespace =
                     if (isOfficialResponses) {
-                        "kiyori:openai:gpt-5.6:$tier:v1"
+                        "kiyori:openai:$family:$tier:v1"
                     } else {
                         null
                     },
@@ -254,6 +259,14 @@ object ModelCapabilityResolver {
         }
 
         if (reasoningWireFormat != ReasoningWireFormat.NONE) {
+            val isNonReasoningModel = Regex("gpt-(?:4(?:\\.1|o)?|3\\.5)(?:-|$).*").matches(normalizedModel)
+            val isFourLevelGpt = Regex("gpt-5\\.[45](?:-\\d{4}-\\d{2}-\\d{2})?").matches(normalizedModel)
+            val mapping = when {
+                isNonReasoningModel -> emptyList()
+                isFourLevelGpt -> listOf(ReasoningEffortValue.LOW, ReasoningEffortValue.MEDIUM,
+                    ReasoningEffortValue.HIGH, ReasoningEffortValue.XHIGH, ReasoningEffortValue.XHIGH)
+                else -> STANDARD_REASONING_QUALITY_MAPPING
+            }
             val contractId =
                 when (providerContractAuthority) {
                     ProviderContractAuthority.OPENAI_OFFICIAL -> "openai-official"
@@ -266,7 +279,8 @@ object ModelCapabilityResolver {
                     modelFamily = normalizedModel.ifBlank { "deepseek" },
                     providerContractAuthority = providerContractAuthority,
                     reasoningWireFormat = ReasoningWireFormat.RESPONSES,
-                    supportedReasoningEfforts = emptySet(),
+                    supportedReasoningEfforts = DeepSeekReasoningPolicy.qualityMapping.toSet(),
+                    qualityLevelToReasoningEffort = DeepSeekReasoningPolicy.qualityMapping,
                     reasoningSummary = ReasoningSummaryCapability.NONE,
                     reasoningReplay = ReasoningReplayCapability.NONE,
                     // DeepSeek does not expose a proven response resume contract, but a submitted
@@ -284,9 +298,10 @@ object ModelCapabilityResolver {
                 modelFamily = normalizedModel.ifBlank { "openai-compatible" },
                 providerContractAuthority = providerContractAuthority,
                 reasoningWireFormat = reasoningWireFormat,
-                supportedReasoningEfforts = STANDARD_REASONING_EFFORTS,
-                qualityLevelToReasoningEffort = STANDARD_REASONING_QUALITY_MAPPING,
-                reasoningSummary = ReasoningSummaryCapability.NONE,
+                supportedReasoningEfforts = mapping.toSet(),
+                qualityLevelToReasoningEffort = mapping,
+                reasoningSummary = if (isFourLevelGpt && isResponses) ReasoningSummaryCapability.OPENAI_AUTO
+                    else ReasoningSummaryCapability.NONE,
                 reasoningReplay = ReasoningReplayCapability.NONE,
                 executionPersistence =
                     if (isResponses) {
@@ -334,13 +349,6 @@ object ModelCapabilityResolver {
             ReasoningEffortValue.HIGH,
             ReasoningEffortValue.XHIGH,
             ReasoningEffortValue.MAX,
-        )
-
-    private val STANDARD_REASONING_EFFORTS =
-        setOf(
-            ReasoningEffortValue.LOW,
-            ReasoningEffortValue.MEDIUM,
-            ReasoningEffortValue.HIGH,
         )
 
     private val STANDARD_REASONING_QUALITY_MAPPING =
@@ -420,7 +428,12 @@ object ModelRequestCompiler {
             when {
                 profile.reasoningWireFormat == ReasoningWireFormat.NONE -> null
                 profile.supportedReasoningEfforts.isEmpty() -> null
-                !intent.enableThinking -> ReasoningEffortValue.NONE
+                !intent.enableThinking -> {
+                    require(profile.supportsDisabledThinking) {
+                        "${profile.modelFamily} 不支持关闭思考（none）；请开启思考并选择 low 至 max。"
+                    }
+                    ReasoningEffortValue.NONE
+                }
                 else -> {
                     profile.reasoningEffortForQualityLevel(intent.thinkingQualityLevel)
                 }
@@ -455,4 +468,17 @@ object ModelRequestCompiler {
         )
     }
 
+}
+
+/** 三种 DeepSeek 协议共用用户档位，协议适配器只负责字段形状。 */
+internal object DeepSeekReasoningPolicy {
+    val qualityMapping = listOf(
+        ReasoningEffortValue.LOW, ReasoningEffortValue.HIGH, ReasoningEffortValue.MAX,
+        ReasoningEffortValue.MAX, ReasoningEffortValue.MAX,
+    )
+
+    fun effort(level: Int): String {
+        require(level in 1..5) { "thinkingQualityLevel must be in 1..5" }
+        return qualityMapping[level - 1].wireValue
+    }
 }

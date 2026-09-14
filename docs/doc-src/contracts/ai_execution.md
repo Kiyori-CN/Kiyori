@@ -72,22 +72,37 @@
 
 - “思考模式”与现有 `thinking_quality_level: 1..5` 是唯一用户 reasoning 接口。普通 OpenAI
   Chat Completions / Responses profile 的五档显式映射为 `low / low / medium / high / high`；
-  关闭思考固定编译为 `none`。`gpt-5.6*` 前缀模型使用 Codex 五档
+  支持关闭思考的模型编译为 `none`。`gpt-5.6*` 与已核实的 `gpt-6-astra` 使用 Codex 五档
   `low / medium / high / xhigh / max`。Pro、Fast、Ultra、传输和执行持久性不是第六档，
   也不能改写用户选择的五档。
+- Astra 不支持 `none`；关闭思考时在本地提示开启思考，不发送非法请求，不静默改为 low。
+  原生工具调用要求 Responses，Chat 下在提交前提示修改协议。Astra 请求移除不支持的
+  `temperature/top_p/top_logprobs/logprobs` 与 output logprobs include；Chat 的旧 `max_tokens`
+  规范为 `max_completion_tokens`。官方端点使用 `prompt_cache_options.ttl=30m`，不携带旧
+  retention；兼容端点不自动增加缓存选项。识别只覆盖 Astra 精确名称与日期快照，不推断未知别名。
+- 精确 `gpt-5.4/gpt-5.5` 及日期快照使用 `low/medium/high/xhigh/xhigh`；
+  已知 GPT-4、GPT-4.1、GPT-4o 和 GPT-3.5 不自动附加 reasoning 参数。
+- DeepSeek Chat、Responses、Anthropic 共享 `low/high/max/max/max` 五档映射。
+  Chat 显式设置 `thinking.type` 与 `reasoning_effort`，Responses 使用 `reasoning.effort`
+  （关闭为 `none`），Anthropic 显式设置 `thinking.type` 与 `output_config.effort`。
+  DeepSeek 不沿用 Anthropic 的 token budget；偏好读取失败必须传播，不能静默使用供应商默认。
+- DeepSeek Responses 历史保留真实 `<think>` 内容，在 wire 层转换为相邻 assistant 前的
+  明文 `reasoning.content` item；普通正文、工具 ID、工具结果顺序和媒体保持原有闭合合同。
+  OpenAI encrypted reasoning 与 DeepSeek 明文 reasoning 按供应商隔离，不跨协议伪造元数据。
+  非流式 DeepSeek 的 reasoning content 同样进入可见思考区。
 - `ModelCapabilityResolver` 与 `ModelRequestCompiler` 是模型能力和 wire 参数的语义所有者。
-  所有 `gpt-5.6*` 前缀模型进入同一 Codex reasoning profile；普通 OpenAI/兼容模型仍可在
-  已声明 reasoning 能力的情况下使用思考模式，但不会使用 `xhigh` 或 `max`。官方能力同时
+  `gpt-5.6*` 与 Astra 进入对应 Codex reasoning profile；其他模型按上述映射和声明能力
+  使用思考模式，不能发送未声明档位。官方能力同时
   要求 provider 类型为官方 OpenAI，并且补全后的请求地址精确属于
   `https://api.openai.com/v1/responses`；仅保存为 `OPENAI_RESPONSES` 不能把 Pipio、Pixel、
-  Sekiro 或其他自定义地址提升为官方合同。`gpt-5.6* + Responses` 在官方和兼容 endpoint
+  Sekiro 或其他自定义地址提升为官方合同。`gpt-5.6* / Astra + Responses` 在官方和兼容 endpoint
   上都请求 `summary=auto`，使服务端真实返回的 reasoning summary 可以进入现有
   `<think>` 可见消息；兼容 Responses 仍不得自动获得 Background、sequence resume、
   Prompt Cache、Tool Search、`reasoning.encrypted_content` 或 strict schema。摘要增量、
   part 完成、output item 完成和终态快照由一个单调 projection 去重；内容分叉必须报协议
   错误，不能拼接损坏文本。普通 OpenAI Chat 请求使用 `reasoning_effort`，Responses 请求
   使用 `reasoning.effort`。
-- 官方 GPT-5.6 Responses 使用 `background=true`、`store=false`。`ProviderRequestContext`
+- 官方 GPT-5.6 / Astra Responses 使用 `background=true`、`store=false`。`ProviderRequestContext`
   在模型请求前固定 chat、message timestamp、variant 与 hop；`ProviderExecutionRepository`
   持久化 response ID、事件和单调 sequence cursor。未应用事件使用 `-1` 哨兵，官方
   Responses 首事件固定从 `sequence_number=1` 开始，后续事件必须严格连续。已知 response ID
@@ -100,8 +115,9 @@
   保持原样，当前回合以可见错误结束。
 - Responses 请求使用独立的 OkHttp client 并固定为 HTTP/1.1；该 client 不保留空闲连接，且关闭
   OkHttp 的连接失败重试，因此每个串行工具 hop 在上一个流释放后新建连接，一次 Provider 语义
-  提交也只对应一个 POST。Chat Completions、Anthropic Messages 和其他 AI 请求继续使用原有的
-  `HTTP_2 + HTTP_1_1`、10 条空闲连接与连接失败重试。该传输选择不改变序列化 `ApiProtocol`、
+  提交也只对应一个 POST。DeepSeek Chat 同样使用独立 HTTP/1.1 短连接；其他 Chat、Anthropic
+  和 AI 请求保留 `HTTP_2 + HTTP_1_1` 与 10 条空闲连接，但同样禁用透明连接失败重试。
+  该传输选择不改变序列化 `ApiProtocol`、
   endpoint、provider、model、key 或 at-most-once 提交状态机；未知提交状态仍不重新 POST。
 - `OpenAIResponsesExecutionPersistence` 是可恢复 Responses 协调器的持久化依赖边界；生产
   唯一实现直接委托 `ProviderExecutionRepository`，不持有第二份执行状态。本地 JVM 故障注入
@@ -245,3 +261,13 @@
   精确输入前缀与供应商策略。编辑消息、压缩历史、修改系统提示或工具定义均可能影响后续命中。
 - Responses 按 SSE 事件边界合并多行 data，再处理 JSON。收到 `response.completed` 后立即收尾，
   不等待中转关闭连接或额外 `[DONE]`；没有完成事件的 EOF 继续显式失败，不重发未知提交。
+- Chat SSE 的 JSON、error payload、工具身份异常原样进入失败链，不吞掉坏块后伪报完成。
+  缺少 `finish_reason` 与 `[DONE]` 的 EOF 显式失败；`length/content_filter` 不是成功终态。
+  同块正文先交付再处理终态，usage-only 尾块仍可更新统计。非流式 Responses 必须为
+  `status=completed`，非流式 Chat 必须具有成功 finish reason；取消异常不包装为解析失败。
+- Chat 的完整 message 快照只补齐增量后尚未交付的尾部，重复快照不重复回答，分叉显式失败。
+  成功 finish reason 后最多等待五秒可选 usage 尾流，超时以已经确认的成功终态收尾；
+  生成过程仍沿用原超时和取消合同，没有 finish reason 时不能获得这一成功豁免。
+- reasoning item 的完成快照保留文本首尾空白，与 delta 按相同字节语义比较，不能 trim 后误报分叉。
+  OpenAI usage 的 `cache_write_tokens` 与普通输入、缓存读取形成互斥桶；三者之和等于输入总量。
+  负数或超出总量的缓存计量标为 `INVALID`，不进入真实缓存命中率。

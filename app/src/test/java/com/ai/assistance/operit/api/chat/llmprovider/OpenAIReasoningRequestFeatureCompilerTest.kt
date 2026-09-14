@@ -52,7 +52,7 @@ class OpenAIReasoningRequestFeatureCompilerTest {
     }
 
     @Test
-    fun compatibleGpt56Responses_usesReasoningEffortWithoutOfficialReasoningExtras() {
+    fun compatibleGpt56Responses_requestsSummaryWithoutOfficialExecutionExtras() {
         val requestJson = JSONObject()
 
         OpenAIResponsesRequestFeatureCompiler.apply(
@@ -70,7 +70,7 @@ class OpenAIReasoningRequestFeatureCompilerTest {
 
         val reasoning = requestJson.getJSONObject("reasoning")
         assertEquals("xhigh", reasoning.getString("effort"))
-        assertFalse(reasoning.has("summary"))
+        assertEquals("auto", reasoning.getString("summary"))
         assertFalse(requestJson.has("include"))
         assertFalse(requestJson.has("background"))
         assertFalse(requestJson.has("store"))

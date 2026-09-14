@@ -71,7 +71,7 @@ open class DeepseekProvider(
             }
 
             val effort = resolveDeepseekThinkingEffort(context)
-            if (effort != null && !jsonObject.has("reasoning_effort")) {
+            if (!jsonObject.has("reasoning_effort")) {
                 jsonObject.put("reasoning_effort", effort)
             }
         }
@@ -453,26 +453,12 @@ open class DeepseekProvider(
         return messagesArray
     }
 
-    private fun resolveDeepseekThinkingEffort(context: Context): String? {
-        val qualityLevel = runCatching {
+    private fun resolveDeepseekThinkingEffort(context: Context): String {
+        val qualityLevel =
             runBlocking {
                 ApiPreferences.getInstance(context).thinkingQualityLevelFlow.first()
             }
-        }.getOrElse {
-            AppLogger.w(
-                "DeepseekProvider",
-                "Failed to read thinking quality level for DeepSeek, using provider default",
-                it
-            )
-            return null
-        }
-
-        val efforts = listOf("low", "high", "max", "max", "max")
-        val qualityIndex = qualityLevel.coerceIn(
-            ApiPreferences.MIN_THINKING_QUALITY_LEVEL,
-            ApiPreferences.MAX_THINKING_QUALITY_LEVEL
-        ) - 1
-        return efforts[qualityIndex]
+        return DeepSeekReasoningPolicy.effort(qualityLevel)
     }
 
     override suspend fun sendMessage(

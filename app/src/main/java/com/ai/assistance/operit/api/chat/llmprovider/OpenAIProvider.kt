@@ -68,6 +68,7 @@ internal object OpenAIChatRequestFeatureCompiler {
         requestJson: JSONObject,
         compiledRequest: CompiledModelRequest,
     ) {
+        OpenAIModelRequestConstraints.apply(requestJson, compiledRequest.profile)
         val effort = compiledRequest.reasoningEffort ?: return
         requestJson.put("reasoning_effort", effort.wireValue)
     }
@@ -208,7 +209,7 @@ open class OpenAIProvider(
         onTokensUpdated: suspend (input: Int, cachedInput: Int, output: Int) -> Unit
     ) {
         val parsed = OpenAIResponsesPayloadAdapter.parseUsageCounts(usage) ?: return
-        tokenCacheManager.updateActualTokens(parsed.actualInputTokens, parsed.cachedInputTokens)
+        tokenCacheManager.updateActualTokens(parsed.actualInputTokens + parsed.cacheWriteTokens, parsed.cachedInputTokens)
         tokenCacheManager.setOutputTokens(parsed.outputTokens)
         latestProviderUsageSnapshot =
             ProviderUsageSnapshot(
@@ -673,15 +674,11 @@ open class OpenAIProvider(
                             AppLogger.w("AIService", "OBJECT参数解析失败: ${param.apiName}", e)
                             null
                         }
-                        if (parsed != null) {
-                            jsonObject.put(mappedApiName, parsed)
-                        } else {
-                            // 解析失败则按字符串传递，避免崩溃
-                            jsonObject.put(mappedApiName, raw)
-                        }
+                        require(parsed != null) { "OpenAI OBJECT 参数必须是有效 JSON 对象或数组：${param.apiName}" }
+                        jsonObject.put(mappedApiName, parsed)
                     }
                 }
-                AppLogger.d("AIService", "添加参数 ${param.apiName} = ${param.currentValue}")
+                AppLogger.d("AIService", "添加参数 ${param.apiName}, type=${param.valueType}")
             }
         }
 
@@ -710,13 +707,15 @@ open class OpenAIProvider(
             chatHistory,
             effectiveEnableToolCall,
             toolsJson,
-            preserveThinkInHistory
+            preserveThinkInHistory || (useResponsesApi && providerType == ApiProviderType.DEEPSEEK)
         )
         jsonObject.put("messages", messagesArray)
 
         val finalRequestObject =
             if (useResponsesApi) {
-                OpenAIResponsesPayloadAdapter.toResponsesRequest(jsonObject)
+                OpenAIResponsesPayloadAdapter.toResponsesRequest(
+                    jsonObject, plainReasoningReplay = providerType == ApiProviderType.DEEPSEEK,
+                )
             } else {
                 jsonObject
             }
@@ -2213,6 +2212,7 @@ open class OpenAIProvider(
         var hasEmittedThinkStart: Boolean = false,
         var hasEmittedRegularContent: Boolean = false,
         val streamedRegularContent: StringBuilder = StringBuilder(),
+        val streamedReasoningContent: StringBuilder = StringBuilder(),
         val reasoningProjection: OpenAIResponsesReasoningProjection =
             OpenAIResponsesReasoningProjection(),
         var reasoningObserved: Boolean = false,
@@ -2223,6 +2223,8 @@ open class OpenAIProvider(
         val imageBuffers: MutableMap<Int, ImageBufferState> = mutableMapOf(),
         var providerResponseId: String? = null,
         var hasCompletedResponsesTerminal: Boolean = false,
+        var chatFinishReason: String? = null,
+        var chatDoneReceived: Boolean = false,
     )
 
     /**
@@ -2502,7 +2504,7 @@ open class OpenAIProvider(
         if (summaryArray != null) {
             for (i in 0 until summaryArray.length()) {
                 val summaryPart = summaryArray.optJSONObject(i) ?: continue
-                val text = summaryPart.optString("text", "").trim()
+                val text = summaryPart.optString("text", "")
                 if (text.isNotEmpty()) {
                     chunks.add(text)
                 }
@@ -2513,7 +2515,7 @@ open class OpenAIProvider(
         if (contentArray != null) {
             for (i in 0 until contentArray.length()) {
                 val contentPart = contentArray.optJSONObject(i) ?: continue
-                val text = contentPart.optString("text", "").trim()
+                val text = contentPart.optString("text", "")
                 if (text.isNotEmpty()) {
                     chunks.add(text)
                 }
@@ -3019,6 +3021,12 @@ open class OpenAIProvider(
             return
         }
 
+        // 截断和过滤不是成功终态；关闭尚未完整的工具 XML 会使其提前进入副作用执行。
+        require(normalizedFinishReason in setOf("stop", "tool_calls", "function_call")) {
+            "AI_CHAT_INCOMPLETE: finish_reason=$normalizedFinishReason"
+        }
+        state.chatFinishReason = normalizedFinishReason
+
         if (hasOpenToolCalls(state)) {
             closeAllOpenToolCalls(state, emitter)
             AppLogger.d("AIService", "Tool Call流式收尾，finish_reason=$normalizedFinishReason")
@@ -3057,6 +3065,7 @@ open class OpenAIProvider(
                 }
             }
             emitter.emitContent(reasoningContent, reasoning = true)
+            state.streamedReasoningContent.append(reasoningContent)
         }
         // 处理常规内容
         if (hasRegular) {
@@ -3141,17 +3150,15 @@ open class OpenAIProvider(
                 processToolCallsDelta(toolCallsDeltas, state, emitter)
             }
 
-            // 处理完成原因
-            if (finishReason.isNotEmpty()) {
-                handleFinishReason(finishReason, state, emitter, onTokensUpdated)
-            }
-
             // 处理内容
             val reasoningContent = delta.optString("reasoning_content", "").ifBlank {
                 delta.optString("reasoning", "")
             }
             val regularContent = delta.optString("content", "")
             processContentDelta(reasoningContent, regularContent, state, emitter)
+            if (finishReason.isNotEmpty()) {
+                handleFinishReason(finishReason, state, emitter, onTokensUpdated)
+            }
         }
         // 处理message格式（非流式响应）
         else {
@@ -3163,13 +3170,15 @@ open class OpenAIProvider(
                 val regularContent = message.optString("content", "")
 
                 // 先处理思考内容（如果有）
-                if (reasoningContent.isNotNullOrEmpty() && !state.hasEmittedRegularContent) {
-                    emitter.emitThinkContent(reasoningContent)
-                }
-                // 然后处理常规内容
-                if (regularContent.isNotNullOrEmpty()) {
-                    state.hasEmittedRegularContent = true
-                    emitter.emitContent(regularContent)
+                val missingReasoning = OpenAIResponseTerminalPolicy.missingChatSnapshotSuffix(
+                    state.streamedReasoningContent.toString(), reasoningContent,
+                )
+                val missingContent = OpenAIResponseTerminalPolicy.missingChatSnapshotSuffix(
+                    state.streamedRegularContent.toString(), regularContent,
+                )
+                processContentDelta(missingReasoning, missingContent, state, emitter)
+                if (!choice.isNull("finish_reason")) {
+                    handleFinishReason(choice.optString("finish_reason"), state, emitter, onTokensUpdated)
                 }
             }
         }
@@ -3188,15 +3197,25 @@ open class OpenAIProvider(
         session: ProviderStreamSessionGate.Session,
         state: StreamingState = StreamingState(),
         responsesPersistenceSession: ResponsesPersistenceSession? = null,
+        onChatTerminal: () -> Unit = {},
     ) {
         try {
             // 使用 while 循环读取流式响应
             val eventReader = ServerSentEventReader(reader)
             while (true) {
                 checkCancellation(context, session)
-                val data = eventReader.readData()?.trim() ?: break
+                val data = try {
+                    eventReader.readData()?.trim()
+                } catch (timeout: java.io.InterruptedIOException) {
+                    checkCancellation(context, session)
+                    // finish_reason 已确认生成成功；只为可选 usage 尾块等待一个有限窗口。
+                    // 推理未结束时仍传播超时，绝不以时间流逝伪造完成。
+                    if (!useResponsesApi && state.chatFinishReason != null) break
+                    throw timeout
+                } ?: break
                 if (data.isEmpty()) continue
                 if (data == "[DONE]") {
+                    state.chatDoneReceived = true
                     flushImageBuffers(state, emitter)
                     closeAllOpenToolCalls(state, emitter)
                     if (state.isInReasoningMode) {
@@ -3251,7 +3270,9 @@ open class OpenAIProvider(
                             continue
                         }
                     }
+                    val hadChatTerminal = state.chatFinishReason != null
                     processResponseChunk(jsonResponse, state, emitter, onTokensUpdated)
+                    if (!hadChatTerminal && state.chatFinishReason != null) onChatTerminal()
                 } catch (cancelled: kotlinx.coroutines.CancellationException) {
                     throw cancelled
                 } catch (e: IOException) {
@@ -3263,15 +3284,16 @@ open class OpenAIProvider(
                             cause = e,
                         )
                     }
-                    AppLogger.w(
-                        "AIService",
-                        "【发送消息】JSON解析错误: ${e.javaClass.simpleName}; " +
-                            LlmLogPrivacy.summarizeText(data).format()
-                    )
+                    // 协议错误、服务端 error 和工具身份冲突必须抵达唯一失败 owner。
+                    // 跳过坏块会把不完整回答或工具参数伪装成正常完成。
+                    throw e
                 }
             }
 
             val persistedResponsesState = responsesPersistenceSession?.executionState
+            if (!useResponsesApi && !state.chatDoneReceived && state.chatFinishReason == null) {
+                throw IOException("AI_CHAT_TERMINAL_MISSING: stream ended without finish_reason or [DONE]")
+            }
             if (persistedResponsesState != null && !persistedResponsesState.isTerminal) {
                 val responseId =
                     persistedResponsesState.remoteResponseId
@@ -4206,6 +4228,9 @@ open class OpenAIProvider(
                                 context,
                                 session,
                                 state = attemptStreamingState,
+                                onChatTerminal = {
+                                    responseBody.source().timeout().deadline(5, java.util.concurrent.TimeUnit.SECONDS)
+                                },
                             )
                         } else {
                             AppLogger.d("AIService", "[req=$requestTraceId] 【发送消息】开始读取非流式响应")
@@ -4218,6 +4243,7 @@ open class OpenAIProvider(
                                 val jsonResponse = JSONObject(responseText)
                                 throwIfOpenAiErrorPayload(context, jsonResponse)
                                 val handledImages = tryHandleOpenAiImageResponse(jsonResponse, emitter, null)
+                                if (!handledImages) OpenAIResponseTerminalPolicy.requireComplete(jsonResponse, useResponsesApi)
 
                                 if (useResponsesApi) {
                                     val parsed = OpenAIResponsesPayloadAdapter.parseNonStreamingResponse(jsonResponse)
@@ -4297,6 +4323,8 @@ open class OpenAIProvider(
                                 applyUsageToCounters(jsonResponse.optJSONObject("usage"), onTokensUpdated)
 
                                 AppLogger.d("AIService", "[req=$requestTraceId] 【发送消息】非流式响应处理完成")
+                            } catch (e: CancellationException) {
+                                throw e
                             } catch (e: IOException) {
                                 throw e
                             } catch (e: Exception) {

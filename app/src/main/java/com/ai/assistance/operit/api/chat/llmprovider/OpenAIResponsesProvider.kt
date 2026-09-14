@@ -225,6 +225,7 @@ internal object OpenAIResponsesRequestFeatureCompiler {
         compiledRequest: CompiledModelRequest,
         stream: Boolean,
     ) {
+        OpenAIModelRequestConstraints.apply(requestJson, compiledRequest.profile)
         applyReasoning(
             requestJson = requestJson,
             compiledRequest = compiledRequest,
@@ -334,12 +335,17 @@ object OpenAIResponsesPayloadAdapter {
             }
         val cachedInputTokens = rawCachedInputTokens.coerceAtLeast(0)
         val boundedCachedInputTokens = cachedInputTokens.coerceAtMost(totalInputTokens)
+        val hasCacheWriteMetric = cachedDetails?.has("cache_write_tokens") == true
+        val rawCacheWriteTokens = cachedDetails?.optInt("cache_write_tokens", 0) ?: 0
+        val cacheWriteTokens = rawCacheWriteTokens.coerceIn(0, totalInputTokens - boundedCachedInputTokens)
         val cacheMetricState =
             when {
-                !hasCacheMetric -> ProviderCacheMetricState.NOT_REPORTED
+                !hasCacheMetric && !hasCacheWriteMetric -> ProviderCacheMetricState.NOT_REPORTED
                 rawTotalInputTokens < 0 ||
                     rawCachedInputTokens < 0 ||
-                    rawCachedInputTokens > totalInputTokens ->
+                    rawCachedInputTokens > totalInputTokens ||
+                    rawCacheWriteTokens < 0 ||
+                    rawCacheWriteTokens.toLong() + rawCachedInputTokens > totalInputTokens ->
                     ProviderCacheMetricState.INVALID
                 else -> ProviderCacheMetricState.REPORTED
             }
@@ -357,13 +363,14 @@ object OpenAIResponsesPayloadAdapter {
                 usage.has("input_tokens") ||
                 usage.has("completion_tokens") ||
                 usage.has("output_tokens") ||
-                hasCacheMetric
+                hasCacheMetric || hasCacheWriteMetric
 
         return if (hasUsageFields) {
             UsageCounts(
                 totalInputTokens = totalInputTokens,
-                actualInputTokens = (totalInputTokens - boundedCachedInputTokens).coerceAtLeast(0),
+                actualInputTokens = totalInputTokens - boundedCachedInputTokens - cacheWriteTokens,
                 cachedInputTokens = boundedCachedInputTokens,
+                cacheWriteTokens = cacheWriteTokens,
                 outputTokens = outputTokens,
                 cacheMetricState = cacheMetricState,
                 reasoningTokens = reasoningTokens,
@@ -373,7 +380,7 @@ object OpenAIResponsesPayloadAdapter {
         }
     }
 
-    fun toResponsesRequest(chatStyleRequest: JSONObject): JSONObject {
+    fun toResponsesRequest(chatStyleRequest: JSONObject, plainReasoningReplay: Boolean = false): JSONObject {
         val converted = JSONObject(chatStyleRequest.toString())
 
         if (converted.has("max_tokens") && !converted.has("max_output_tokens")) {
@@ -401,7 +408,7 @@ object OpenAIResponsesPayloadAdapter {
         if (converted.has("messages")) {
             val messages = converted.optJSONArray("messages")
             if (messages != null) {
-                converted.put("input", convertMessagesToResponsesInput(messages))
+                converted.put("input", convertMessagesToResponsesInput(messages, plainReasoningReplay))
                 converted.remove("messages")
             }
         }
@@ -477,6 +484,16 @@ object OpenAIResponsesPayloadAdapter {
                                 }
                             }
                         }
+                        val contentArray = item.optJSONArray("content")
+                        if (contentArray != null) {
+                            for (j in 0 until contentArray.length()) {
+                                val part = contentArray.optJSONObject(j) ?: continue
+                                if (part.optString("type") == "reasoning_text") {
+                                    val text = part.optString("text")
+                                    if (text.isNotEmpty()) reasoningChunks.add(text)
+                                }
+                            }
+                        }
                     }
 
                     "function_call" -> {
@@ -536,7 +553,7 @@ object OpenAIResponsesPayloadAdapter {
         return converted
     }
 
-    private fun convertMessagesToResponsesInput(messages: JSONArray): JSONArray {
+    private fun convertMessagesToResponsesInput(messages: JSONArray, plainReasoningReplay: Boolean): JSONArray {
         val input = JSONArray()
         val functionCallsByIdentity =
             linkedMapOf<ProviderToolCallKey, ProviderToolCallSignature>()
@@ -545,7 +562,8 @@ object OpenAIResponsesPayloadAdapter {
         val toolHistoryState = ProviderToolHistoryState()
 
         for (i in 0 until messages.length()) {
-            val message = messages.optJSONObject(i) ?: continue
+            val sourceMessage = messages.optJSONObject(i) ?: continue
+            val message = JSONObject(sourceMessage.toString())
             val role = message.optString("role", "")
             if (role.isEmpty()) continue
 
@@ -584,7 +602,8 @@ object OpenAIResponsesPayloadAdapter {
 
             if (role == "assistant") {
                 toolHistoryState.requireClosed("responses_assistant_boundary")
-                appendReasoningItemsFromAssistantMessage(message, input)
+                if (plainReasoningReplay) appendPlainReasoningItem(message, input)
+                else appendReasoningItemsFromAssistantMessage(message, input)
                 appendMessageItem(message = message, role = role, input = input)
                 val toolCalls = message.optJSONArray("tool_calls")
                 if (toolCalls != null && toolCalls.length() > 0) {
@@ -660,6 +679,30 @@ object OpenAIResponsesPayloadAdapter {
 
         toolHistoryState.requireClosed("responses_history_end")
         return input
+    }
+
+    /** DeepSeek 的 reasoning 是明文 content，不能伪装为 OpenAI encrypted_content 或普通正文。 */
+    private fun appendPlainReasoningItem(message: JSONObject, input: JSONArray) {
+        val reasoningParts = JSONArray()
+        fun extract(text: String): String {
+            val pattern = Regex("<think(?:ing)?>([\\s\\S]*?)</think(?:ing)?>", RegexOption.IGNORE_CASE)
+            return pattern.replace(text) { match ->
+                reasoningParts.put(JSONObject().put("type", "reasoning_text").put("text", match.groupValues[1]))
+                ""
+            }
+        }
+        when (val content = message.opt("content")) {
+            is String -> message.put("content", extract(content))
+            is JSONArray -> for (index in 0 until content.length()) {
+                val part = content.optJSONObject(index) ?: continue
+                if (part.optString("type") in setOf("text", "input_text", "output_text")) {
+                    part.put("text", extract(part.optString("text")))
+                }
+            }
+        }
+        if (reasoningParts.length() > 0) {
+            input.put(JSONObject().put("type", "reasoning").put("content", reasoningParts))
+        }
     }
 
     private fun appendFunctionCallOutput(

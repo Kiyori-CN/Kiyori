@@ -2836,7 +2836,7 @@
     <string name="thinking_type_off">off</string>
     <string name="thinking_type_mode">mode</string>
     <string name="thinking_quality">思考程度</string>
-    <string name="thinking_quality_desc">仅在思考模式下生效。五档依次为低、中、高、极高、最高。GPT-5.6 系列对应 low、medium、high、xhigh、max；其它模型仍按自己的能力映射，多个界面档位可能发送相同的推理强度。</string>
+    <string name="thinking_quality_desc">仅在思考模式下生效。五档依次为低、中、高、极高、最高。GPT-5.6 和 GPT-6 Astra 对应 low、medium、high、xhigh、max；Astra 不支持关闭思考，原生工具需使用 Responses。GPT-5.4/5.5 的最高两档对应 xhigh，DeepSeek 对应 low、high、max、max、max。OpenAI 仅显示服务实际返回的思考摘要，摘要为空不代表没有推理。</string>
     <string name="thinking_quality_low">低</string>
     <string name="thinking_quality_medium">中</string>
     <string name="thinking_quality_high">高</string>

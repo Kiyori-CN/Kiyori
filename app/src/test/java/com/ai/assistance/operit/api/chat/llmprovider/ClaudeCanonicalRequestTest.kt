@@ -23,6 +23,20 @@ import org.mockito.Mockito
 import org.mockito.kotlin.mock
 
 class ClaudeCanonicalRequestTest {
+    @Test
+    fun deepSeekAnthropicOffIsExplicitWithoutAnthropicBudget() {
+        val provider = ClaudeProvider(
+            apiEndpoint = "https://api.deepseek.com/anthropic/v1/messages",
+            apiKeyProvider = SingleApiKeyProvider("test-key"), modelName = "deepseek-flash",
+            client = OkHttpClient(), providerType = ApiProviderType.DEEPSEEK,
+        )
+        val request = provider.createRequestJson(context,
+            listOf(PromptTurn(PromptTurnKind.USER, "hello")), enableThinking = false)
+        assertEquals("disabled", request.getJSONObject("thinking").getString("type"))
+        assertFalse(request.getJSONObject("thinking").has("budget_tokens"))
+        assertFalse(request.has("output_config"))
+    }
+
     private val context: Context = mock()
     private lateinit var logMock: MockedStatic<Log>
 

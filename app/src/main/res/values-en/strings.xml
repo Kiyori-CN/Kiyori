@@ -2974,7 +2974,7 @@
     <string name="thinking_type_off">off</string>
     <string name="thinking_type_mode">mode</string>
     <string name="thinking_quality">Thinking intensity</string>
-    <string name="thinking_quality_desc">Only effective in thinking mode. The five levels are Low, Medium, High, Very high, and Maximum. GPT-5.6 maps them to low, medium, high, xhigh, and max; other models keep their own capability mapping, so multiple UI levels may send the same reasoning effort.</string>
+    <string name="thinking_quality_desc">Only effective in thinking mode. GPT-5.6 and GPT-6 Astra map the five levels to low, medium, high, xhigh, and max. Astra requires thinking and Responses for native tools. GPT-5.4/5.5 use xhigh for the top two levels; DeepSeek uses low, high, max, max, and max. OpenAI shows only the reasoning summary actually returned by the service; no visible summary does not mean no reasoning.</string>
     <string name="thinking_quality_low">Low</string>
     <string name="thinking_quality_medium">Medium</string>
     <string name="thinking_quality_high">High</string>

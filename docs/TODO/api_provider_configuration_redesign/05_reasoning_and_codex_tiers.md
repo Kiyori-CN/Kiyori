@@ -1,5 +1,13 @@
 # 思考模式与 gpt-5.6 Codex 五档
 
+## 2026-09-14 能力扩展
+
+当前 Astra、GPT-5.4/5.5、非思考 GPT 和 DeepSeek 三协议规则以
+[AI 执行契约](../../doc-src/contracts/ai_execution.md#请求终态与重放) 为准；本页保留早期五档
+设计背景。Astra 的五档同 GPT-5.6，但不支持关闭思考；不能把下文普通 profile 的 `none`
+规则套用到 Astra。当前实施与验证见
+[模型专项](../unified_model_capability_and_resumable_execution/index.md#2026-09-14-跨模型协议可靠性深化)。
+
 ## 既有状态
 
 `ApiPreferences` 已是思考开关和五档滑杆的唯一持久化 owner：

@@ -91,7 +91,7 @@ class ModelRequestCompilerTest {
             ExecutionPersistenceCapability.RESPONSES_AT_MOST_ONCE,
             profile.executionPersistence,
         )
-        assertFalse(compiled.reasoningSummaryEnabled)
+        assertTrue(compiled.reasoningSummaryEnabled)
         assertFalse(compiled.encryptedReasoningContentEnabled)
         assertFalse(compiled.background)
         assertNull(compiled.store)
@@ -123,7 +123,7 @@ class ModelRequestCompilerTest {
             ExecutionPersistenceCapability.RESPONSES_AT_MOST_ONCE,
             profile.executionPersistence,
         )
-        assertFalse(compiled.reasoningSummaryEnabled)
+        assertTrue(compiled.reasoningSummaryEnabled)
         assertFalse(compiled.encryptedReasoningContentEnabled)
         assertFalse(compiled.background)
         assertNull(compiled.store)
@@ -159,7 +159,7 @@ class ModelRequestCompilerTest {
         )
         assertEquals(ReasoningReplayCapability.NONE, profile.reasoningReplay)
         assertEquals(PromptCacheCapability.NONE, profile.promptCache)
-        assertNull(compiled.reasoningEffort)
+        assertEquals(ReasoningEffortValue.MAX, compiled.reasoningEffort)
         assertFalse(compiled.reasoningSummaryEnabled)
         assertFalse(compiled.encryptedReasoningContentEnabled)
         assertFalse(compiled.background)
