@@ -70,6 +70,36 @@
 
 ## 请求、终态与重放
 
+- Gemini 原生协议由 `GeminiReasoningCompiler` 编译思考参数：2.5 Flash/Flash-Lite 关闭时
+  显式发送 `thinkingBudget=0`，开启五档为 `1024/4096/8192/16384/24576`；
+  2.5 Pro 最后一档为 `32768` 且不能关闭。已识别 Gemini 3 使用 `thinkingLevel`：
+  通常为 `low/medium/high/high/high`，3 Pro 原版为 `low/low/high/high/high`，
+  3.1 Flash-Lite Image 为 `minimal/minimal/high/high/high`；不能把 minimal 当成真正关闭。
+  `includeThoughts` 只控制服务端摘要，不能代替推理开关。自定义 budget/level 不能同时出现，
+  已知不支持关闭或参数与关闭冲突时在提交前拒绝；未知模型不猜测注入原生思考字段。
+- Anthropic 自适应思考模型发送 `thinking.type=adaptive, display=summarized` 和
+  `output_config.effort`；Opus 4.7+、Sonnet 5、Fable/Mythos 5 使用五档
+  `low/medium/high/xhigh/max`，Opus/Sonnet 4.6 的最高两档为 `max`。
+  手动思考模型按五档生成 `1024/4096/8192/16384/32768` budget，并限于本次
+  `max_tokens - 1`；显式 budget 必须至少 1024 且小于输出限制。
+  禁用的参数不参与预算解析，自定义 `output_config` 对象及显式 effort 保留。
+  Fable/Mythos 5 与 Mythos Preview 不允许关闭；其余自适应模型关闭时显式发送 disabled。
+  Opus 5 关闭时不能使用自定义 xhigh/max；不适用的采样参数在请求编译时移除。
+- Qwen Chat 的思考开关在开启/关闭时均写入 `enable_thinking`，显式自定义参数仍优先。
+  NVIDIA GPT-OSS 五档只使用合法的 `low/medium/high/high/high`；
+  OpenRouter 未指定自定义控制时，开启显式发送 `reasoning.enabled=true`。
+  Qwen/SiliconFlow、NVIDIA 和 OpenRouter 的档位偏好读取失败直接传播，不静默采用供应商默认。
+- Gemini 请求保留自定义中转路径、版本与查询参数，使用 `x-goog-api-key` 头认证；
+  流式明确请求 `alt=sse`。Gemini 与 Anthropic 都复用 `ServerSentEventReader`，按完整事件
+  解析多行 data、无空格 data 和 BOM。Gemini 使用实际 `finishReason=STOP` 完结，
+  STOP 同块内容和 usage 先处理，纯 usage 事件也入账；不等待中转关闭连接。
+  缺少终态、MAX_TOKENS、安全阻断和坏事件不作为成功。
+- Anthropic 流式同时要求 `message_stop` 与成功生成原因，非流式也检查 `stop_reason`；
+  `end_turn/tool_use/stop_sequence/refusal` 为可交付终态，`max_tokens/pause_turn`、
+  上下文耗尽及未知原因保持可见失败，不自动重发或伪造后续轮次。
+- MNN/llama.cpp 初始化、模板或推理失败抛出失败，取消保留取消语义；只有成功生成后才发布
+  缓冲工具。非流式正文在生成成功后一次交付；MNN 同步生成运行于 IO dispatcher，
+  输出限制按已启用参数的 `apiName=max_tokens` 读取。JNI 原生执行与设备体验仍需现场验收。
 - “思考模式”与现有 `thinking_quality_level: 1..5` 是唯一用户 reasoning 接口。普通 OpenAI
   Chat Completions / Responses profile 的五档显式映射为 `low / low / medium / high / high`；
   支持关闭思考的模型编译为 `none`。`gpt-5.6*` 与已核实的 `gpt-6-astra` 使用 Codex 五档

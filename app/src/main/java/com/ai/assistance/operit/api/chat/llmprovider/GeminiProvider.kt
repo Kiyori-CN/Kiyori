@@ -32,10 +32,12 @@ import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
 import java.net.SocketTimeoutException
-import java.net.URL
 import java.net.UnknownHostException
 import java.util.UUID
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.flow.first
+import com.ai.assistance.operit.data.preferences.ApiPreferences
 import kotlinx.coroutines.withContext
 import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaType
@@ -146,6 +148,7 @@ class GeminiProvider(
     private val JSON = "application/json".toMediaType()
 
     private val streamSessionGate = ProviderStreamSessionGate()
+    internal var executionDispatcher: kotlinx.coroutines.CoroutineDispatcher = kotlinx.coroutines.Dispatchers.IO
 
     /**
      * 由客户端错误（如4xx状态码）触发的API异常，是否重试由统一策略决定
@@ -1196,7 +1199,7 @@ class GeminiProvider(
                 emitConnectionStatus(context.getString(R.string.gemini_connecting))
 
                 val startTime = System.currentTimeMillis()
-                withContext(kotlinx.coroutines.Dispatchers.IO) {
+                withContext(executionDispatcher) {
                     val response = call.execute()
                     streamSessionGate.bindResponse(session, response) { response.close() }
                     try {
@@ -1305,7 +1308,8 @@ class GeminiProvider(
             modelParameters: List<ModelParameter<*>>,
             enableThinking: Boolean,
             availableTools: List<ToolPrompt>? = null,
-            preserveThinkInHistory: Boolean = false
+            preserveThinkInHistory: Boolean = false,
+            thinkingQualityLevel: Int? = null
     ): JSONObject {
         val json = JSONObject()
 
@@ -1349,14 +1353,6 @@ class GeminiProvider(
 
         // 添加生成配置
         val generationConfig = JSONObject()
-
-        // 如果启用了思考模式，则为Gemini模型添加特定的`thinkingConfig`参数
-        if (enableThinking) {
-            val thinkingConfig = JSONObject()
-            thinkingConfig.put("includeThoughts", true)
-            generationConfig.put("thinkingConfig", thinkingConfig)
-            logDebug("已为Gemini模型启用“思考模式”。")
-        }
 
         // 添加模型参数
         val duplicateParameter =
@@ -1421,6 +1417,10 @@ class GeminiProvider(
             }
         }
 
+        val quality = thinkingQualityLevel ?: if (enableThinking) runBlocking {
+            ApiPreferences.getInstance(context).thinkingQualityLevelFlow.first()
+        } else 1
+        GeminiReasoningCompiler.apply(generationConfig, modelName, enableThinking, quality)
         json.put("generationConfig", generationConfig)
         return json
     }
@@ -1453,31 +1453,12 @@ class GeminiProvider(
             isStreaming: Boolean,
             requestId: String
     ): Request {
-        // 确定请求URL
-        val baseUrl = determineBaseUrl(apiEndpoint)
-        val method = if (isStreaming) "streamGenerateContent" else "generateContent"
-        val requestUrl = "$baseUrl/v1beta/models/$modelName:$method"
-
-        AppLogger.d(TAG, "请求URL: $requestUrl")
-
-        // 创建Request Builder
+        val requestUrl = GeminiRequestUrl.build(apiEndpoint, modelName, isStreaming)
         val builder = Request.Builder()
-
-        // 添加自定义请求头
-        customHeaders.forEach { (key, value) ->
-            builder.addHeader(key, value)
-        }
-
-        // 添加API密钥
+        customHeaders.forEach { (key, value) -> builder.addHeader(key, value) }
         val currentApiKey = apiKeyProvider.getApiKey()
-        val finalUrl =
-                if (requestUrl.contains("?")) {
-                    "$requestUrl&key=$currentApiKey"
-                } else {
-                    "$requestUrl?key=$currentApiKey"
-                }
-
-        val request = builder.url(finalUrl)
+        val request = builder.url(requestUrl)
+                .header("x-goog-api-key", currentApiKey)
                 .post(requestBody)
                 .addHeader("Content-Type", "application/json")
                 .build()
@@ -1496,18 +1477,6 @@ class GeminiProvider(
         return request
     }
 
-    /** 确定基础URL */
-    private fun determineBaseUrl(endpoint: String): String {
-        return try {
-            val url = URL(endpoint)
-            val port = if (url.port != -1) ":${url.port}" else ""
-            "${url.protocol}://${url.host}${port}"
-        } catch (e: Exception) {
-            logError("解析API端点失败", e)
-            throw IllegalArgumentException("Gemini API endpoint is invalid", e)
-        }
-    }
-
     /** 处理API流式响应 */
     private suspend fun processStreamingResponse(
             context: Context,
@@ -1519,246 +1488,46 @@ class GeminiProvider(
             receivedContent: StringBuilder,
             responseAttemptState: GeminiResponseAttemptState,
     ) {
-        AppLogger.d(TAG, "开始处理响应流")
-        val responseBody = response.body ?: throw IOException(context.getString(R.string.gemini_response_empty))
-        val reader = responseBody.charStream().buffered()
-
-        // 注意：不再使用fullContent累积所有内容
-        var lineCount = 0
-        var dataCount = 0
-        var jsonCount = 0
-        var contentCount = 0
-
-        // 恢复JSON累积逻辑，用于处理分段JSON
-        val completeJsonBuilder = StringBuilder()
-        var isCollectingJson = false
-        var jsonDepth = 0
-        var jsonStartSymbol = ' ' // 记录JSON是以 { 还是 [ 开始的
-
-        try {
-            reader.useLines { lines ->
-                lines.forEach { line ->
-                    lineCount++
-                    // 检查是否已取消
-                    if (streamSessionGate.isCancelled(session)) {
-                        throw UserCancellationException(
-                            context.getString(R.string.gemini_error_request_cancelled)
-                        )
-                    }
-
-                    // 处理SSE数据
-                    if (line.startsWith("data: ")) {
-                        val data = line.substring(6).trim()
-                        dataCount++
-
-                        // 跳过结束标记
-                        if (data == "[DONE]") {
-                            logDebug("收到流结束标记 [DONE]")
-                            return@forEach
-                        }
-
-                        try {
-                            // 立即解析每个SSE数据行的JSON
-                            val json = JSONObject(data)
-                            jsonCount++
-
-                            val content =
-                                extractContentFromJson(
-                                    context = context,
-                                    json = json,
-                                    requestId = requestId,
-                                    onTokensUpdated = onTokensUpdated,
-                                    responseAttemptState = responseAttemptState,
-                                )
-                            if (content.isNotEmpty()) {
-                                contentCount++
-                                logDebug("提取SSE内容，长度: ${content.length}")
-                                receivedContent.append(content)
-
-                                // 只发送新增的内容
-                                streamCollector.emit(content)
-                            }
-                        } catch (e: IOException) {
-                            throw e
-                        } catch (e: Exception) {
-                            logError("解析SSE响应数据失败: ${e.message}", e)
-                            throw e
-                        }
-                    } else if (line.trim().isNotEmpty()) {
-                        // 处理可能分段的JSON数据
-                        val trimmedLine = line.trim()
-
-                        // 检查是否开始收集JSON
-                        if (!isCollectingJson &&
-                                        (trimmedLine.startsWith("{") || trimmedLine.startsWith("["))
-                        ) {
-                            isCollectingJson = true
-                            jsonDepth = 0
-                            completeJsonBuilder.clear()
-                            jsonStartSymbol = trimmedLine[0]
-                            logDebug("开始收集JSON，起始符号: $jsonStartSymbol")
-                        }
-
-                        if (isCollectingJson) {
-                            completeJsonBuilder.append(trimmedLine)
-
-                            // 更新JSON深度
-                            for (char in trimmedLine) {
-                                if (char == '{' || char == '[') jsonDepth++
-                                if (char == '}' || char == ']') jsonDepth--
-                            }
-
-                            // 尝试作为完整JSON解析
-                            val possibleComplete = completeJsonBuilder.toString()
-                            try {
-                                if (jsonDepth == 0) {
-                                    logDebug("尝试解析完整JSON: ${possibleComplete.take(50)}...")
-                                    val jsonContent =
-                                            if (jsonStartSymbol == '[') {
-                                                JSONArray(possibleComplete)
-                                            } else {
-                                                JSONObject(possibleComplete)
-                                            }
-
-                                    // 解析成功，处理内容
-                                    logDebug("成功解析完整JSON，长度: ${possibleComplete.length}")
-
-                                    when (jsonContent) {
-                                        is JSONArray -> {
-                                            // 处理JSON数组
-                                            for (i in 0 until jsonContent.length()) {
-                                                val jsonObject = jsonContent.optJSONObject(i)
-                                                if (jsonObject != null) {
-                                                    jsonCount++
-                                                    val content =
-                                                            extractContentFromJson(
-                                                                context = context,
-                                                                json = jsonObject,
-                                                                requestId = requestId,
-                                                                onTokensUpdated = onTokensUpdated,
-                                                                responseAttemptState =
-                                                                    responseAttemptState,
-                                                            )
-                                                    if (content.isNotEmpty()) {
-                                                        contentCount++
-                                                        logDebug(
-                                                                "从JSON数组[$i]提取内容，长度: ${content.length}"
-                                                        )
-                                                        receivedContent.append(content)
-
-                                                        // 只发送这个单独对象产生的内容
-                                                        streamCollector.emit(content)
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-
-                                    // 解析成功后重置收集器
-                                    isCollectingJson = false
-                                    completeJsonBuilder.clear()
-                                }
-                            } catch (e: IOException) {
-                                throw e
-                            } catch (e: Exception) {
-                                // JSON尚未完整，继续收集
-                                if (jsonDepth > 0) {
-                                    // 仍在收集，这是预期的
-                                    logDebug("继续收集JSON，当前深度: $jsonDepth")
-                                } else {
-                                    // 深度为0但解析失败，可能是无效JSON
-                                    logError("JSON解析失败: ${e.message}", e)
-                                    throw e
-                                }
-                            }
-                        }
-                    }
-                }
+        val body = response.body ?: throw IOException("Gemini response body is empty")
+        val events = ServerSentEventReader(body.charStream().buffered())
+        var finishReason: String? = null
+        var emitted = false
+        while (true) {
+            if (streamSessionGate.isCancelled(session)) {
+                throw UserCancellationException(context.getString(R.string.gemini_error_request_cancelled))
             }
-
-            AppLogger.d(TAG, "响应处理完成: 共${lineCount}行, ${jsonCount}个JSON块, 提取${contentCount}个内容块")
-
-            // 检查是否还有未解析完的JSON
-            if (isCollectingJson && completeJsonBuilder.isNotEmpty()) {
-                try {
-                    val finalJson = completeJsonBuilder.toString()
-                    AppLogger.d(TAG, "处理最终收集的JSON，长度: ${finalJson.length}")
-
-                    val jsonContent =
-                            if (jsonStartSymbol == '[') {
-                                JSONArray(finalJson)
-                            } else {
-                                JSONObject(finalJson)
-                            }
-                    // 处理内容
-                    when (jsonContent) {
-                        is JSONArray -> {
-                            for (i in 0 until jsonContent.length()) {
-                                val jsonObject = jsonContent.optJSONObject(i) ?: continue
-                                jsonCount++
-                                val content =
-                                    extractContentFromJson(
-                                        context = context,
-                                        json = jsonObject,
-                                        requestId = requestId,
-                                        onTokensUpdated = onTokensUpdated,
-                                        responseAttemptState = responseAttemptState,
-                                    )
-                                if (content.isNotEmpty()) {
-                                    contentCount++
-                                    logDebug("从最终JSON数组[$i]提取内容，长度: ${content.length}")
-                                    receivedContent.append(content)
-                                    streamCollector.emit(content)
-                                }
-                            }
-                        }
-                        is JSONObject -> {
-                            jsonCount++
-                            val content =
-                                extractContentFromJson(
-                                    context = context,
-                                    json = jsonContent,
-                                    requestId = requestId,
-                                    onTokensUpdated = onTokensUpdated,
-                                    responseAttemptState = responseAttemptState,
-                                )
-                            if (content.isNotEmpty()) {
-                                contentCount++
-                                logDebug("从最终JSON对象提取内容，长度: ${content.length}")
-                                receivedContent.append(content)
-                                streamCollector.emit(content)
-                            }
-                        }
-                    }
-                } catch (e: IOException) {
-                    throw e
-                } catch (e: Exception) {
-                    logError("解析最终收集的JSON失败: ${e.message}", e)
-                    throw e
-                }
+            val data = events.readData() ?: break
+            if (data.isBlank()) continue
+            if (data == "[DONE]") break
+            val json = JSONObject(data)
+            val content = extractContentFromJson(context, json, requestId, onTokensUpdated, responseAttemptState)
+            applyGeminiUsage(json, onTokensUpdated)
+            if (content.isNotEmpty()) {
+                receivedContent.append(content)
+                streamCollector.emit(content)
+                emitted = true
             }
-
-            // 确保思考模式正确结束
-            if (responseAttemptState.isInThinkingMode) {
-                logDebug("流结束时仍在思考模式，添加结束标签")
-                receivedContent.append("</think>")
-                streamCollector.emit("</think>")
-                responseAttemptState.isInThinkingMode = false
+            val reason = json.optJSONArray("candidates")?.optJSONObject(0)
+                ?.optString("finishReason")?.takeIf { it.isNotBlank() }
+            if (reason != null) {
+                finishReason = reason
+                // STOP 已携带本次生成的 usage；不再等待中转关闭连接。
+                ProviderGenerationTerminalPolicy.requireGeminiSuccess(reason)
+                break
             }
-            responseAttemptState.finishMetadataTag()?.let { metadataTag ->
-                receivedContent.append(metadataTag)
-                streamCollector.emit(metadataTag)
-                contentCount++
-            }
-            
-            // 确保至少发送一次内容
-            if (contentCount == 0) {
-                throw IOException(context.getString(R.string.gemini_response_empty))
-            }
-        } catch (e: Exception) {
-            logError("处理响应时发生异常: ${e.message}", e)
-            throw e
         }
+        ProviderGenerationTerminalPolicy.requireGeminiSuccess(finishReason)
+        if (responseAttemptState.isInThinkingMode) {
+            receivedContent.append("</think>")
+            streamCollector.emit("</think>")
+            responseAttemptState.isInThinkingMode = false
+        }
+        responseAttemptState.finishMetadataTag()?.let {
+            receivedContent.append(it)
+            streamCollector.emit(it)
+            emitted = true
+        }
+        if (!emitted) throw IOException(context.getString(R.string.gemini_response_empty))
     }
 
     /** 处理API非流式响应 */
@@ -1780,6 +1549,10 @@ class GeminiProvider(
             
             // 解析JSON响应
             val json = JSONObject(responseText)
+            throwIfGeminiErrorPayload(context, json)
+            ProviderGenerationTerminalPolicy.requireGeminiSuccess(
+                json.optJSONArray("candidates")?.optJSONObject(0)?.optString("finishReason")
+            )
             
             // 提取内容
             val content =
@@ -1791,6 +1564,7 @@ class GeminiProvider(
                     responseAttemptState = responseAttemptState,
                 )
             val finalContent = StringBuilder(content)
+            applyGeminiUsage(json, onTokensUpdated)
             if (responseAttemptState.isInThinkingMode) {
                 finalContent.append("</think>")
                 responseAttemptState.isInThinkingMode = false
@@ -1813,6 +1587,83 @@ class GeminiProvider(
         }
     }
 
+    private suspend fun applyGeminiUsage(
+        json: JSONObject,
+        onTokensUpdated: suspend (input: Int, cachedInput: Int, output: Int) -> Unit,
+    ) {
+    // 提取实际的token使用数据
+    GeminiUsagePayloadAdapter.parse(json.optJSONObject("usageMetadata"))?.let { parsed ->
+        val previous = latestProviderUsageSnapshot
+        val totalInputTokens =
+            parsed.totalInputTokens?.toLong()
+                ?: previous?.totalInputTokens
+                ?: 0L
+        val cachedInputTokens =
+            parsed.cachedInputTokens?.toLong()
+                ?: previous?.cacheReadTokens
+                ?: 0L
+        val uncachedInputTokens =
+            parsed.uncachedInputTokens?.toLong()
+                ?: previous?.uncachedInputTokens
+                ?: (totalInputTokens - cachedInputTokens).coerceAtLeast(0L)
+        val outputTokens =
+            parsed.outputTokens?.toLong()
+                ?: previous?.outputTokens
+                ?: tokenCacheManager.outputTokenCount.toLong()
+        val reasoningTokens =
+            parsed.reasoningTokens?.toLong()
+                ?: previous?.reasoningTokens
+                ?: 0L
+        val cacheMetricState =
+            when {
+                parsed.cacheMetricState == ProviderCacheMetricState.INVALID ||
+                    previous?.cacheMetricState == ProviderCacheMetricState.INVALID ->
+                    ProviderCacheMetricState.INVALID
+                parsed.cacheMetricState == ProviderCacheMetricState.REPORTED ||
+                    previous?.cacheMetricState == ProviderCacheMetricState.REPORTED ->
+                    ProviderCacheMetricState.REPORTED
+                else -> ProviderCacheMetricState.NOT_REPORTED
+            }
+        val snapshot =
+            ProviderUsageSnapshot(
+                providerModel = providerModel,
+                protocol = com.ai.assistance.operit.data.model.ApiProtocol.PROVIDER_NATIVE,
+                totalInputTokens = uncachedInputTokens + cachedInputTokens,
+                uncachedInputTokens = uncachedInputTokens,
+                cacheReadTokens = cachedInputTokens,
+                cacheWriteTokens = 0L,
+                outputTokens = outputTokens,
+                reasoningTokens = reasoningTokens,
+                cacheMetricState = cacheMetricState,
+                source = ProviderUsageSource.PROVIDER,
+            )
+        latestProviderUsageSnapshot = snapshot
+
+        tokenCacheManager.updateActualTokens(
+            actualInput =
+                uncachedInputTokens.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
+            cachedInput =
+                cachedInputTokens.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
+        )
+        parsed.outputTokens?.let {
+            tokenCacheManager.setOutputTokens(it)
+        }
+
+        logDebug(
+            "API实际Token使用: 输入=${snapshot.uncachedInputTokens}, " +
+                "缓存=${snapshot.cacheReadTokens}, 输出=${snapshot.outputTokens}, " +
+                "推理=${snapshot.reasoningTokens}, " +
+                "cache_metric=${snapshot.cacheMetricState}"
+        )
+
+        onTokensUpdated(
+            snapshot.totalInputTokens.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
+            snapshot.cacheReadTokens.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
+            tokenCacheManager.outputTokenCount
+        )
+    }
+    }
+
     /** 从Gemini响应JSON中提取内容 */
     private suspend fun extractContentFromJson(
         context: Context,
@@ -1827,6 +1678,9 @@ class GeminiProvider(
         try {
             throwIfGeminiErrorPayload(context, json)
 
+            json.optJSONObject("promptFeedback")?.optString("blockReason")
+                ?.takeIf { it.isNotBlank() && it != "BLOCK_REASON_UNSPECIFIED" }
+                ?.let { throw IOException("Gemini prompt blocked: ${it.take(80)}") }
             // 提取候选项
             val candidates = json.optJSONArray("candidates")
             if (candidates == null || candidates.length() == 0) {
@@ -1932,6 +1786,9 @@ class GeminiProvider(
                 val text = part.optString("text", "")
                 val isThought = part.optBoolean("thought", false)
                 val functionCall = part.optJSONObject("functionCall")
+                if (functionCall != null && !enableToolCall) {
+                    throw IOException("Gemini returned functionCall while native tools are disabled")
+                }
 
                  val inlineData = part.optJSONObject("inline_data") ?: part.optJSONObject("inlineData")
                  if (inlineData != null) {
@@ -2035,77 +1892,6 @@ class GeminiProvider(
                 }
             }
 
-            // 提取实际的token使用数据
-            GeminiUsagePayloadAdapter.parse(json.optJSONObject("usageMetadata"))?.let { parsed ->
-                val previous = latestProviderUsageSnapshot
-                val totalInputTokens =
-                    parsed.totalInputTokens?.toLong()
-                        ?: previous?.totalInputTokens
-                        ?: 0L
-                val cachedInputTokens =
-                    parsed.cachedInputTokens?.toLong()
-                        ?: previous?.cacheReadTokens
-                        ?: 0L
-                val uncachedInputTokens =
-                    parsed.uncachedInputTokens?.toLong()
-                        ?: previous?.uncachedInputTokens
-                        ?: (totalInputTokens - cachedInputTokens).coerceAtLeast(0L)
-                val outputTokens =
-                    parsed.outputTokens?.toLong()
-                        ?: previous?.outputTokens
-                        ?: tokenCacheManager.outputTokenCount.toLong()
-                val reasoningTokens =
-                    parsed.reasoningTokens?.toLong()
-                        ?: previous?.reasoningTokens
-                        ?: 0L
-                val cacheMetricState =
-                    when {
-                        parsed.cacheMetricState == ProviderCacheMetricState.INVALID ||
-                            previous?.cacheMetricState == ProviderCacheMetricState.INVALID ->
-                            ProviderCacheMetricState.INVALID
-                        parsed.cacheMetricState == ProviderCacheMetricState.REPORTED ||
-                            previous?.cacheMetricState == ProviderCacheMetricState.REPORTED ->
-                            ProviderCacheMetricState.REPORTED
-                        else -> ProviderCacheMetricState.NOT_REPORTED
-                    }
-                val snapshot =
-                    ProviderUsageSnapshot(
-                        providerModel = providerModel,
-                        protocol = com.ai.assistance.operit.data.model.ApiProtocol.PROVIDER_NATIVE,
-                        totalInputTokens = uncachedInputTokens + cachedInputTokens,
-                        uncachedInputTokens = uncachedInputTokens,
-                        cacheReadTokens = cachedInputTokens,
-                        cacheWriteTokens = 0L,
-                        outputTokens = outputTokens,
-                        reasoningTokens = reasoningTokens,
-                        cacheMetricState = cacheMetricState,
-                        source = ProviderUsageSource.PROVIDER,
-                    )
-                latestProviderUsageSnapshot = snapshot
-
-                tokenCacheManager.updateActualTokens(
-                    actualInput =
-                        uncachedInputTokens.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
-                    cachedInput =
-                        cachedInputTokens.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
-                )
-                parsed.outputTokens?.let {
-                    tokenCacheManager.setOutputTokens(it)
-                }
-
-                logDebug(
-                    "API实际Token使用: 输入=${snapshot.uncachedInputTokens}, " +
-                        "缓存=${snapshot.cacheReadTokens}, 输出=${snapshot.outputTokens}, " +
-                        "推理=${snapshot.reasoningTokens}, " +
-                        "cache_metric=${snapshot.cacheMetricState}"
-                )
-
-                onTokensUpdated(
-                    snapshot.totalInputTokens.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
-                    snapshot.cacheReadTokens.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
-                    tokenCacheManager.outputTokenCount
-                )
-            }
 
             // 将搜索来源拼接到内容最前面
             val finalContent = if (searchSourcesBuilder.isNotEmpty()) {

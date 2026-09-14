@@ -102,6 +102,7 @@ class GeminiCanonicalRequestTest {
                         ),
                     modelParameters = emptyList(),
                     enableThinking = true,
+                    thinkingQualityLevel = 1,
                     availableTools = listOf(writeFileTool(), readFileTool()),
                     preserveThinkInHistory = true,
                 )
@@ -229,7 +230,7 @@ class GeminiCanonicalRequestTest {
         GeminiProvider(
             apiEndpoint = "https://generativelanguage.googleapis.com",
             apiKeyProvider = SingleApiKeyProvider("test-key"),
-            modelName = "gemini-2.5-pro",
+            modelName = "gemini-2.5-flash",
             client = OkHttpClient(),
             providerType = ApiProviderType.GOOGLE,
             enableToolCall = true,

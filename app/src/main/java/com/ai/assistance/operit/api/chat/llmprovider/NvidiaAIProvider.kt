@@ -94,20 +94,17 @@ class NvidiaAIProvider(
     }
 
     private fun resolveGptOssReasoningEffort(context: Context): String? {
-        val qualityLevel = runCatching {
-            runBlocking {
-                ApiPreferences.getInstance(context).thinkingQualityLevelFlow.first()
-            }
-        }.getOrElse {
-            AppLogger.w(
-                "NvidiaAIProvider",
-                "Failed to read thinking quality level for NVIDIA GPT-OSS; reasoning_effort not applied",
-                it
-            )
-            return null
+        // 偏好读取失败必须到达请求错误边界，不能静默使用供应商默认档位。
+        val qualityLevel = runBlocking {
+            ApiPreferences.getInstance(context).thinkingQualityLevelFlow.first()
         }
 
-        val efforts = listOf("low", "medium", "high", "max", "max")
+        return gptOssEffortForQuality(qualityLevel)
+    }
+
+    internal fun gptOssEffortForQuality(qualityLevel: Int): String {
+        // GPT-OSS 只有三个合法档位，不能继承闭源 GPT 的 max。
+        val efforts = listOf("low", "medium", "high", "high", "high")
         val qualityIndex = qualityLevel.coerceIn(
             ApiPreferences.MIN_THINKING_QUALITY_LEVEL,
             ApiPreferences.MAX_THINKING_QUALITY_LEVEL

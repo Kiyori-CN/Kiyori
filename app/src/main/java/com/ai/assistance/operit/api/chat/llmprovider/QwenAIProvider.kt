@@ -84,9 +84,9 @@ class QwenAIProvider(
         enableThinking: Boolean
     ) {
         if (qwenProviderType != ApiProviderType.SILICONFLOW) {
-            if (enableThinking && !requestJson.has("enable_thinking")) {
-                requestJson.put("enable_thinking", true)
-                AppLogger.d("QwenAIProvider", "已为Qwen模型启用“思考模式”。")
+            if (!requestJson.has("enable_thinking")) {
+                // Qwen 的服务端可能默认开启思考，省略参数无法表达关闭。
+                requestJson.put("enable_thinking", enableThinking)
             }
             return
         }
@@ -129,17 +129,9 @@ class QwenAIProvider(
         requestJson: JSONObject,
         modelParameters: List<ModelParameter<*>>
     ): Int? {
-        val qualityLevel = runCatching {
-            runBlocking {
-                ApiPreferences.getInstance(context).thinkingQualityLevelFlow.first()
-            }
-        }.getOrElse {
-            AppLogger.w(
-                "QwenAIProvider",
-                "Failed to read thinking quality level for SiliconFlow, falling back to provider default",
-                it
-            )
-            return null
+        // 偏好读取失败必须到达请求错误边界，不能静默使用供应商默认档位。
+        val qualityLevel = runBlocking {
+            ApiPreferences.getInstance(context).thinkingQualityLevelFlow.first()
         }
 
         val thinkingBudgets = listOf(null, 4_096, 8_192, 16_384, 32_768)

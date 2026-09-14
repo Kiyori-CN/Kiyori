@@ -188,6 +188,7 @@ class ClaudeProvider(
     private val DEFAULT_MAX_TOKENS = 4096
 
     private val streamSessionGate = ProviderStreamSessionGate()
+    internal var executionDispatcher: kotlinx.coroutines.CoroutineDispatcher = kotlinx.coroutines.Dispatchers.IO
 
     /**
      * Thinking 格式模式。
@@ -584,6 +585,9 @@ class ClaudeProvider(
     }
 
     private fun parseAnthropicNonStreamingResponse(jsonResponse: JSONObject): String {
+        ProviderGenerationTerminalPolicy.requireAnthropicSuccess(
+            jsonResponse.optString("stop_reason").takeIf { it.isNotBlank() }
+        )
         val content =
             jsonResponse.optJSONArray("content")
                 ?: throw AnthropicProtocolException(
@@ -1283,7 +1287,8 @@ class ClaudeProvider(
             enableThinking: Boolean,
             stream: Boolean = true,
             availableTools: List<ToolPrompt>? = null,
-            preserveThinkInHistory: Boolean = false
+            preserveThinkInHistory: Boolean = false,
+            thinkingQualityLevel: Int? = null
     ): JSONObject {
         val jsonObject = JSONObject()
         jsonObject.put("model", modelName)
@@ -1293,13 +1298,19 @@ class ClaudeProvider(
         addParameters(jsonObject, modelParameters)
 
         val maxTokensFromParams = modelParameters
-            .firstOrNull { it.apiName == "max_tokens" }
+            .firstOrNull { it.apiName == "max_tokens" && it.isEnabled }
             ?.currentValue
         val maxTokensValue = (maxTokensFromParams as? Number)?.toInt()?.takeIf { it > 0 }
             ?: jsonObject.optInt("max_tokens", 0).takeIf { it > 0 }
             ?: resolveOfficialAnthropicMaxTokens()
             ?: DEFAULT_MAX_TOKENS
         jsonObject.put("max_tokens", maxTokensValue)
+        require(maxTokensFromParams == null || (maxTokensFromParams as? Number)?.toLong()?.let { it > 0 } == true) {
+            "Anthropic max_tokens must be positive"
+        }
+        require(!jsonObject.has("output_config") || jsonObject.optJSONObject("output_config") != null) {
+            "Anthropic output_config must be an object"
+        }
 
         // 添加 Tool Call 工具定义（如果启用且有可用工具）
         var tools: JSONArray? = null
@@ -1322,14 +1333,34 @@ class ClaudeProvider(
             jsonObject.put("system", systemBlocks)
         }
 
+        val normalizedName = normalizeClaudeModelName(modelName)
+        val alwaysThinking = normalizedName.contains("mythos-preview") ||
+            hasClaudeFamilyAtLeast(normalizedName, "fable", 5, 0) ||
+            hasClaudeFamilyAtLeast(normalizedName, "mythos", 5, 0)
+        val modernSampling = alwaysThinking ||
+            hasClaudeFamilyAtLeast(normalizedName, "opus", 4, 7) ||
+            hasClaudeFamilyAtLeast(normalizedName, "sonnet", 5, 0)
+        require(enableThinking || !alwaysThinking) {
+            "$modelName does not support disabling thinking"
+        }
+        // 服务端拒绝这些采样字段，沿用统一请求约束层的做法，在发送前移除无效参数。
+        if (enableThinking || modernSampling) {
+            jsonObject.remove("temperature")
+            jsonObject.remove("top_k")
+            if (modernSampling || jsonObject.optDouble("top_p", 1.0) < 0.95) jsonObject.remove("top_p")
+        }
         // 添加extended thinking支持
         if (providerType == ApiProviderType.DEEPSEEK) {
             // DeepSeek 默认开启思考，省略字段不能表达关闭；budget_tokens 也不控制其档位。
-            val quality = if (enableThinking) runBlocking {
+            val quality = thinkingQualityLevel ?: if (enableThinking) runBlocking {
                 ApiPreferences.getInstance(context).thinkingQualityLevelFlow.first()
             } else 1
             DeepSeekAnthropicReasoningCompiler.apply(jsonObject, enableThinking, quality)
         } else if (enableThinking) {
+            val quality = thinkingQualityLevel ?: runBlocking {
+                ApiPreferences.getInstance(context).thinkingQualityLevelFlow.first()
+            }
+            require(quality in 1..5) { "thinkingQualityLevel must be in 1..5" }
             val format = getThinkingFormat()
             when (format) {
                 ThinkingFormat.ADAPTIVE -> {
@@ -1338,6 +1369,11 @@ class ClaudeProvider(
                     thinkingObject.put("type", "adaptive")
                     thinkingObject.put("display", "summarized")
                     jsonObject.put("thinking", thinkingObject)
+                    val outputConfig = jsonObject.optJSONObject("output_config") ?: JSONObject()
+                    if (!outputConfig.has("effort")) {
+                        outputConfig.put("effort", mapThinkingQualityToEffort(quality))
+                    }
+                    jsonObject.put("output_config", outputConfig)
 
                     AppLogger.d("AIService", "启用Claude adaptive thinking, display=summarized")
                 }
@@ -1347,13 +1383,14 @@ class ClaudeProvider(
                     thinkingObject.put("type", "enabled")
 
                     val budgetTokensFromParams = modelParameters
-                        .firstOrNull { it.apiName == "budget_tokens" }
+                        .firstOrNull { it.apiName == "budget_tokens" && it.isEnabled }
                         ?.currentValue
                     val budgetTokensValue =
                         (budgetTokensFromParams as? Number)
                             ?.toInt()
-                            ?.takeIf { it > 0 }
-                            ?: 1024
+                            ?: listOf(1024, 4096, 8192, 16384, 32768)[quality - 1]
+                                .coerceAtMost(maxTokensValue - 1)
+                    require(budgetTokensValue >= 1024) { "Anthropic budget_tokens must be at least 1024" }
                     if (budgetTokensValue >= maxTokensValue) {
                         throw AnthropicProtocolException(
                             "Anthropic budget_tokens must be lower than max_tokens"
@@ -1367,6 +1404,13 @@ class ClaudeProvider(
             }
         }
 
+        if (!enableThinking && providerType != ApiProviderType.DEEPSEEK && prefersAdaptiveThinking()) {
+            jsonObject.put("thinking", JSONObject().put("type", "disabled"))
+            val effort = jsonObject.optJSONObject("output_config")?.optString("effort")
+            require(!hasClaudeFamilyAtLeast(normalizedName, "opus", 5, 0) || effort !in listOf("xhigh", "max")) {
+                "Claude Opus 5 requires thinking at xhigh/max effort"
+            }
+        }
         return jsonObject
     }
 
@@ -1470,13 +1514,19 @@ class ClaudeProvider(
         }
     }
 
-    private fun mapThinkingQualityToEffort(qualityLevel: Int): String =
-        listOf("low", "medium", "high", "max", "max")[
+    private fun mapThinkingQualityToEffort(qualityLevel: Int): String {
+        val name = normalizeClaudeModelName(modelName)
+        val supportsXhigh = hasClaudeFamilyAtLeast(name, "opus", 4, 7) ||
+            hasClaudeFamilyAtLeast(name, "sonnet", 5, 0) ||
+            hasClaudeFamilyAtLeast(name, "fable", 5, 0) ||
+            hasClaudeFamilyAtLeast(name, "mythos", 5, 0)
+        return listOf("low", "medium", "high", if (supportsXhigh) "xhigh" else "max", "max")[
             qualityLevel.coerceIn(
                 ApiPreferences.MIN_THINKING_QUALITY_LEVEL,
                 ApiPreferences.MAX_THINKING_QUALITY_LEVEL
             ) - 1
         ]
+    }
 
     // 添加模型参数
     private fun addParameters(jsonObject: JSONObject, modelParameters: List<ModelParameter<*>>) {
@@ -1505,8 +1555,7 @@ class ClaudeProvider(
                     }
                     // 忽略thinking相关参数，因为它们会在单独的部分处理
                     "thinking",
-                    "budget_tokens",
-                    "output_config" -> {
+                    "budget_tokens" -> {
                         // 忽略，在特定部分处理
                     }
                     else -> {
@@ -1716,7 +1765,7 @@ class ClaudeProvider(
             }
             try {
                 AppLogger.d("AIService", "正在建立连接...")
-                withContext(Dispatchers.IO) {
+                withContext(executionDispatcher) {
                     val response = call.execute()
                     streamSessionGate.bindResponse(session, response) { response.close() }
                     try {
@@ -1800,22 +1849,19 @@ class ClaudeProvider(
                         var isInThinkingBlock = false
                         var emittedAny = false
                         var messageStopped = false
+                        var stopReason: String? = null
+                        val events = ServerSentEventReader(reader)
                         val contentBlockAccumulator =
                             AnthropicStreamingContentBlockAccumulator(modelName)
 
                         while (true) {
-                            val rawLine = reader.readLine() ?: break
-                            val line = rawLine.trim()
+                            val data = events.readData() ?: break
                             if (streamSessionGate.isCancelled(session)) {
                                 AppLogger.d("AIService", "流式传输已被取消，提前退出处理")
                                 throw UserCancellationException(
                                     context.getString(R.string.openai_error_request_cancelled)
                                 )
                             }
-                            if (!line.startsWith("data:")) {
-                                continue
-                            }
-                            val data = line.substringAfter("data:").trimStart()
                             if (data == "[DONE]") break
                             if (data.isBlank()) continue
 
@@ -2063,6 +2109,8 @@ class ClaudeProvider(
                                     }
                                 }
                                 "message_delta" -> {
+                                    jsonResponse.optJSONObject("delta")?.optString("stop_reason")
+                                        ?.takeIf { it.isNotBlank() }?.let { stopReason = it }
                                     applyAnthropicUsage(
                                         usage = jsonResponse.optJSONObject("usage"),
                                         onTokensUpdated = onTokensUpdated,
@@ -2071,6 +2119,7 @@ class ClaudeProvider(
                                     )
                                 }
                                 "message_stop" -> {
+                                    ProviderGenerationTerminalPolicy.requireAnthropicSuccess(stopReason)
                                     if (isInToolCall && currentToolParser != null) {
                                         val events = currentToolParser.flush()
                                         events.forEach { event ->

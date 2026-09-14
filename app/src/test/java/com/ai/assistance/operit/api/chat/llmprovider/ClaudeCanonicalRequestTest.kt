@@ -128,6 +128,7 @@ class ClaudeCanonicalRequestTest {
                         ),
                     modelParameters = emptyList<ModelParameter<*>>(),
                     enableThinking = true,
+                    thinkingQualityLevel = 1,
                     stream = true,
                     availableTools = listOf(readFileTool()),
                     preserveThinkInHistory = true,
@@ -184,6 +185,7 @@ class ClaudeCanonicalRequestTest {
                         ),
                     modelParameters = emptyList<ModelParameter<*>>(),
                     enableThinking = true,
+                    thinkingQualityLevel = 1,
                     stream = true,
                     availableTools = listOf(readFileTool()),
                     preserveThinkInHistory = true,
@@ -290,6 +292,7 @@ class ClaudeCanonicalRequestTest {
                     chatHistory = listOf(PromptTurn(PromptTurnKind.USER, "hello")),
                     modelParameters = emptyList<ModelParameter<*>>(),
                     enableThinking = true,
+                    thinkingQualityLevel = 1,
                     stream = true,
                     availableTools = null,
                 )
@@ -304,6 +307,7 @@ class ClaudeCanonicalRequestTest {
                     chatHistory = listOf(PromptTurn(PromptTurnKind.USER, "hello")),
                     modelParameters = emptyList<ModelParameter<*>>(),
                     enableThinking = true,
+                    thinkingQualityLevel = 1,
                     stream = true,
                     availableTools = null,
                 )
@@ -322,6 +326,7 @@ class ClaudeCanonicalRequestTest {
                             integerParameter("budget_tokens", 1024),
                         ),
                     enableThinking = true,
+                    thinkingQualityLevel = 1,
                     stream = true,
                     availableTools = null,
                 )

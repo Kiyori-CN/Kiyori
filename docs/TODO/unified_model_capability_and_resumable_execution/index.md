@@ -6,6 +6,108 @@ status: verification_pending
 
 # GPT-5.6 可恢复执行与统一模型能力
 
+## 2026-09-14 第二轮全提供商与流式组合深化
+
+状态：`LOCAL_IMPLEMENTATION_COMPLETE / LOCAL_AI_REGRESSION_PASSED / APK_VERIFIED`；
+真实服务与设备验收保持 `verification_pending`，提交与远端结果以本轮 Git 记录为准。
+起点 `main / d08797b71cd5ae862be7997727c1a6c0da844141`，原任务开始时工作区干净；
+中断恢复时接续复核同一轮 17 个未提交文件。
+
+- 目标：审计全部注册提供商及允许协议，覆盖模型能力、思考开关和五档、流式开关、文件与工具往返，
+  修复有源码或可复现实验证据的问题；验证后全部提交推送 `main`。
+- 阶段一：核对目录、协议路由和当前官方资料，区分共用 Chat/Responses/Anthropic/Gemini 路径、
+  供应商专用参数及本地引擎；记录不支持和未知组合，不能用模型名称推定端点能力。
+- 阶段二：修复 Gemini 思考控制与 SSE/终态、Anthropic 生成终态和其他确认的参数缺陷；
+  沿用请求编译、历史重放、媒体池和工具账本的唯一所有者。
+- 阶段三：以参数矩阵、真实 Provider 请求编译和本地 HTTP 故障注入验证；覆盖正常完成、截断、
+  坏事件、取消和工具往返，并检查失败请求不会重复 POST。按影响面扩展 AI 与文件工具回归。
+- 阶段四：同步 AI 契约及必要用户配置说明，串行构建 Debug APK 并核验实际产物；审阅精确差异、
+  敏感内容和子模块，形成独立提交，核对推送后的本地、跟踪和远端 ref。
+- 风险：不同模型允许的思考档位及关闭能力不同，HTTP 200/流结束不等于生成成功，
+  思考摘要和签名历史不可混同。新增检查必须保留已有工具身份、真实输出和取消语义。
+- 非目标：不新增自动回退、降级或未知提交重发，不修改稳定标识、不操作设备、不调用真实付费模型。
+  回滚点为本轮独立提交；APK、本地模拟、真实供应商、设备和远端 CI 分层验收。
+- 验收：本地回归、构建、文档与 Git 交付形成证据；真实端点全模型组合、缓存命中率和交互延迟
+  保留 `verification_pending`，不宣称“所有模型绝对无故障”或无实测的性能提升。
+
+### 提供商与协议覆盖矩阵
+
+本轮核对 `ApiProviderType` 全部 35 种枚举，并由
+`ProviderReasoningMatrixTest` 穷举 35 × 4 个供应商/协议组合：目录允许项必须有保留供应商
+身份的路由，目录外项必须在提交前拒绝。该矩阵证明客户端接线，不证明远端支持任意模型。
+
+| 提供商类型 | 实际复用路径与本轮覆盖 |
+| --- | --- |
+| OPENAI、OPENAI_RESPONSES、OPENAI_RESPONSES_GENERIC、OPENAI_GENERIC、XAI | Chat/Responses 编译、Astra/5.6/已知非推理模型、终态、摘要、usage、at-most-once 回归 |
+| ANTHROPIC、ANTHROPIC_GENERIC | Anthropic SSE/JSON、effort/budget/关闭、签名块和工具结果历史；显式 Chat 仍走共用 Chat |
+| GOOGLE、GEMINI_GENERIC | Gemini 原生 SSE/JSON、2.5/3 系思考、路径/认证、usage、工具/媒体历史；Google 显式 Chat 走通用 Chat |
+| DEEPSEEK | Chat/Responses/Anthropic 三协议、开关/五档、真实 reasoning 重放、文件工具与未知提交回归 |
+| ALIYUN、SILICONFLOW | Qwen Chat 专用开关、参数保留、偏好错误传播；SiliconFlow budget 沿用既有映射 |
+| MOONSHOT、MIMO、DOUBAO、NVIDIA | Kimi/MiMo reasoning 历史与工具闭合、豆包 thinking、NVIDIA GPT-OSS 三档上限；共用 Chat 终态 |
+| OPENROUTER、NOUS_PORTAL、FOUR_ROUTER、MISTRAL | 聚合 reasoning 开启语义、偏好错误传播、现有预算/工具 ID 适配；共用 Chat/目录声明协议回归 |
+| BAIDU、XUNFEI、ZHIPU、BAICHUAN、IFLOW、INFINIAI、ALIPAY_BAILING、PPINFRA、NOVITA | 源码核对工厂与目录；Chat 共用状态机，NOVITA Anthropic 复用同一 Messages 编码器；不猜测注入模型私有档位 |
+| LMSTUDIO、OLLAMA、OPENAI_LOCAL、OTHER | 自定义 Chat/Responses/Anthropic 按各自目录显式路由；保留兼容端点能力边界 |
+| MNN、LLAMA_CPP | 本地原生初始化/取消/生成终态、缓冲工具发布、非流式交付和 MNN IO 调度；JNI 现场待验收 |
+| 动态 ToolPkg 提供商（不计入 35 个枚举） | 只读核对扩展委托的 enableThinking/stream 传递及错误边界；具体扩展实现和自定义最终输出契约待现场验收 |
+
+### 本轮确认并修复的问题
+
+1. Gemini 原思考开关只改变摘要可见性，关闭/五档未影响推理配置；现在按模型编译真实控制。
+2. Gemini 原生请求丢失中转路径和版本；现保留路径/查询，显式 SSE，并使用标准 API Key 头。
+3. Gemini 逐行 SSE 与手写 JSON 括号计数不能正确处理完整事件；现与 Anthropic 共用 SSE reader。
+4. Gemini 缺终态、截断或安全终态曾可能成为成功；现在检查实际生成结果并保持一次提交。
+5. Gemini 纯 usage/无 content 的终态事件曾跳过统计；现独立处理真实用量。
+6. Anthropic 忽略 stop_reason；现流式和 JSON 都拒绝截断、暂停、上下文耗尽等非完成状态。
+7. Anthropic 自适应思考缺少 effort，手动思考未应用五档；现接入实际参数。
+8. 新 Claude 默认思考、不可关闭和采样限制未落地；现发送显式关闭或本地拒绝非法组合。
+9. Anthropic 忽略 output_config，并读取已禁用的 max_tokens/budget；现保留合法对象并尊重启用状态。
+10. Qwen 关闭未写 false；NVIDIA GPT-OSS 最高档错误使用 max；OpenRouter 开启未显式 enabled。
+11. 三类专用提供商读取档位失败会静默改用默认；现错误传播到现有请求失败边界。
+12. 本地引擎失败被当作回答文本、取消后仍可能发布工具；现先验证成功，再交付缓冲工具。
+13. 本地引擎忽略非流式开关；MNN 同步推理可能占用调用线程，且 max_tokens 按展示名读取。
+
+### 官方依据与验证边界
+
+2026-09-14 读取的官方依据：
+[Gemini thinking](https://ai.google.dev/gemini-api/docs/generate-content/thinking)、
+[Claude thinking](https://platform.claude.com/docs/en/build-with-claude/thinking)、
+[Claude effort](https://platform.claude.com/docs/en/build-with-claude/effort)、
+[Claude stop reasons](https://platform.claude.com/docs/en/build-with-claude/handling-stop-reasons)、
+[NVIDIA GPT-OSS](https://build.nvidia.com/openai/gpt-oss-20b/modelcard)、
+[Qwen 错误契约](https://docs.qwencloud.com/api-reference/preparation/error-messages)、
+[OpenRouter reasoning](https://openrouter.ai/docs/guides/best-practices/reasoning-tokens)。
+OpenRouter HTML 抓取超时后通过其官方 Markdown 页面读取；未用第三方结论替代。
+
+- 2026-09-14 扩大 JVM 回归：76 套件、493 测试，零失败/错误/跳过。
+  命令为 `:app:testDebugUnitTest`，筛选 `com.ai.assistance.operit.api.chat.llmprovider.*`、
+  `*AssistantReplayHistory*`、`*FileMediaReadPolicyTest`、`*ToolMediaInputPipelineTest`、
+  `*ConversationMarkupManagerToolHistoryTest`、`*StructuredTool*`、
+  `*ProviderStreamSessionGateTest`，使用 `--no-daemon --console=plain`。
+- 新增请求矩阵实际覆盖 8 个 Gemini 家族的开关/五档、7 个 Claude 家族五档 × 两种交付方式；
+  本地 HTTP 故障注入覆盖 SSE/JSON、BOM、多行、缺终态、截断、取消、usage 与一次 POST。
+  本地生成终态策略有单元证据，native 引擎的真实加载/推理/设备调度仅有源码与编译证据。
+- 本轮不重跑无关全仓 JVM、Lint 或 Release；上轮文件管理 16 项失败不是本轮已修复项目。
+- 中断恢复后再次执行上述完整筛选回归，76 套件、493 项仍全部通过，耗时 46 秒；
+  源码复核后未再修改运行时代码，正式开发准备与架构边界检查通过；
+  `check_documentation.py --repository . --base d08797b71cd5ae862be7997727c1a6c0da844141`
+  检查 521 个文档、零问题。
+- 独立串行执行 `./gradlew.bat :app:assembleDebug --no-daemon --console=plain`，
+  `BUILD SUCCESSFUL in 1m 31s`；实际 `app/build/outputs/apk/debug/app-debug.apk`
+  生成于 2026-09-14 12:03:35（Asia/Shanghai），485554651 字节，SHA-256：
+  `3FC0E2E59121FFD0009CB37CE5C917F262FC8D4B08038C33FC34BBA6F520B483`。
+- `aapt dump badging` 确认 `com.kiyori / 45 / 0.1.0`、min SDK 26、target SDK 34、
+  `arm64-v8a` 和 Debug 标志；`apksigner verify --verbose` 确认 V2 单签名，
+  `zipalign -c -P 16 4` 通过。APK 不进入 Git。
+- 交付清单为 10 个运行时源码、4 个测试和 3 个文档，未发现凭据形态、符号链接或异常大文件；
+  `terminal` 仍为 `bc4aeed3e791f0a6157496f3859f70357766f90f` 且工作区干净。
+  候选提交卫生、文档链接、新鲜克隆和推送 ref 在形成候选提交后核对，结果见交付记录。
+- 文件内容、工具调用身份、思考签名和缓存稳定前缀沿用已有重放链，并纳入上述回归。
+  未新增缓存来源，未测量服务端命中率、首 token 延迟或吞吐，不报告提升百分比。
+- 现场矩阵：为实际使用的每个供应商/协议/模型分别切换思考、1..5 档与流式，执行
+  “读取文件 → 搜索 → 再次读取 → 总结 → 下一轮”，再覆盖取消/断网/后台往返，
+  记录 POST 次数、工具次数、终态、usage 与耗时。MNN/llama.cpp 另测模型加载失败、
+  生成失败和取消；所有真实端点、设备、动态插件及远端 CI 保持 `verification_pending`。
+
 ## 2026-09-14 绝对路径多模态读取修复
 
 状态：`verification_pending`，源码修复与本地验证已完成。起点为

@@ -109,6 +109,7 @@ open class OpenRouterProvider(
             else -> {
                 val finalReasoningObject = reasoningObject ?: JSONObject()
                 if (enableThinking) {
+                    finalReasoningObject.put("enabled", true)
                     val budgetTokens = resolveReasoningBudget(context, requestJson, modelParameters)
                     if (budgetTokens != null && budgetTokens > 0) {
                         finalReasoningObject.put("max_tokens", budgetTokens)
@@ -119,7 +120,7 @@ open class OpenRouterProvider(
                         if (budgetTokens != null) {
                             "OpenRouter thinking enabled via reasoning.max_tokens=$budgetTokens"
                         } else {
-                            "OpenRouter thinking enabled via empty reasoning object"
+                            "OpenRouter thinking enabled via explicit provider default"
                         }
                     )
                 } else {
@@ -140,17 +141,9 @@ open class OpenRouterProvider(
         requestJson: JSONObject,
         modelParameters: List<ModelParameter<*>>
     ): Int? {
-        val qualityLevel = runCatching {
-            runBlocking {
-                ApiPreferences.getInstance(context).thinkingQualityLevelFlow.first()
-            }
-        }.getOrElse {
-            AppLogger.w(
-                "OpenRouterProvider",
-                "Failed to read thinking quality level, falling back to auto reasoning",
-                it
-            )
-            return null
+        // 偏好读取失败必须到达请求错误边界，不能静默使用供应商默认档位。
+        val qualityLevel = runBlocking {
+            ApiPreferences.getInstance(context).thinkingQualityLevelFlow.first()
         }
 
         val reasoningBudgets = listOf(null, 1_024, 16_000, 32_000, 64_000)

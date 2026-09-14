@@ -159,22 +159,19 @@ class LlamaProvider(
         chatHistory.forEach { MediaLinkParser.requireAvailableInput(it.content, image = false, audio = false, video = false) }
 
         if (!LlamaSession.isAvailable()) {
-            emit("${context.getString(R.string.llama_error_prefix)}: ${LlamaSession.getUnavailableReason()}")
-            return@stream
+            throw java.io.IOException("${context.getString(R.string.llama_error_prefix)}: ${LlamaSession.getUnavailableReason()}")
         }
 
         val modelFile = getModelFile(context, modelName)
         if (!modelFile.exists()) {
-            emit("${context.getString(R.string.llama_error_prefix)}: ${context.getString(R.string.llama_error_model_file_not_exist, modelFile.absolutePath)}")
-            return@stream
+            throw java.io.IOException(context.getString(R.string.llama_error_model_file_not_exist, modelFile.absolutePath))
         }
 
         val s = withContext(Dispatchers.IO) {
             ensureSessionLocked()
         }
         if (s == null) {
-            emit(context.getString(R.string.llama_error_session_create_failed))
-            return@stream
+            throw java.io.IOException(context.getString(R.string.llama_error_session_create_failed))
         }
 
         val effectiveEnableToolCall = shouldUseToolCall(availableTools)
@@ -200,8 +197,7 @@ class LlamaProvider(
             }
         }
         if (prompt.isNullOrBlank()) {
-            emit(context.getString(R.string.llama_error_chat_template_failed))
-            return@stream
+            throw java.io.IOException(context.getString(R.string.llama_error_chat_template_failed))
         }
 
         AppLogger.d(
@@ -287,7 +283,7 @@ class LlamaProvider(
                         toolCallOutputBuffer.append(token)
                     } else {
                         finalOutputBuffer.append(token)
-                        runBlocking { emit(token) }
+                        if (stream) runBlocking { emit(token) }
                     }
 
                     kotlin.runCatching {
@@ -301,6 +297,8 @@ class LlamaProvider(
             }
         }
 
+        // 验证推理成功后才解析/发布工具，避免取消或失败的半截参数产生副作用。
+        ProviderGenerationTerminalPolicy.requireLocalSuccess("llama.cpp", success, isCancelled)
         if (effectiveEnableToolCall) {
             val normalizedPayload = withContext(Dispatchers.IO) {
                 kotlin.runCatching {
@@ -316,11 +314,8 @@ class LlamaProvider(
             }
         }
 
-        if (!success && !isCancelled) {
-            kotlin.runCatching {
-                onNonFatalError(context.getString(R.string.llama_error_inference_failed))
-            }
-            emit("\n\n${context.getString(R.string.llama_error_inference_tag)}")
+        if (!effectiveEnableToolCall && !stream && finalOutputBuffer.isNotEmpty()) {
+            emit(finalOutputBuffer.toString())
         }
 
         AppLogger.i(TAG, "llama.cpp推理完成，输出token数: $_outputTokenCount")

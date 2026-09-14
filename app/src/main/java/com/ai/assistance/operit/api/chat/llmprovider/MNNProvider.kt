@@ -637,13 +637,12 @@ class MNNProvider(
             // 初始化模型
             val initResult = initModel()
             if (initResult.isFailure) {
-                emit(context.getString(R.string.mnn_generic_error, initResult.exceptionOrNull()?.message ?: ""))
-                return@stream
+                throw java.io.IOException(context.getString(R.string.mnn_generic_error,
+                    initResult.exceptionOrNull()?.message ?: ""), initResult.exceptionOrNull())
             }
 
             val session = llmSession ?: run {
-                emit(context.getString(R.string.mnn_session_not_initialized))
-                return@stream
+                throw java.io.IOException(context.getString(R.string.mnn_session_not_initialized))
             }
 
             // 应用模型参数（采样参数）
@@ -679,7 +678,7 @@ class MNNProvider(
                 }
 
             val requestedMaxNewTokens = modelParameters
-                .find { it.name == "max_tokens" }
+                .find { it.apiName == "max_tokens" && it.isEnabled }
                 ?.let { (it.currentValue as? Number)?.toInt() }
                 ?: -1
             val effectiveMaxNewTokens = (if (requestedMaxNewTokens > 0) requestedMaxNewTokens else 512).coerceAtMost(8192)
@@ -705,49 +704,52 @@ class MNNProvider(
             var outputTokenCount = 0
             val toolCallOutputBuffer = StringBuilder()
             val finalOutputBuffer = StringBuilder()
-            val emitDirectly = !useInternalToolCall
-            val success = session.generateStream(safeHistory, requestedMaxNewTokens) { token ->
-                if (isCancelled) {
-                    false
-                } else {
-                    outputTokenCount += 1
-                    _outputTokenCount = outputTokenCount
-
-                    if (emitDirectly) {
-                        finalOutputBuffer.append(token)
-                        runBlocking { emit(token) }
+            val emitDirectly = stream && !useInternalToolCall
+            val success = withContext(Dispatchers.IO) {
+                session.generateStream(safeHistory, requestedMaxNewTokens) { token ->
+                    if (isCancelled) {
+                        false
                     } else {
-                        toolCallOutputBuffer.append(token)
-                    }
+                        outputTokenCount += 1
+                        _outputTokenCount = outputTokenCount
 
-                    kotlin.runCatching {
-                        kotlinx.coroutines.runBlocking {
-                            onTokensUpdated(_inputTokenCount, 0, _outputTokenCount)
+                        if (emitDirectly) {
+                            finalOutputBuffer.append(token)
+                            runBlocking { emit(token) }
+                        } else {
+                            toolCallOutputBuffer.append(token)
                         }
-                    }
 
-                    true
+                        kotlin.runCatching {
+                            kotlinx.coroutines.runBlocking {
+                                onTokensUpdated(_inputTokenCount, 0, _outputTokenCount)
+                            }
+                        }
+
+                        true
+                    }
                 }
             }
 
-            if (useInternalToolCall && toolCallOutputBuffer.isNotEmpty()) {
-                val converted = StructuredToolCallBridge.convertToolCallPayloadToXml(toolCallOutputBuffer.toString())
+            // 失败或取消时绝不能把缓冲的工具参数发布成可执行调用。
+            ProviderGenerationTerminalPolicy.requireLocalSuccess("MNN", success, isCancelled)
+            if (!emitDirectly && toolCallOutputBuffer.isNotEmpty()) {
+                val converted = if (useInternalToolCall) {
+                    StructuredToolCallBridge.convertToolCallPayloadToXml(toolCallOutputBuffer.toString())
+                } else toolCallOutputBuffer.toString()
                 if (converted.isNotBlank()) {
                     finalOutputBuffer.append(converted)
                     emit(converted)
                 }
             }
 
-            if (!success && !isCancelled) {
-                emit(context.getString(R.string.mnn_reasoning_error))
-            }
-
             AppLogger.i(TAG, "MNN LLM推理完成，输出token数: $_outputTokenCount")
             logFinalOutput(finalOutputBuffer, "Final MNN output summary: ")
 
         } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
             AppLogger.e(TAG, "发送消息时出错", e)
-            emit(context.getString(R.string.mnn_generic_error, e.message ?: ""))
+            throw e
         } finally {
             requestTempFiles.forEach { file ->
                 runCatching { file.delete() }
