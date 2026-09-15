@@ -252,7 +252,8 @@ fun FolderNavigator(
                             Text(stringResource(R.string.foldernav_new_folder))
                         }
                     }
-                    FolderItem(name = stringResource(R.string.folder_navigator_all), fullPath = "", level = 0,
+                    // 根目录是位置而不是可管理的文件夹：它没有重命名和删除，未归类条目就放在这里。
+                    FolderItem(name = stringResource(R.string.library_folder_root), fullPath = "", level = 0,
                         isSelected = selectedFolderPath.isEmpty(), isExpanded = false, hasChildren = false,
                         onToggleExpand = {}, onClick = { onFolderSelected("") }, onLongClick = null, enabled = !isBusy)
                 }
@@ -424,7 +425,7 @@ private fun FolderItem(
             .semantics { selected = isSelected }
             .background(backgroundColor)
             .then(
-                if (onLongClick != null && fullPath != stringResource(R.string.memory_uncategorized)) {
+                if (onLongClick != null) {
                     Modifier.combinedClickable(
                         enabled = enabled,
                         onClick = onClick,
@@ -477,7 +478,7 @@ private fun FolderItem(
             fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
             modifier = Modifier.weight(1f), maxLines = 2, overflow = TextOverflow.Ellipsis
         )
-        if (onLongClick != null && fullPath != stringResource(R.string.memory_uncategorized)) IconButton(onClick = onLongClick, enabled = enabled) {
+        if (onLongClick != null) IconButton(onClick = onLongClick, enabled = enabled) {
             Icon(Icons.Outlined.MoreVert, stringResource(R.string.library_folder_actions, name), Modifier.size(20.dp))
         }
     }
@@ -557,8 +558,9 @@ private fun FolderContextMenu(
 
 private enum class FolderMenuAction { RENAME, DELETE }
 
+/** 目录创建复用同一张路径表单：浏览页与位置抽屉不能各自校验一套路径规则。 */
 @Composable
-private fun FolderCreateDialog(parentPath: String, folderPaths: List<String>, onDismiss: () -> Unit, onCreate: (String) -> Unit) {
+internal fun FolderCreateDialog(parentPath: String, folderPaths: List<String>, onDismiss: () -> Unit, onCreate: (String) -> Unit) {
     FolderPathSheet(null, parentPath, folderPaths, onDismiss, onCreate)
 }
 

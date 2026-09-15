@@ -5016,7 +5016,6 @@
     <string name="load_folder_failed">加载文件夹失败: %1$s</string>
     <string name="no_memory_folder">暂无记忆文件夹\n请先在记忆管理中创建文件夹</string>
     <string name="confirm_with_count">确定 (%1$d)</string>
-    <string name="uncategorized">未分类</string>
     <string name="link_preview">链接预览</string>
     <string name="link_address">链接地址:</string>
     <string name="no_app_found">没有找到可以打开此链接的应用</string>
@@ -5873,7 +5872,6 @@
     <string name="memory_create_new">新建记忆</string>
     <string name="memory_edit_memory">编辑记忆</string>
     <string name="memory_folder">文件夹</string>
-    <string name="memory_uncategorized">未分类</string>
     <string name="memory_uuid">UUID</string>
     <string name="memory_source">来源</string>
     <string name="memory_importance">重要性</string>

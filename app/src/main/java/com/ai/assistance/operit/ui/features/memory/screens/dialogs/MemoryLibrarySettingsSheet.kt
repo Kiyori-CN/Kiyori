@@ -117,7 +117,9 @@ fun MemoryLibrarySettingsSheet(
             title = stringResource(R.string.library_settings),
             onClose = dismiss,
             footer = {
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                // 主操作靠右，与编辑抽屉的“取消 / 保存”保持同一侧，拇指落点不随面板变化。
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End),
+                    verticalAlignment = Alignment.CenterVertically) {
                 OutlinedButton(
                     enabled = !isSaving && !isRebuilding,
                     onClick = {

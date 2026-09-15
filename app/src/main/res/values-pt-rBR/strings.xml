@@ -3874,7 +3874,6 @@ Agora é possível usar o modo AutoGLM na interface de diálogo.</string>
     <string name="load_folder_failed">Falha ao carregar a pasta: %1$s</string>
     <string name="no_memory_folder">Ainda não há pasta de memória\nPor favor, crie primeiro uma pasta no gerenciamento de memória</string>
     <string name="confirm_with_count">OK (%1$d)</string>
-    <string name="uncategorized">Sem categoria</string>
     <string name="link_preview">Visualização do link</string>
     <string name="link_address">Endereço do link:</string>
     <string name="no_app_found">Nenhum aplicativo encontrado para abrir este link</string>
@@ -4508,7 +4507,6 @@ Agora é possível usar o modo AutoGLM na interface de diálogo.</string>
     <string name="memory_create_new">Crie uma nova memória</string>
     <string name="memory_edit_memory">Editar memória</string>
     <string name="memory_folder">pasta</string>
-    <string name="memory_uncategorized">Sem categoria</string>
     <string name="memory_uuid">UUID</string>
     <string name="memory_source">fonte</string>
     <string name="memory_importance">importância</string>

@@ -4237,7 +4237,6 @@
     <string name="load_folder_failed">폴더를 로드하지 못했습니다: %1$s</string>
     <string name="no_memory_folder">사용 가능한 메모리 폴더가 없습니다\n먼저 메모리 관리에서 폴더를 생성하세요</string>
     <string name="confirm_with_count">확인(%1$d)</string>
-    <string name="uncategorized">분류되지 않음</string>
     <string name="link_preview">링크 미리보기</string>
     <string name="link_address">링크 주소:</string>
     <string name="no_app_found">이 링크를 열 수 있는 앱을 찾을 수 없습니다.</string>
@@ -4923,7 +4922,6 @@
     <string name="memory_create_new">새 메모리</string>
     <string name="memory_edit_memory">메모리 편집</string>
     <string name="memory_folder">폴더</string>
-    <string name="memory_uncategorized">분류되지 않음</string>
     <string name="memory_uuid">UUID</string>
     <string name="memory_source">출처</string>
     <string name="memory_importance">중요도</string>

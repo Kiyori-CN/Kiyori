@@ -4643,7 +4643,6 @@
     <string name="load_folder_failed">Failed to load folder: %1$s</string>
     <string name="no_memory_folder">No memory folders available\nPlease create folders in memory management first</string>
     <string name="confirm_with_count">Confirm (%1$d)</string>
-    <string name="uncategorized">Uncategorized</string>
     <string name="link_preview">Link Preview</string>
     <string name="link_address">Link Address:</string>
     <string name="no_app_found">No app found to open this link</string>
@@ -5525,7 +5524,6 @@
     <string name="memory_create_new">New Memory</string>
     <string name="memory_edit_memory">Edit Memory</string>
     <string name="memory_folder">Folder</string>
-    <string name="memory_uncategorized">Uncategorized</string>
     <string name="memory_uuid">UUID</string>
     <string name="memory_source">Source</string>
     <string name="memory_importance">Importance</string>

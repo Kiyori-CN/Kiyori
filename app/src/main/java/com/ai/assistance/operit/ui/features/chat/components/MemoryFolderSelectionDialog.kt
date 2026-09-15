@@ -85,7 +85,7 @@ fun MemoryFolderSelectionDialog(
                 val folders = loadFolderPaths(context)
                 folderPaths = folders
                 // 构建树结构
-                folderTree = buildFolderTree(context, folders)
+                folderTree = buildFolderTree(folders)
                 isLoading = false
             } catch (e: Exception) {
                 AppLogger.e("MemoryFolderDialog", "Failed to load folders", e)
@@ -333,13 +333,12 @@ private fun FolderTreeItem(
  * 构建文件夹树结构
  * 使用与 FolderNavigator 相同的逻辑，自动创建缺失的父节点
  */
-private fun buildFolderTree(context: Context, folderPaths: List<String>): List<FolderNode> {
+private fun buildFolderTree(folderPaths: List<String>): List<FolderNode> {
     val rootNodes = mutableListOf<FolderNode>()
     val nodeMap = mutableMapOf<String, FolderNode>()
 
-    // 过滤掉空路径和"未分类"
-    val uncategorized = context.getString(R.string.uncategorized)
-    val validPaths = folderPaths.filter { it.isNotBlank() && it != uncategorized }
+    // 目录列表只包含真实路径；根目录不是可勾选的文件夹，未归类条目不通过目录附着。
+    val validPaths = folderPaths.filter { it.isNotBlank() }
 
     // 遍历每个路径，自动创建所有中间节点
     validPaths.forEach { path ->
@@ -369,15 +368,6 @@ private fun buildFolderTree(context: Context, folderPaths: List<String>): List<F
                 }
             }
         }
-    }
-
-    // 如果有"未分类"，将其添加到最前面
-    if (uncategorized in folderPaths) {
-        rootNodes.add(0, FolderNode(
-            path = uncategorized,
-            name = uncategorized,
-            level = 0
-        ))
     }
 
     return rootNodes

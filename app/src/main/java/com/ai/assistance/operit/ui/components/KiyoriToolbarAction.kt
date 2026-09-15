@@ -21,6 +21,8 @@ import com.kiyori.design.theme.resolveColors
 internal enum class KiyoriActionRole(val tone: KiyoriSemanticTone) {
     NAVIGATE(KiyoriSemanticTone.BLUE),
     ORGANIZE(KiyoriSemanticTone.ORANGE),
+    /** 排序改变的是排列而不是范围；与筛选同色会让相邻的两个图标看起来是一组同义按钮。 */
+    ARRANGE(KiyoriSemanticTone.CYAN),
     CONFIGURE(KiyoriSemanticTone.PURPLE),
     EXECUTE(KiyoriSemanticTone.GREEN),
     ERROR(KiyoriSemanticTone.PURPLE),

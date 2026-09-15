@@ -1,9 +1,8 @@
 package com.ai.assistance.operit.ui.features.memory.screens
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.KeyboardActions
@@ -27,6 +26,7 @@ import com.ai.assistance.operit.R
 import com.ai.assistance.operit.ui.components.rememberDelayedLoading
 import com.ai.assistance.operit.data.model.Memory
 import com.ai.assistance.operit.data.model.MemoryLibraryPolicy
+import com.ai.assistance.operit.ui.features.memory.viewmodel.MemoryFolderBrowsePolicy
 import com.ai.assistance.operit.ui.features.memory.viewmodel.MemoryUiState
 import com.ai.assistance.operit.ui.features.memory.viewmodel.MemoryViewModel
 import com.kiyori.design.theme.KiyoriUiShapes
@@ -61,10 +61,11 @@ internal fun MemoryLibraryContent(
 ) {
     var showFilters by remember(viewModel) { mutableStateOf(false) }
     var addMenu by remember(viewModel) { mutableStateOf(false) }
+    var showCreateFolder by remember(viewModel) { mutableStateOf(false) }
     val keyboard = LocalSoftwareKeyboardController.current
     val isCurrentScreen = LocalIsCurrentScreen.current
     LaunchedEffect(isCurrentScreen) {
-        if (!isCurrentScreen) { showFilters = false; addMenu = false }
+        if (!isCurrentScreen) { showFilters = false; addMenu = false; showCreateFolder = false }
     }
     val setTopBarActions = LocalTopBarActions.current
     val latestState = rememberUpdatedState(state)
@@ -93,17 +94,24 @@ internal fun MemoryLibraryContent(
     val search = { keyboard?.hide(); viewModel.searchMemories() }
     val create = { viewModel.startEditing(null) }
     val primaryLabel = stringResource(if (knowledge) R.string.library_import else R.string.library_new_memory)
+    // 搜索或筛选生效时展示整棵子树的平铺结果；否则逐级浏览当前目录。
+    val browsingSearch = state.appliedSearchQuery.isNotBlank() || filterCount > 0
+    // 目录层级耗尽才把 Back 交还给壳；弹层仍由各自的宿主先处理。
+    BackHandler(enabled = isCurrentScreen && !state.showGraph && state.selectedFolderPath.isNotBlank() && !busy) {
+        viewModel.selectFolder(MemoryFolderBrowsePolicy.parentOf(state.selectedFolderPath))
+    }
 
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
-            // 位置与内容类型同排，长空间名/目录省略，完整路径在位置抽屉中展示。
+            // 空间入口与内容类型同排，长空间名省略；目录层级交给下方面包屑。
             Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                // 当前目录由下方面包屑负责，这里只表达“在哪个空间”，两处不再重复同一路径。
                 TextButton(onClick = onFolders, enabled = !busy, modifier = Modifier.weight(1f), contentPadding = PaddingValues(horizontal = 4.dp)) {
                     Icon(Icons.Outlined.FolderOpen, null, Modifier.size(20.dp))
                     Column(Modifier.weight(1f).padding(horizontal = 8.dp), horizontalAlignment = Alignment.Start) {
-                        Text(spaceName, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        Text(state.selectedFolderPath.ifBlank { stringResource(R.string.library_all_folders) }, style = MaterialTheme.typography.labelLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(stringResource(R.string.library_space), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(spaceName, style = MaterialTheme.typography.labelLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                     Icon(Icons.Outlined.ExpandMore, null, Modifier.size(18.dp))
                 }
@@ -131,6 +139,7 @@ internal fun MemoryLibraryContent(
                 }) { Icon(Icons.Outlined.Close, stringResource(R.string.library_clear_search)) } },
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                 keyboardActions = KeyboardActions(onSearch = { search() }))
+            if (!state.showGraph) MemoryFolderBreadcrumb(state.selectedFolderPath, enabled = !busy) { viewModel.selectFolder(it) }
             if (filterCount > 0) LazyRow(contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (state.showArchived) item { ActiveFilter(stringResource(R.string.library_archived)) { viewModel.setArchivedFilter(false) } }
                 state.categoryFilter?.let { category -> item { ActiveFilter(memoryCategoryLabel(category)) { viewModel.setCategoryFilter(null) } } }
@@ -157,7 +166,8 @@ internal fun MemoryLibraryContent(
                 state.isLoading && (state.memories.isEmpty() || state.showGraph) -> Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
                     if (showLoading) CircularProgressIndicator(Modifier.size(28.dp), strokeWidth = 3.dp)
                 }
-                state.memories.isEmpty() -> LibraryEmptyState(
+                // 空目录不能吞掉整页：当前位置没有条目但仍有子目录时，逐级浏览必须留在列表里。
+                state.memories.isEmpty() && (state.showGraph || browsingSearch || state.folderPaths.isEmpty()) -> LibraryEmptyState(
                     if (onlyArchive) R.string.library_archive_empty else if (filtered) R.string.library_no_results else if (knowledge) R.string.library_knowledge_empty else R.string.library_empty,
                     if (onlyArchive) R.string.library_archive_hint else if (filtered) R.string.library_filter_hint else if (knowledge) R.string.library_knowledge_hint else R.string.library_memory_hint,
                     knowledge = knowledge
@@ -182,36 +192,37 @@ internal fun MemoryLibraryContent(
                 else -> {
                     val locale = LocalConfiguration.current.locales[0]
                     val dateFormat = remember(locale) { DateFormat.getDateInstance(DateFormat.MEDIUM, locale) }
-                    // 范围切换回到结果起点，单纯刷新数据保持阅读位置。
-                    key(state.libraryKind, state.appliedSearchQuery, state.selectedFolderPath, state.showArchived, state.categoryFilter, state.tagFilter, state.sortByTitle) {
-                        LazyColumn(Modifier.weight(1f).fillMaxWidth(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 96.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                            item {
-                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                    Text(stringResource(R.string.library_count, state.memories.size), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                    Text(stringResource(if (state.sortByTitle) R.string.library_sort_title else if (state.appliedSearchQuery.isNotBlank()) R.string.library_sort_relevance else R.string.library_sort_recent), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                }
-                            }
-                            items(state.memories, key = { it.id }) { memory -> MemoryLibraryCard(memory, dateFormat) { viewModel.selectMemory(memory) } }
-                        }
-                    }
+                    MemoryFolderList(state, viewModel, dateFormat, searching = browsingSearch,
+                        onCreateFolder = { showCreateFolder = true })
                 }
             }
         }
         if (showLoading && state.memories.isNotEmpty() && !state.showGraph) {
             CircularProgressIndicator(Modifier.align(Alignment.TopEnd).padding(16.dp).size(24.dp), strokeWidth = 2.dp)
         }
-        if (state.memories.isNotEmpty() && !state.showGraph && !pendingQuery && state.error == null && !busy) {
+        if ((state.memories.isNotEmpty() || state.folderPaths.isNotEmpty()) && !state.showGraph && !pendingQuery && state.error == null && !busy) {
             Box(Modifier.align(Alignment.BottomEnd).padding(16.dp)) {
-                ExtendedFloatingActionButton(onClick = { if (knowledge) addMenu = true else create() },
-                    icon = { Icon(Icons.Outlined.Add, null) }, text = { Text(stringResource(if (knowledge) R.string.library_add else R.string.library_new_memory)) })
+                ExtendedFloatingActionButton(onClick = { addMenu = true },
+                    icon = { Icon(Icons.Outlined.Add, null) }, text = { Text(stringResource(R.string.library_add)) })
                 DropdownMenu(expanded = addMenu, onDismissRequest = { addMenu = false }) {
-                    DropdownMenuItem(text = { Text(stringResource(R.string.library_import)) }, leadingIcon = { Icon(Icons.Outlined.UploadFile, null) }, onClick = { addMenu = false; onImport() })
-                    DropdownMenuItem(text = { Text(stringResource(R.string.library_new_note)) }, leadingIcon = { Icon(Icons.Outlined.EditNote, null) }, onClick = { addMenu = false; create() })
+                    if (knowledge) DropdownMenuItem(text = { Text(stringResource(R.string.library_import)) }, leadingIcon = { Icon(Icons.Outlined.UploadFile, null) }, onClick = { addMenu = false; onImport() })
+                    DropdownMenuItem(text = { Text(stringResource(if (knowledge) R.string.library_new_note else R.string.library_new_memory)) },
+                        leadingIcon = { Icon(if (knowledge) Icons.Outlined.EditNote else Icons.Outlined.Add, null) }, onClick = { addMenu = false; create() })
+                    DropdownMenuItem(text = { Text(stringResource(R.string.foldernav_new_folder)) },
+                        leadingIcon = { Icon(Icons.Outlined.CreateNewFolder, null) }, onClick = { addMenu = false; showCreateFolder = true })
                 }
             }
         }
     }
     if (showFilters && isCurrentScreen) MemoryFilterSheet(state, viewModel) { showFilters = false }
+    if (showCreateFolder && isCurrentScreen) {
+        FolderCreateDialog(
+            parentPath = state.selectedFolderPath,
+            folderPaths = state.folderPaths,
+            onDismiss = { showCreateFolder = false },
+            onCreate = { path -> viewModel.createFolder(path) },
+        )
+    }
 }
 
 @Composable
@@ -241,7 +252,7 @@ private fun ColumnScope.LibraryEmptyState(
 }
 
 @Composable
-private fun MemoryLibraryCard(memory: Memory, dateFormat: DateFormat, onClick: () -> Unit) {
+internal fun MemoryLibraryCard(memory: Memory, dateFormat: DateFormat, showFolder: Boolean = true, onClick: () -> Unit) {
     Card(onClick = onClick, modifier = Modifier.fillMaxWidth(), shape = KiyoriUiShapes.card,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -254,7 +265,8 @@ private fun MemoryLibraryCard(memory: Memory, dateFormat: DateFormat, onClick: (
                 style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
             val tags = memory.tags.map { it.name }.take(3)
             if (tags.isNotEmpty()) Text(tags.joinToString("  ") { "#$it" }, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            if (!memory.folderPath.isNullOrBlank()) Text(memory.folderPath.orEmpty(), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            // 逐级浏览时所在目录就是当前位置，重复展示只会占掉摘要空间；跨目录结果才需要标出归属。
+            if (showFolder && !memory.folderPath.isNullOrBlank()) Text(memory.folderPath.orEmpty(), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
 }

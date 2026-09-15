@@ -85,7 +85,7 @@ fun MemoryInfoDialog(
                         Text(stringResource(if (!cloudConfig.enabled) R.string.library_index_local else if (indexed) R.string.library_index_ready else R.string.library_index_pending), style = MaterialTheme.typography.bodySmall)
                         SelectionContainer {
                             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Text("${stringResource(R.string.memory_folder)}: ${memory.folderPath.orEmpty().ifBlank { stringResource(R.string.memory_uncategorized) }}", style = MaterialTheme.typography.bodySmall)
+                                Text("${stringResource(R.string.memory_folder)}: ${memory.folderPath.orEmpty().ifBlank { stringResource(R.string.library_folder_root) }}", style = MaterialTheme.typography.bodySmall)
                                 Text("${stringResource(R.string.memory_source)}: ${memory.source}", style = MaterialTheme.typography.bodySmall)
                                 Text("${stringResource(R.string.memory_uuid)}: ${memory.uuid}", style = MaterialTheme.typography.bodySmall)
                                 Text("${stringResource(R.string.memory_created_at)}: ${dateFormat.format(memory.createdAt)}", style = MaterialTheme.typography.bodySmall)
@@ -126,8 +126,9 @@ fun EdgeInfoDialog(
         title = { Text(stringResource(R.string.memory_link_details)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("${stringResource(R.string.memory_from)}: ${sourceNode?.label ?: stringResource(R.string.memory_uncategorized)}")
-                Text("${stringResource(R.string.memory_to)}: ${targetNode?.label ?: stringResource(R.string.memory_uncategorized)}")
+                // 端点不在当前图谱里说明范围变了，不是“未分类”；文案必须说明真实原因。
+                Text("${stringResource(R.string.memory_from)}: ${sourceNode?.label ?: stringResource(R.string.library_link_node_missing)}")
+                Text("${stringResource(R.string.memory_to)}: ${targetNode?.label ?: stringResource(R.string.library_link_node_missing)}")
                 HorizontalDivider()
                 Text("${stringResource(R.string.memory_type)}: ${edge.label}")
                 Text("${stringResource(R.string.memory_weight)}: ${edge.weight}")

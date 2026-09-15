@@ -287,7 +287,7 @@ class MemoryViewModel(
             try {
                 repository.setArchived(memory.id, !memory.archived)
                 clearSelection()
-                searchMemories()
+                refreshCurrentSearch()
             } catch (e: Exception) {
                 if (e is CancellationException) throw e
                 _uiState.update { it.copy(error = e.message) }
@@ -416,7 +416,7 @@ class MemoryViewModel(
                     memoryExtractionCustomRules = memoryExtractionCustomRules, isSaving = false,
                     message = context.getString(R.string.settings_saved)) }
                 refreshEmbeddingDimensionUsage()
-                searchMemories()
+                refreshCurrentSearch()
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -569,7 +569,7 @@ class MemoryViewModel(
     fun selectFolder(folderPath: String) {
         clearSelection()
         _uiState.update { it.copy(selectedFolderPath = folderPath) }
-        searchMemories()
+        refreshCurrentSearch()
     }
 
     /** 移动选中的记忆到目标文件夹 */
@@ -782,7 +782,7 @@ class MemoryViewModel(
                 _uiState.update { it.copy(isSaving = false) }
                 closeDocumentView()
                 clearSelection()
-                searchMemories()
+                refreshCurrentSearch()
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -854,11 +854,10 @@ class MemoryViewModel(
         viewModelScope.launch {
             _uiState.update { it.copy(isSaving = true, error = null) }
             try {
-                val currentFolder = _uiState.value.selectedFolderPath
                 repository.createMemory(title.trim(), content.trim(), contentType, source,
                     folderPath, tags, credibility, importance, _uiState.value.libraryKind, category)
                 _uiState.update { it.copy(isEditing = false, editingMemory = null) }
-                searchMemories()
+                refreshCurrentSearch()
                 loadFolderPaths()
                 _uiState.update {
                     it.copy(isSaving = false, isEditing = false, editingMemory = null)
@@ -903,7 +902,7 @@ class MemoryViewModel(
                     newCategory = newCategory
                 )
                 _uiState.update { it.copy(isEditing = false, editingMemory = null) }
-                searchMemories()
+                refreshCurrentSearch()
                 // 刷新文件夹列表（如果记忆移动到新文件夹或从文件夹移出）
                 loadFolderPaths()
                 _uiState.update {
@@ -926,7 +925,7 @@ class MemoryViewModel(
                 repository.deleteMemory(memoryId)
                 clearSelection()
                 loadFolderPaths()
-                searchMemories()
+                refreshCurrentSearch()
             } catch (e: Exception) {
                 if (e is CancellationException) throw e
                 _uiState.update {
@@ -1136,8 +1135,8 @@ class MemoryViewModel(
         viewModelScope.launch {
             _uiState.update { it.copy(isSaving = true) }
             try {
-                // 创建一个空的占位记忆，确保文件夹路径存在
-                check(repository.createFolder(folderPath)) { "无法创建文件夹" }
+                // 创建一个空的占位记忆，确保文件夹路径存在；失败时仓库抛出具体原因，不在这里重写成一句通用文案。
+                repository.createFolder(folderPath)
                 // 重新加载文件夹列表
                 loadFolderPaths()
                 // 自动选择新创建的文件夹

@@ -4034,7 +4034,6 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="load_folder_failed">Gagal memuat folder: %1$s</string>
     <string name="no_memory_folder">Belum ada folder memori\nSilakan buat folder terlebih dahulu di Manajemen Memori</string>
     <string name="confirm_with_count">Konfirmasi (%1$d)</string>
-    <string name="uncategorized">Belum Dikategorikan</string>
     <string name="link_preview">Pratinjau Tautan</string>
     <string name="link_address">Alamat tautan:</string>
     <string name="no_app_found">Tidak ditemukan aplikasi yang dapat membuka tautan ini</string>
@@ -4816,7 +4815,6 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="memory_create_new">Buat Memori Baru</string>
     <string name="memory_edit_memory">Edit Memori</string>
     <string name="memory_folder">Folder</string>
-    <string name="memory_uncategorized">Belum Dikategorikan</string>
 
     <string name="toolreg_read_file_desc">Membaca file: %1$s%2$s</string>
     <string name="toolreg_read_file_part_range_lines">Baris %1$s-%2$s</string>

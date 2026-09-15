@@ -340,6 +340,12 @@ class MemoryQueryToolExecutor(private val context: Context) : ToolExecutor {
         return if (uuid != null) repository.findMemoryByUuid(uuid) else title?.let { repository.findMemoryByTitle(it) }
     }
 
+    /** 报错必须说明实际用的定位方式，否则按 uuid 调用时会看到一句"title: null"。 */
+    private fun describeLocator(tool: AITool, title: String?): String {
+        val uuid = tool.parameters.find { it.name == "uuid" }?.value?.trim()?.takeIf { it.isNotEmpty() }
+        return if (uuid != null) "uuid: $uuid" else "title: ${title.orEmpty()}"
+    }
+
     private suspend fun executeGetMemoryByTitle(tool: AITool): ToolResult {
         val profileId = resolveActiveProfileId(tool)
         val memoryRepository = getMemoryRepository(profileId)
@@ -368,7 +374,7 @@ class MemoryQueryToolExecutor(private val context: Context) : ToolExecutor {
                     toolName = tool.name,
                     success = false,
                     result = StringResultData(""),
-                    error = "Memory not found with title: $title"
+                    error = "Memory not found (${describeLocator(tool, title)})"
                 )
             }
 
@@ -551,6 +557,8 @@ class MemoryQueryToolExecutor(private val context: Context) : ToolExecutor {
                 source = source,
                 folderPath = folderPath,
                 tags = tags,
+                credibility = tool.parameters.find { it.name == "credibility" }?.value?.toFloatOrNull() ?: 0.8f,
+                importance = tool.parameters.find { it.name == "importance" }?.value?.toFloatOrNull() ?: 0.5f,
                 libraryKind = tool.parameters.find { it.name == "library_kind" }?.value ?: MemoryLibraryPolicy.MEMORY,
                 category = tool.parameters.find { it.name == "category" }?.value ?: "other"
             )
@@ -605,7 +613,7 @@ class MemoryQueryToolExecutor(private val context: Context) : ToolExecutor {
                     toolName = tool.name,
                     success = false,
                     result = StringResultData(""),
-                    error = "Memory not found with title: $oldTitle"
+                    error = "Memory not found (${describeLocator(tool, oldTitle)})"
                 )
             }
 
@@ -682,7 +690,7 @@ class MemoryQueryToolExecutor(private val context: Context) : ToolExecutor {
                 toolName = tool.name,
                 success = false,
                 result = StringResultData(""),
-                error = "title parameter is required to identify the memory"
+                error = "uuid or title is required to identify the memory"
             )
         }
 
@@ -695,7 +703,7 @@ class MemoryQueryToolExecutor(private val context: Context) : ToolExecutor {
                     toolName = tool.name,
                     success = false,
                     result = StringResultData(""),
-                    error = "Memory not found with title: $title"
+                    error = "Memory not found (${describeLocator(tool, title)})"
                 )
             }
 
@@ -1060,11 +1068,18 @@ class MemoryQueryToolExecutor(private val context: Context) : ToolExecutor {
             val memoryIds = uniqueMemories.keys.toList()
 
             if (memoryIds.isEmpty()) {
+                // 无命中不是一次成功的空移动；说明实际筛选条件，调用方才能改参数重试。
+                val scope = buildList {
+                    if (uuids.isNotEmpty()) add("uuids=${uuids.joinToString()}")
+                    if (titles.isNotEmpty()) add("titles=${titles.joinToString()}")
+                    if (hasSourceFolderParam) add("source_folder_path='${sourceFolderPath.orEmpty()}'")
+                }.joinToString("; ")
                 return ToolResult(
                     toolName = tool.name,
                     success = false,
                     result = StringResultData(""),
-                    error = "No matching memories found to move"
+                    error = "No memories matched ($scope); nothing was moved. " +
+                        "Use query_memory(query=*, folder_path=...) to confirm the source scope first."
                 )
             }
 
@@ -1078,7 +1093,7 @@ class MemoryQueryToolExecutor(private val context: Context) : ToolExecutor {
                 )
             }
 
-            val destination = if (targetFolderPath.isBlank()) "uncategorized" else targetFolderPath
+            val destination = if (targetFolderPath.isBlank()) MemoryRepository.ROOT_FOLDER_TOKEN else targetFolderPath
             ToolResult(
                 toolName = tool.name,
                 success = true,
@@ -1387,7 +1402,9 @@ class MemoryQueryToolExecutor(private val context: Context) : ToolExecutor {
                 category = MemoryLibraryPolicy.category(memory),
                 updatedAt = sdf.format(memory.updatedAt),
                 archived = memory.archived,
-                folderPath = memory.folderPath.orEmpty()
+                folderPath = memory.folderPath.orEmpty(),
+                credibility = memory.credibility,
+                importance = memory.importance
             )
         }
         MemoryQueryResultData(

@@ -4058,7 +4058,6 @@ Kini anda boleh menggunakan mod AutoGLM di antara muka perbualan.</string>
     <string name="load_folder_failed">Gagal memuatkan folder: %1$s</string>
     <string name="no_memory_folder">Tiada folder ingatan buat masa ini\nSila buat folder dahulu dalam pengurusan ingatan</string>
     <string name="confirm_with_count">Sahkan (%1$d)</string>
-    <string name="uncategorized">Tidak dikategorikan</string>
     <string name="link_preview">Pratonton pautan</string>
     <string name="link_address">Alamat pautan:</string>
     <string name="no_app_found">Tiada aplikasi ditemui untuk membuka pautan ini</string>
@@ -4689,7 +4688,6 @@ Kini anda boleh menggunakan mod AutoGLM di antara muka perbualan.</string>
     <string name="memory_create_new">Cipta Memori Baru</string>
     <string name="memory_edit_memory">Edit Memori</string>
     <string name="memory_folder">Folder</string>
-    <string name="memory_uncategorized">Tidak Dikategorikan</string>
     <string name="memory_uuid">UUID</string>
     <string name="memory_source">Sumber</string>
     <string name="memory_importance">Kepentingan</string>

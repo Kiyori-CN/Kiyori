@@ -77,6 +77,16 @@ class MemoryRepository(private val context: Context, profileId: String) {
         private val rebuildLocks = ConcurrentHashMap<String, kotlinx.coroutines.sync.Mutex>()
         private val indexLocks = ConcurrentHashMap<String, Any>()
         private const val DANGLING_LINK_CLEANUP_INTERVAL_MS = 30_000L
+
+        /**
+         * 「未归类」在工具参数与结果渲染中的稳定标识。目录身份不能依赖界面语言：
+         * 用本地化文案当路径会让同一条记忆在切换语言后落到另一个目录。
+         */
+        const val ROOT_FOLDER_TOKEN = "(root)"
+
+        /** 目录占位记忆的稳定来源标识；标题可能来自旧版本的本地化文案。 */
+        const val FOLDER_PLACEHOLDER_SOURCE = "folder_placeholder"
+        private const val FOLDER_PLACEHOLDER_TITLE = ".folder_placeholder"
         private const val SEARCH_RRF_K = 60.0
         private const val SEARCH_KEYWORD_COVERAGE_BONUS = 0.6
         private const val SEARCH_RELEVANCE_THRESHOLD = 0.025
@@ -138,7 +148,7 @@ class MemoryRepository(private val context: Context, profileId: String) {
     }.buffer(Channel.CONFLATED)
 
     private fun normalizeStoredFolderPath(path: String?): String? =
-        if (path == context.getString(R.string.memory_uncategorized)) null else normalizeFolderPath(path)
+        if (path?.trim() == ROOT_FOLDER_TOKEN) null else normalizeFolderPath(path)
 
     private suspend fun generateEmbedding(text: String, config: CloudEmbeddingConfig): Embedding? {
         return cloudEmbeddingService.generateEmbedding(config, text)
@@ -267,7 +277,7 @@ class MemoryRepository(private val context: Context, profileId: String) {
 
     private fun isFolderPlaceholderMemory(memory: Memory): Boolean {
         val title = memory.title.trim()
-        return title == ".folder_placeholder" ||
+        return memory.source == FOLDER_PLACEHOLDER_SOURCE || title == FOLDER_PLACEHOLDER_TITLE ||
             title == context.getString(R.string.memory_repository_folder_description_title)
     }
 
@@ -970,7 +980,11 @@ class MemoryRepository(private val context: Context, profileId: String) {
      */
     suspend fun findMemoryByTitle(title: String): Memory? = withContext(Dispatchers.IO) {
         findMemoriesByTitle(title).filter { !it.archived }.let { matches ->
-            require(matches.size <= 1) { "存在同名条目，请使用 UUID 准确定位" }
+            // 报错必须自带下一步：只说「请使用 UUID」而不给出 UUID，调用方无法脱困。
+            require(matches.size <= 1) {
+                "存在 ${matches.size} 条同名条目，请改用 uuid 参数定位：" +
+                    matches.joinToString { "${it.uuid}（${it.folderPath ?: ROOT_FOLDER_TOKEN}）" }
+            }
             matches.singleOrNull()
         }
     }
@@ -1134,6 +1148,8 @@ class MemoryRepository(private val context: Context, profileId: String) {
             weight: Float = MEDIUM_LINK,
             description: String = ""
     ) = withContext(Dispatchers.IO) {
+        // 自环没有检索意义，还会让图谱扩展把同一条目当成邻居反复加权。
+        require(source.id != target.id) { "不能把条目关联到它自己" }
         // 检查链接是否已存在
         val existingLink = source.links.find { link ->
             link.target.target?.id == target.id && 
@@ -1297,7 +1313,8 @@ class MemoryRepository(private val context: Context, profileId: String) {
         val normalizedFolderPath = normalizeStoredFolderPath(folderPath)
 
         val memoriesInScope = if (normalizedFolderPath == null) {
-            if (folderPath == context.getString(R.string.memory_uncategorized)) {
+            // 空路径表示整个空间；`(root)` 明确表示只看未归类条目，两者不能混为一谈。
+            if (folderPath?.trim() == ROOT_FOLDER_TOKEN) {
                 memoryBox.all.filter { normalizeStoredFolderPath(it.folderPath) == null }
             } else {
                 memoryBox.all
@@ -2233,11 +2250,17 @@ class MemoryRepository(private val context: Context, profileId: String) {
     suspend fun getAllFolderPaths(): List<String> = withContext(Dispatchers.IO) {
         val allMemories = memoryBox.all
         com.ai.assistance.operit.util.AppLogger.d("MemoryRepository", "getAllFolderPaths: Total memories: ${allMemories.size}")
+        // 只返回真实目录：根（未归类）不是一个可重命名或删除的目录，由调用方用空路径表达，
+        // 否则本地化文案会作为路径进入树、下拉框和工具参数。
+        // 同时补全中间层级，"工作/项目A" 必然意味着存在 "工作"，逐级浏览不能少一层。
         val folderPaths = allMemories
-            .map { normalizeStoredFolderPath(it.folderPath) ?: context.getString(R.string.memory_uncategorized) }
+            .mapNotNull { normalizeStoredFolderPath(it.folderPath) }
+            .flatMap { path ->
+                path.split('/').runningReduce { parent, name -> "$parent/$name" }
+            }
             .distinct()
-            .sorted()
-        com.ai.assistance.operit.util.AppLogger.d("MemoryRepository", "getAllFolderPaths: Unique folders: $folderPaths")
+            .sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it })
+        com.ai.assistance.operit.util.AppLogger.d("MemoryRepository", "getAllFolderPaths: Unique folders: ${folderPaths.size}")
         folderPaths
     }
 
@@ -2248,7 +2271,7 @@ class MemoryRepository(private val context: Context, profileId: String) {
      */
     suspend fun getMemoriesByFolderPath(folderPath: String): List<Memory> = withContext(Dispatchers.IO) {
         val normalizedTarget = normalizeStoredFolderPath(folderPath)
-        if (folderPath == context.getString(R.string.memory_uncategorized) || normalizedTarget == null) {
+        if (normalizedTarget == null) {
             memoryBox.all.filter { normalizeStoredFolderPath(it.folderPath) == null }
         } else {
             memoryBox.all.filter { memory ->
@@ -2323,26 +2346,25 @@ class MemoryRepository(private val context: Context, profileId: String) {
      */
     suspend fun createFolder(folderPath: String): Boolean = withContext(Dispatchers.IO) {
         validateFolderPath(folderPath)
-        try {
-            val normalizedFolderPath = normalizeStoredFolderPath(folderPath) ?: return@withContext false
-            // 检查是否已存在该文件夹
-            val exists = memoryBox.all.any { normalizeStoredFolderPath(it.folderPath) == normalizedFolderPath }
-            if (exists) return@withContext true
-            
-            // 创建一个占位记忆
-            val placeholder = Memory(
-                title = ".folder_placeholder",
-                content = context.getString(R.string.memory_repository_folder_description_content, normalizedFolderPath),
-                uuid = UUID.randomUUID().toString(),
-                folderPath = normalizedFolderPath
-            )
-            memoryBox.put(placeholder)
-            addMemoryToIndexInternal(placeholder)
-            true
-        } catch (e: Exception) {
-            com.ai.assistance.operit.util.AppLogger.e("MemoryRepo", "Failed to create folder", e)
-            false
-        }
+        // 失败原因必须能传到调用方：吞掉异常只会留下一句「无法创建文件夹」。
+        val normalizedFolderPath = requireNotNull(normalizeStoredFolderPath(folderPath)) { "请输入文件夹名称" }
+        // 已存在的路径不是一次成功创建；沿用旧的静默返回会让重名提交看起来生效。
+        require(memoryBox.all.none {
+            val path = normalizeStoredFolderPath(it.folderPath)
+            path == normalizedFolderPath || path?.startsWith("$normalizedFolderPath/") == true
+        }) { "目标文件夹已存在" }
+
+        // 创建一个占位记忆
+        val placeholder = Memory(
+            title = FOLDER_PLACEHOLDER_TITLE,
+            content = context.getString(R.string.memory_repository_folder_description_content, normalizedFolderPath),
+            source = FOLDER_PLACEHOLDER_SOURCE,
+            uuid = UUID.randomUUID().toString(),
+            folderPath = normalizedFolderPath
+        )
+        memoryBox.put(placeholder)
+        addMemoryToIndexInternal(placeholder)
+        true
     }
 
     /**
@@ -2367,6 +2389,16 @@ class MemoryRepository(private val context: Context, profileId: String) {
             ?.map { it.trim() }
             ?.filter { it.isNotEmpty() }
             ?.distinct()
+        // 同一目录内标题即身份：允许重名会让按标题定位的更新、移动和删除全部失去唯一目标。
+        val targetFolder = normalizeStoredFolderPath(folderPath)
+        findMemoriesByTitle(title.trim()).firstOrNull { existing ->
+            !existing.archived && normalizeStoredFolderPath(existing.folderPath) == targetFolder &&
+                MemoryLibraryPolicy.kind(existing) == libraryKind
+        }?.let { existing ->
+            throw IllegalArgumentException(
+                "同目录已存在同名条目（uuid: ${existing.uuid}）。请改用 update_memory(uuid=…) 更新，或换一个标题。"
+            )
+        }
 
         val memory = Memory(
             title = title,
@@ -2423,6 +2455,16 @@ class MemoryRepository(private val context: Context, profileId: String) {
         require(newTitle.isNotBlank() && newContent.isNotBlank()) { "标题和正文不能为空" }
         val titleChanged = draft.title != newTitle
         val contentChanged = draft.content != newContent
+        // 重命名或移动都可能撞上同目录同名条目；写入前拒绝，避免事后无法按标题定位。
+        val nextFolder = normalizeStoredFolderPath(newFolderPath)
+        if (titleChanged || nextFolder != normalizeStoredFolderPath(draft.folderPath)) {
+            findMemoriesByTitle(newTitle.trim()).firstOrNull { existing ->
+                existing.id != draft.id && !existing.archived &&
+                    normalizeStoredFolderPath(existing.folderPath) == nextFolder
+            }?.let { existing ->
+                throw IllegalArgumentException("同目录已存在同名条目（uuid: ${existing.uuid}），请换一个标题或目录。")
+            }
+        }
 
         val needsReEmbedding =
             contentChanged || titleChanged || !hasCurrentEmbedding(draft, cloudConfig)
@@ -2699,8 +2741,8 @@ class MemoryRepository(private val context: Context, profileId: String) {
                 ) {
                     // 检测是否为跨文件夹连接
                     // 始终检测跨文件夹连接，无论是否选择了特定文件夹
-                    val sourcePath = normalizeStoredFolderPath(sourceMemory.folderPath) ?: context.getString(R.string.memory_uncategorized)
-                    val targetPath = normalizeStoredFolderPath(targetMemory.folderPath) ?: context.getString(R.string.memory_uncategorized)
+                    val sourcePath = normalizeStoredFolderPath(sourceMemory.folderPath) ?: ROOT_FOLDER_TOKEN
+                    val targetPath = normalizeStoredFolderPath(targetMemory.folderPath) ?: ROOT_FOLDER_TOKEN
                     val isCrossFolder = sourcePath != targetPath
                     
                     edges.add(
@@ -2729,14 +2771,11 @@ class MemoryRepository(private val context: Context, profileId: String) {
      */
     suspend fun deleteFolder(folderPath: String) {
         withContext(Dispatchers.IO) {
-            val normalizedTarget = normalizeStoredFolderPath(folderPath)
-            val memories = if (normalizedTarget == null || folderPath == context.getString(R.string.memory_uncategorized)) {
-                memoryBox.all.filter { normalizeStoredFolderPath(it.folderPath) == null }
-            } else {
-                memoryBox.all.filter {
-                    val path = normalizeStoredFolderPath(it.folderPath)
-                    path == normalizedTarget || path?.startsWith("$normalizedTarget/") == true
-                }
+            // 根不是目录：删除根会把「解除归属」伪装成一次成功的目录删除。
+            val normalizedTarget = requireNotNull(normalizeStoredFolderPath(folderPath)) { "根目录不能删除" }
+            val memories = memoryBox.all.filter {
+                val path = normalizeStoredFolderPath(it.folderPath)
+                path == normalizedTarget || path?.startsWith("$normalizedTarget/") == true
             }
             // 删除目录结构，保留所有正文、文档块和关系；子目录必须一起解除归属，
             // 否则虚拟树会立即从子路径重新生成刚刚删除的父目录。

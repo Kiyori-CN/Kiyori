@@ -240,7 +240,7 @@ status: in_progress
 | [DocumentViewDialog.kt](../../../app/src/main/java/com/ai/assistance/operit/ui/features/memory/screens/dialogs/DocumentViewDialog.kt) | `DocumentViewDialog` | 1 | 待查 |
 | [EditMemoryDialog.kt](../../../app/src/main/java/com/ai/assistance/operit/ui/features/memory/screens/dialogs/EditMemoryDialog.kt) | `EditMemoryDialog`、`TagsEditor` | 1 | 待查 |
 | [MemoryDialogs.kt](../../../app/src/main/java/com/ai/assistance/operit/ui/features/memory/screens/dialogs/MemoryDialogs.kt) | `MemoryInfoDialog`、`EdgeInfoDialog`、`EditEdgeDialog`、`LinkMemoryDialog`、`BatchDeleteConfirmDialog` | 5 | 待查 |
-| [MemorySearchSettingsDialog.kt](../../../app/src/main/java/com/ai/assistance/operit/ui/features/memory/screens/dialogs/MemorySearchSettingsDialog.kt) | `MemorySearchSettingsDialog` | 1 | 待查 |
+| [MemoryLibrarySettingsSheet.kt](../../../app/src/main/java/com/ai/assistance/operit/ui/features/memory/screens/dialogs/MemoryLibrarySettingsSheet.kt) | `MemoryLibrarySettingsSheet` | 1 | 2026-09-15 已改为共享底部抽屉，旧 `MemorySearchSettingsDialog` 不再存在 |
 | [MemorySearchSimulationDialog.kt](../../../app/src/main/java/com/ai/assistance/operit/ui/features/memory/screens/dialogs/MemorySearchSimulationDialog.kt) | `MemorySearchSimulationDialog` | 1 | 待查 |
 | [ToolTestDialog.kt](../../../app/src/main/java/com/ai/assistance/operit/ui/features/memory/screens/dialogs/ToolTestDialog.kt) | `ToolTestDialog` | 1 | 待查 |
 | [FolderNavigator.kt](../../../app/src/main/java/com/ai/assistance/operit/ui/features/memory/screens/FolderNavigator.kt) | `FolderContextMenu`、`FolderCreateDialog`、`FolderRenameDialog`、`FolderDeleteDialog` | 7 | 待查 |

@@ -1453,7 +1453,9 @@ data class MemoryQueryResultData(
         val category: String = "other",
         val updatedAt: String = "",
         val archived: Boolean = false,
-        val folderPath: String = ""
+        val folderPath: String = "",
+        val credibility: Float = 0f,
+        val importance: Float = 0f
     )
 
     override fun toString(): String {
@@ -1480,6 +1482,7 @@ data class MemoryQueryResultData(
             """
             UUID: ${memory.uuid}
             Kind: ${memory.libraryKind}; category: ${memory.category}; archived: ${memory.archived}
+            Credibility: ${memory.credibility}; importance: ${memory.importance}
             Folder: ${memory.folderPath.ifBlank { "(root)" }}${memory.chunkInfo?.let { "\n            $it" }.orEmpty()}
             Updated: ${memory.updatedAt}
             Title: ${memory.title}

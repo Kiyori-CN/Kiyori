@@ -5,7 +5,7 @@ import com.ai.assistance.operit.data.model.ToolParameterSchema
 
 internal val memoryFolderToolPrompt = ToolPrompt(
     name = "memory_folders",
-    description = "List/create/rename/delete memory folders in the caller's memory space. Deleting a folder only removes the folder itself and moves its entries to the root; no content is lost. Rename rejects an existing target and a descendant of the folder itself.",
+    description = "List/create/rename/delete memory folders in the caller's memory space. The listing returns real folder paths only, parents included; the root (unfiled entries) is not a folder and is addressed with an empty path, or with (root) where a filter needs to name it. Deleting a folder only removes the folder itself and moves its entries to the root; no content is lost. Create rejects an existing path, and rename rejects an existing target and a descendant of the folder itself.",
     parametersStructured = listOf(
         ToolParameterSchema(name = "action", type = "string", description = "list (default), create, rename, delete", required = false),
         ToolParameterSchema(name = "path", type = "string", description = "Folder path; required for mutations", required = false),
@@ -20,7 +20,7 @@ internal val memoryMoveToolPrompt = ToolPrompt(
     parametersStructured = listOf(
         ToolParameterSchema(name = "uuids", type = "string", description = "Comma-separated UUIDs; preferred exact selection", required = false),
         ToolParameterSchema(name = "titles", type = "string", description = "Comma-separated exact titles, only if unique", required = false),
-        ToolParameterSchema(name = "source_folder_path", type = "string", description = "Select folder contents; combined with titles intersects them", required = false),
-        ToolParameterSchema(name = "target_folder_path", type = "string", description = "Destination folder; empty string means root", required = true),
+        ToolParameterSchema(name = "source_folder_path", type = "string", description = "Select folder contents including descendants; combined with titles intersects them. Empty string selects unfiled entries", required = false),
+        ToolParameterSchema(name = "target_folder_path", type = "string", description = "Destination folder; empty string means root. Titles stay unique per folder", required = true),
     ),
 )

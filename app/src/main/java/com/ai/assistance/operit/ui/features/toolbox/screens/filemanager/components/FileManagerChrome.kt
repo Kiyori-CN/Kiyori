@@ -81,7 +81,7 @@ fun FileManagerTopBar(
                         badge = isSearching, onClick = onShowSearchDialog)
                     KiyoriToolbarAction(Icons.Outlined.Tune, "筛选当前列", KiyoriActionRole.ORGANIZE,
                         selected = hasFilter, badge = hasFilter, onClick = onShowFilter)
-                    KiyoriToolbarAction(Icons.AutoMirrored.Outlined.Sort, "排序当前列", KiyoriActionRole.ORGANIZE, onClick = onShowSort)
+                    KiyoriToolbarAction(Icons.AutoMirrored.Outlined.Sort, "排序当前列", KiyoriActionRole.ARRANGE, onClick = onShowSort)
                     KiyoriToolbarAction(Icons.Outlined.Refresh, "刷新当前列", KiyoriActionRole.EXECUTE,
                         loading = refreshing, onClick = onRefresh)
                 },

@@ -650,7 +650,7 @@ object SystemToolPromptsInternal {
                         memoryMoveToolPrompt,
                         ToolPrompt(
                             name = "create_memory",
-                            description = "Creates a new memory node in the library. Use this when you want to save important information for future reference.",
+                            description = "Creates a new memory node in the library. Use this when you want to save important information for future reference. Titles are unique inside a folder; a duplicate is rejected and names the existing UUID, so update that entry instead of creating a second one.",
                             parametersStructured = listOf(
                                 ToolParameterSchema(name = "library_kind", type = "string", description = "memory = 记忆; knowledge = 知识; query also accepts all. Default: all for query, memory for create.", required = false),
                                 ToolParameterSchema(name = "category", type = "string", description = "preference, fact, decision, experience, event, other", required = false),
@@ -658,8 +658,10 @@ object SystemToolPromptsInternal {
                                 ToolParameterSchema(name = "content", type = "string", description = "required, string", required = true),
                                 ToolParameterSchema(name = "content_type", type = "string", description = "optional", required = false, default = "\"text/plain\""),
                                 ToolParameterSchema(name = "source", type = "string", description = "optional", required = false, default = "\"ai_created\""),
-                                ToolParameterSchema(name = "folder_path", type = "string", description = "optional", required = false, default = "\"\""),
-                                ToolParameterSchema(name = "tags", type = "string", description = "optional, comma-separated string", required = false)
+                                ToolParameterSchema(name = "folder_path", type = "string", description = "optional, empty string means root", required = false, default = "\"\""),
+                                ToolParameterSchema(name = "tags", type = "string", description = "optional, comma-separated string", required = false),
+                                ToolParameterSchema(name = "credibility", type = "number", description = "optional, float 0-1", required = false, default = "0.8"),
+                                ToolParameterSchema(name = "importance", type = "number", description = "optional, float 0-1", required = false, default = "0.5")
                             )
                         ),
                         ToolPrompt(
@@ -3692,7 +3694,7 @@ object SystemToolPromptsInternal {
                         memoryMoveToolPrompt,
                         ToolPrompt(
                             name = "create_memory",
-                            description = "在记忆库中创建新的记忆节点。当你想保存重要信息供将来参考时使用。",
+                            description = "在记忆库中创建新的记忆节点。当你想保存重要信息供将来参考时使用。同一目录内标题唯一；重名会被拒绝并返回已存在条目的 UUID，此时应更新该条目而不是再建一条。",
                             parametersStructured = listOf(
                                 ToolParameterSchema(name = "library_kind", type = "string", description = "memory = 记忆; knowledge = 知识; query also accepts all. Default: all for query, memory for create.", required = false),
                                 ToolParameterSchema(name = "category", type = "string", description = "preference, fact, decision, experience, event, other", required = false),
@@ -3700,8 +3702,10 @@ object SystemToolPromptsInternal {
                                 ToolParameterSchema(name = "content", type = "string", description = "必需, 字符串", required = true),
                                 ToolParameterSchema(name = "content_type", type = "string", description = "可选", required = false, default = "\"text/plain\""),
                                 ToolParameterSchema(name = "source", type = "string", description = "可选", required = false, default = "\"ai_created\""),
-                                ToolParameterSchema(name = "folder_path", type = "string", description = "可选", required = false, default = "\"\""),
-                                ToolParameterSchema(name = "tags", type = "string", description = "可选, 逗号分隔的字符串", required = false)
+                                ToolParameterSchema(name = "folder_path", type = "string", description = "可选, 空字符串表示根目录", required = false, default = "\"\""),
+                                ToolParameterSchema(name = "tags", type = "string", description = "可选, 逗号分隔的字符串", required = false),
+                                ToolParameterSchema(name = "credibility", type = "number", description = "可选, 0-1 浮点数", required = false, default = "0.8"),
+                                ToolParameterSchema(name = "importance", type = "number", description = "可选, 0-1 浮点数", required = false, default = "0.5")
                             )
                         ),
                         ToolPrompt(

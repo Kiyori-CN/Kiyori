@@ -211,6 +211,7 @@ private fun FolderSelector(
             readOnly = false,
             enabled = !isSaving,
             label = { Text(stringResource(R.string.memory_folder_label2)) },
+            placeholder = { Text(stringResource(R.string.library_folder_root)) },
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
             modifier = Modifier
                 .fillMaxWidth()
@@ -220,6 +221,11 @@ private fun FolderSelector(
             expanded = expanded,
             onDismissRequest = { expanded = false }
         ) {
+            // 根目录是一个可选目标而不是空白：清空输入框不该是回到根目录的唯一方式。
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.library_folder_root)) },
+                onClick = { onPathSelected(""); expanded = false }
+            )
             allFolderPaths.forEach { path ->
                 DropdownMenuItem(
                     text = { Text(path) },

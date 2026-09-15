@@ -22,9 +22,11 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.paneTitle
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.data.model.GenerationSpeed
 import com.ai.assistance.operit.data.model.ProviderUsageAggregate
@@ -46,9 +48,12 @@ internal fun ChatStatisticsButton(
     // 会话变化时关闭旧面板，避免把前一个会话的可见状态带到新会话。
     var expanded by rememberSaveable(chatId) { mutableStateOf(false) }
     val ratio = ChatStatisticsFormatter.contextUsageRatio(currentTokens, maxTokens)
-    val percentage = ChatStatisticsFormatter.formatContextUsage(currentTokens, maxTokens)
-        ?: stringResource(R.string.chat_stats_unavailable)
-    val description = stringResource(R.string.chat_stats_open, percentage)
+    val compactPercentage = ChatStatisticsFormatter.formatContextUsageCompact(currentTokens, maxTokens)
+    val description = stringResource(
+        R.string.chat_stats_open,
+        ChatStatisticsFormatter.formatContextUsage(currentTokens, maxTokens)
+            ?: stringResource(R.string.chat_stats_unavailable)
+    )
     val progress by animateFloatAsState(
         targetValue = (ratio ?: 0.0).toFloat().coerceIn(0f, 1f), label = "ChatContextUsage",
     )
@@ -62,10 +67,26 @@ internal fun ChatStatisticsButton(
         Box(modifier = Modifier.size(28.dp), contentAlignment = Alignment.Center) {
             CircularProgressIndicator(
                 progress = { progress }, modifier = Modifier.fillMaxSize(), color = tone,
-                strokeWidth = 3.dp, trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                strokeWidth = 2.5.dp, trackColor = MaterialTheme.colorScheme.surfaceVariant,
             )
-            Icon(Icons.Outlined.BarChart, contentDescription = null,
-                modifier = Modifier.size(17.dp), tint = tone)
+            // 圆环里放读数而不是图例：上下文占用是这个入口唯一要传达的事实。
+            // 圆环内径很小，字号收到 9sp 并取消额外行距，最多容纳 "100%"。
+            if (compactPercentage != null) {
+                Text(
+                    text = compactPercentage,
+                    color = tone,
+                    maxLines = 1,
+                    softWrap = false,
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        fontSize = 9.sp, lineHeight = 9.sp, fontWeight = FontWeight.SemiBold,
+                        platformStyle = PlatformTextStyle(includeFontPadding = false),
+                    ),
+                    textAlign = TextAlign.Center,
+                )
+            } else {
+                Icon(Icons.Outlined.BarChart, contentDescription = null,
+                    modifier = Modifier.size(15.dp), tint = tone)
+            }
         }
     }
     if (expanded) {

@@ -468,12 +468,13 @@ private fun KiyoriFileStorageRow(
                 .padding(horizontal = 4.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        // 行高由 48dp 下限与文本列决定，徽标放大到 32dp 仍在其内，不会把存储行撑高。
         KiyoriSemanticIconBadge(
             imageVector = kiyoriFileStorageIcon(item.kind),
             tone = kiyoriFileStorageTone(item.kind),
             contentDescription = null,
-            containerSize = 22.dp,
-            iconSize = 14.dp,
+            containerSize = 32.dp,
+            iconSize = 20.dp,
         )
         Spacer(modifier = Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {

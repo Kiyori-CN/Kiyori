@@ -4227,7 +4227,6 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="load_folder_failed">Error al cargar la carpeta: %1$s</string>
     <string name="no_memory_folder">No hay carpetas de memoria\nCree una carpeta primero en la gestión de memoria.</string>
     <string name="confirm_with_count">Confirmar (%1$d)</string>
-    <string name="uncategorized">Sin categoría</string>
     <string name="link_preview">Vista previa del enlace</string>
     <string name="link_address">Dirección del enlace:</string>
     <string name="no_app_found">No se encontró ninguna aplicación para abrir este enlace.</string>
@@ -4792,7 +4791,6 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="memory_create_new">Nuevo recuerdo</string>
     <string name="memory_edit_memory">Editar recuerdo</string>
     <string name="memory_folder">Carpeta</string>
-    <string name="memory_uncategorized">Sin categoría</string>
     <string name="memory_uuid">UUID</string>
     <string name="memory_source">Fuente</string>
     <string name="memory_importance">Importancia</string>

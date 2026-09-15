@@ -4,7 +4,6 @@
     <string name="library_search">Search content and tags</string>
     <string name="library_clear_search">Clear search</string>
     <string name="library_search_action">Search</string>
-    <string name="library_all_folders">All folders</string>
     <string name="library_settings">Memory and retrieval settings</string>
     <string name="library_refresh">Refresh</string>
     <string name="library_organize">Filter and sort</string>
@@ -53,7 +52,6 @@
     <string name="library_keep_editing">Keep editing</string>
     <string name="library_discard">Discard</string>
     <string name="library_more">More actions</string>
-    <string name="library_list">Back to list</string>
     <string name="library_filter">Filter</string>
     <string name="library_remove_filter">Remove this filter</string>
     <string name="library_add">Add content</string>
@@ -102,5 +100,12 @@
     <string name="library_import_summary">Saved %1$d, %2$d left to retry</string>
     <string name="library_import_result">Document import: saved %1$d, %2$d left to retry</string>
     <string name="library_settings_auto_hint">The automatic organisation switch applies immediately; other changes need Save.</string>
+    <string name="library_space">Memory space</string>
+    <string name="library_folders">Folders</string>
+    <string name="library_link_node_missing">Entry is outside the current scope</string>
+    <string name="library_folder_up">Go to parent folder</string>
+    <string name="library_folder_count">%1$d folders · %2$d items</string>
+    <string name="library_folder_empty">This location is empty</string>
+    <string name="library_folder_empty_hint">Add an entry here, or create a subfolder first.</string>
     <string name="library_rebuild_requires_save">Save the cloud configuration before rebuilding the index.</string>
 </resources>

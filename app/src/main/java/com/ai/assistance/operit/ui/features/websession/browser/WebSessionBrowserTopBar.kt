@@ -1,7 +1,5 @@
 package com.ai.assistance.operit.ui.features.websession.browser
 
-import com.ai.assistance.operit.ui.components.KiyoriToolbarAction
-import com.ai.assistance.operit.ui.components.KiyoriActionRole
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
@@ -231,11 +229,12 @@ internal fun WebSessionBrowserTopBar(
                         }
                     }
                 }
-                KiyoriToolbarAction(
+                // 刷新与返回同属浏览器 chrome，使用同一套中性墨色；语义彩色留给工具箱里的功能动作。
+                BrowserChromeIconButton(
                     icon = Icons.Outlined.Refresh,
-                    role = KiyoriActionRole.EXECUTE,
-                    label = stringResource(R.string.web_session_refresh),
+                    contentDescription = stringResource(R.string.web_session_refresh),
                     onClick = onRefresh,
+                    actionSizeDp = 48,
                 )
             }
 

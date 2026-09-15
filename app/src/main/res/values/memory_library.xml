@@ -4,7 +4,6 @@
     <string name="library_search">搜索记忆、知识与标签</string>
     <string name="library_clear_search">清空搜索</string>
     <string name="library_search_action">搜索</string>
-    <string name="library_all_folders">全部文件夹</string>
     <string name="library_settings">记忆与检索设置</string>
     <string name="library_refresh">刷新</string>
     <string name="library_organize">筛选与排序</string>
@@ -53,7 +52,6 @@
     <string name="library_keep_editing">继续编辑</string>
     <string name="library_discard">放弃修改</string>
     <string name="library_more">更多操作</string>
-    <string name="library_list">返回列表</string>
     <string name="library_filter">筛选</string>
     <string name="library_remove_filter">移除此筛选</string>
     <string name="library_add">添加内容</string>
@@ -102,5 +100,12 @@
     <string name="library_import_summary">已保存 %1$d 项，待重试 %2$d 项</string>
     <string name="library_import_result">资料导入：已保存 %1$d 项，待重试 %2$d 项</string>
     <string name="library_settings_auto_hint">自动整理开关即时生效；其余调整请点击保存。</string>
+    <string name="library_space">记忆空间</string>
+    <string name="library_folders">文件夹</string>
+    <string name="library_link_node_missing">条目已不在当前范围</string>
+    <string name="library_folder_up">返回上一级</string>
+    <string name="library_folder_count">%1$d 个文件夹 · %2$d 项</string>
+    <string name="library_folder_empty">这个位置还是空的</string>
+    <string name="library_folder_empty_hint">可以在这里新建条目，或者先建一个子文件夹。</string>
     <string name="library_rebuild_requires_save">请先保存云端配置，再重建索引。</string>
 </resources>

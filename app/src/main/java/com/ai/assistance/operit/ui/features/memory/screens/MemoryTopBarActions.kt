@@ -1,6 +1,5 @@
 package com.ai.assistance.operit.ui.features.memory.screens
 
-import androidx.compose.material.icons.automirrored.outlined.ViewList
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.runtime.Composable
@@ -22,8 +21,8 @@ internal fun MemoryTopBarActions(
     KiyoriToolbarAction(Icons.Outlined.Tune, stringResource(R.string.library_filter),
         KiyoriActionRole.ORGANIZE, enabled, selected = hasFilters || state.sortByTitle,
         badge = hasFilters, onClick = onFilter)
-    KiyoriToolbarAction(if (state.showGraph) Icons.AutoMirrored.Outlined.ViewList else Icons.Outlined.AccountTree,
-        stringResource(if (state.showGraph) R.string.library_list else R.string.library_graph),
+    KiyoriToolbarAction(if (state.showGraph) Icons.Outlined.FolderOpen else Icons.Outlined.AccountTree,
+        stringResource(if (state.showGraph) R.string.library_folders else R.string.library_graph),
         KiyoriActionRole.NAVIGATE, enabled, selected = state.showGraph, onClick = onGraph)
     KiyoriToolbarAction(Icons.Outlined.Refresh, stringResource(R.string.library_refresh),
         KiyoriActionRole.EXECUTE, enabled && !state.isLoading, onClick = onRefresh)

@@ -1256,7 +1256,8 @@ fun getJsToolsDefinition(): String {
                                 limit,
                                 callerCardId
                             };
-                    const params = { title: options.title };
+                    const params = {};
+                    if (options.title !== undefined && options.title !== null) params.title = options.title;
                     if (options.chunkIndex !== undefined) params.chunk_index = options.chunkIndex;
                     if (options.chunkRange) params.chunk_range = options.chunkRange;
                     if (options.query) params.query = options.query;
@@ -1285,6 +1286,8 @@ fun getJsToolsDefinition(): String {
                     if (options.source) params.source = options.source;
                     if (options.folderPath) params.folder_path = options.folderPath;
                     if (options.tags) params.tags = options.tags;
+                    if (options.credibility !== undefined) params.credibility = options.credibility;
+                    if (options.importance !== undefined) params.importance = options.importance;
                     const normalizedCallerCardId = Tools.Memory._normalizeCallerCardId(options.callerCardId);
                     if (normalizedCallerCardId !== undefined) params.caller_card_id = normalizedCallerCardId;
                     if (options.libraryKind !== undefined) params.library_kind = options.libraryKind;
@@ -1297,7 +1300,8 @@ fun getJsToolsDefinition(): String {
                         oldTitle && typeof oldTitle === 'object' && !Array.isArray(oldTitle)
                             ? oldTitle
                             : { oldTitle, ...updates, callerCardId };
-                    const params = { old_title: options.oldTitle };
+                    const params = {};
+                    if (options.oldTitle !== undefined && options.oldTitle !== null) params.old_title = options.oldTitle;
                     if (options.newTitle) params.new_title = options.newTitle;
                     if (options.content) params.content = options.content;
                     if (options.contentType) params.content_type = options.contentType;
@@ -1318,21 +1322,26 @@ fun getJsToolsDefinition(): String {
                         title && typeof title === 'object' && !Array.isArray(title)
                             ? title
                             : { title, callerCardId };
-                    const params = { title: options.title };
+                    // 只按 uuid 删除时不要塞一个空标题：宿主会把它当成"按标题定位"的请求。
+                    const params = {};
+                    if (options.title !== undefined && options.title !== null) params.title = options.title;
                     const normalizedCallerCardId = Tools.Memory._normalizeCallerCardId(options.callerCardId);
                     if (normalizedCallerCardId !== undefined) params.caller_card_id = normalizedCallerCardId;
                     if (options.uuid !== undefined) params.uuid = options.uuid;
                     return toolCall("delete_memory", params);
                 },
                 // 批量移动记忆（按标题列表和/或来源文件夹筛选）
-                move: (targetFolderPath, titles, sourceFolderPath, callerCardId) => {
+                move: (targetFolderPath, titles, sourceFolderPath, callerCardId, uuids) => {
                     const options =
                         targetFolderPath && typeof targetFolderPath === 'object' && !Array.isArray(targetFolderPath)
                             ? targetFolderPath
-                            : { targetFolderPath, titles, sourceFolderPath, callerCardId };
+                            : { targetFolderPath, titles, sourceFolderPath, callerCardId, uuids };
                     const params = { target_folder_path: options.targetFolderPath };
                     if (options.titles) {
                         params.titles = Array.isArray(options.titles) ? options.titles.join(",") : String(options.titles);
+                    }
+                    if (options.uuids) {
+                        params.uuids = Array.isArray(options.uuids) ? options.uuids.join(",") : String(options.uuids);
                     }
                     if (options.sourceFolderPath !== undefined && options.sourceFolderPath !== null) params.source_folder_path = String(options.sourceFolderPath);
                     const normalizedCallerCardId = Tools.Memory._normalizeCallerCardId(options.callerCardId);

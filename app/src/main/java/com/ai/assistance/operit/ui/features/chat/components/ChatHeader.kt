@@ -6,8 +6,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.PictureInPicture
+import androidx.compose.material.icons.rounded.Forum
+import androidx.compose.material.icons.rounded.PictureInPictureAlt
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -26,7 +26,6 @@ import androidx.compose.ui.layout.ContentScale
 import coil.compose.rememberAsyncImagePainter
 import com.kiyori.design.theme.KiyoriSemanticTone
 import com.kiyori.design.theme.KiyoriUiShapes
-import com.kiyori.design.theme.rememberKiyoriUiTokens
 import com.kiyori.design.theme.resolveColors
 
 private const val CHAT_HEADER_CHARACTER_NAME_MAX_LENGTH = 12
@@ -53,7 +52,6 @@ fun ChatHeader(
         val historyColors = KiyoriSemanticTone.ORANGE.resolveColors()
         val floatingColors = KiyoriSemanticTone.CYAN.resolveColors()
         val characterColors = KiyoriSemanticTone.BLUE.resolveColors()
-        val uiTokens = rememberKiyoriUiTokens()
 
         Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -75,7 +73,7 @@ fun ChatHeader(
                                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                                 ) {
                                         Icon(
-                                                imageVector = Icons.Default.History,
+                                                imageVector = Icons.Rounded.Forum,
                                                 contentDescription =
                                                         if (showChatHistorySelector) stringResource(R.string.hide_history) else stringResource(R.string.show_history),
                                                 tint =
@@ -108,16 +106,13 @@ fun ChatHeader(
                                         onClick = onToggleChatHistorySelector,
                                                 modifier = Modifier.matchParentSize()
                                 ) {
+                                        // 会话列表与小窗是这一行的固定功能入口，保持语义色常亮：
+                                        // 灰色只用于禁用，不用来表达"当前未展开"。
                                         Icon(
-                                                imageVector = Icons.Default.History,
+                                                imageVector = Icons.Rounded.Forum,
                                                 contentDescription =
                                                         if (showChatHistorySelector) stringResource(R.string.hide_history) else stringResource(R.string.show_history),
-                                                tint =
-                                                                historyIconColor?.let { Color(it) }
-                                                                ?: if (showChatHistorySelector)
-                                                                        historyColors.icon
-                                                                else
-                                                                        uiTokens.colors.secondaryText,
+                                                tint = historyIconColor?.let { Color(it) } ?: historyColors.icon,
                                                 modifier = Modifier.size(20.dp)
                                         )
                                 }
@@ -140,15 +135,10 @@ fun ChatHeader(
                                 modifier = Modifier.matchParentSize()
                         ) {
                                 Icon(
-                                        imageVector = Icons.Default.PictureInPicture,
+                                        imageVector = Icons.Rounded.PictureInPictureAlt,
                                         contentDescription =
                                                 if (isFloatingMode) stringResource(R.string.close_floating_window) else stringResource(R.string.open_floating_window),
-                                        tint =
-                                                pipIconColor?.let { Color(it) }
-                                                        ?: if (isFloatingMode)
-                                                                floatingColors.icon
-                                                        else
-                                                                uiTokens.colors.secondaryText,
+                                        tint = pipIconColor?.let { Color(it) } ?: floatingColors.icon,
                                         modifier = Modifier.size(20.dp)
                                 )
                         }
