@@ -816,6 +816,9 @@ private fun PackageEnvironmentVariableEditor(
     }
 }
 
+/** 变量输入框与枚举选项的统一紧凑高度，避免两种输入形态在同一行高上互相错位。 */
+private val PACKAGE_ENV_FIELD_MIN_HEIGHT = 40.dp
+
 @Composable
 private fun PackageEnvironmentValueField(
     value: String,
@@ -849,7 +852,9 @@ private fun PackageEnvironmentValueField(
     var passwordVisible by rememberSaveable { mutableStateOf(false) }
     val isPassword = inputType == EnvVarInputType.PASSWORD
     Surface(
-        modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
+        // 一屏内可能有几十个变量，56 dp 的默认输入框行高会把说明和下一条变量挤出视野；
+        // 收窄到与抽屉内搜索框一致的紧凑高度，文字与光标仍垂直居中。
+        modifier = Modifier.fillMaxWidth().heightIn(min = PACKAGE_ENV_FIELD_MIN_HEIGHT),
         shape = RoundedCornerShape(9.dp),
         color = MaterialTheme.colorScheme.surface,
         border =
@@ -915,7 +920,7 @@ private fun PackageEnvironmentValueField(
             if (isPassword) {
                 IconButton(
                     onClick = { passwordVisible = !passwordVisible },
-                    modifier = Modifier.size(48.dp),
+                    modifier = Modifier.size(PACKAGE_ENV_FIELD_MIN_HEIGHT),
                 ) {
                     Icon(
                         imageVector =
@@ -957,7 +962,7 @@ private fun PackageEnvironmentChoiceField(
             val selected = value == choice
             Surface(
                 modifier =
-                    Modifier.heightIn(min = 48.dp).selectable(
+                    Modifier.heightIn(min = PACKAGE_ENV_FIELD_MIN_HEIGHT).selectable(
                         selected = selected,
                         enabled = enabled,
                         role = Role.RadioButton,
@@ -997,8 +1002,16 @@ private fun PackageEnvironmentChoiceField(
                 )
             }
         }
-        IconButton(onClick = { onValueChange("") }, enabled = enabled && value.isNotBlank()) {
-            Icon(Icons.Outlined.Close, contentDescription = stringResource(R.string.pkg_env_clear_value))
+        IconButton(
+            onClick = { onValueChange("") },
+            enabled = enabled && value.isNotBlank(),
+            modifier = Modifier.size(PACKAGE_ENV_FIELD_MIN_HEIGHT),
+        ) {
+            Icon(
+                Icons.Outlined.Close,
+                contentDescription = stringResource(R.string.pkg_env_clear_value),
+                modifier = Modifier.size(18.dp),
+            )
         }
     }
 }

@@ -82,6 +82,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -93,10 +94,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -127,6 +131,7 @@ import com.ai.assistance.operit.data.repository.ChatOrderMove
 import com.ai.assistance.operit.data.repository.ChatPositionSnapshot
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.widthIn
@@ -148,6 +153,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.flowOf
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.FilledTonalIconButton
@@ -213,7 +219,7 @@ private fun HistoryQuickScrollButton(
         IconButton(
             onClick = onClick,
             enabled = enabled,
-            modifier = Modifier.size(40.dp)
+            modifier = Modifier.size(34.dp)
         ) {
             Icon(
                 imageVector = icon,
@@ -272,7 +278,7 @@ private fun HistoryQuickScroller(
     val density = LocalDensity.current
     val minThumbHeight = with(density) { 36.dp.toPx() }
     val trackWidth = 12.dp
-    var trackHeightPx by remember { mutableStateOf(0f) }
+    var trackHeightPx by remember { mutableFloatStateOf(0f) }
     var isHandlingTouch by remember { mutableStateOf(false) }
     val scrollProgress =
         if (totalItemCount <= 1) {
@@ -632,6 +638,116 @@ private fun historyRelativeTimeLabel(updatedAt: LocalDateTime, nowMillis: Long):
             val sameYear = updatedAt.year == LocalDateTime.now().year
             updatedAt.format(
                 if (sameYear) HISTORY_SAME_YEAR_DATE_FORMATTER else HISTORY_FULL_DATE_FORMATTER
+            )
+        }
+    }
+}
+
+/** 与浏览器顶栏搜索框同高，见 `WEB_SESSION_BROWSER_TOP_SEARCH_HEIGHT_DP`。 */
+private val HISTORY_SEARCH_FIELD_HEIGHT = 42.dp
+
+/**
+ * 抽屉内的常驻搜索框。失败说明另起一行显示，不占用输入框本身的高度。
+ */
+@Composable
+private fun HistorySearchField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    searching: Boolean,
+    failed: Boolean,
+    onClear: () -> Unit,
+    onSearchAction: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    val hintDescription = context.getString(R.string.search_chat_history_hint)
+    Column(modifier = modifier.fillMaxWidth()) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(HISTORY_SEARCH_FIELD_HEIGHT),
+            shape = KiyoriUiShapes.field,
+            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            border = BorderStroke(
+                width = 1.dp,
+                color = if (failed) {
+                    MaterialTheme.colorScheme.error
+                } else {
+                    MaterialTheme.colorScheme.outlineVariant
+                }
+            )
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(start = 10.dp, end = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (searching) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(16.dp),
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Outlined.Search,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+                BasicTextField(
+                    value = value,
+                    onValueChange = onValueChange,
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(horizontal = 8.dp)
+                        .semantics { contentDescription = hintDescription },
+                    singleLine = true,
+                    textStyle = MaterialTheme.typography.bodyMedium.copy(
+                        color = MaterialTheme.colorScheme.onSurface
+                    ),
+                    cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                    keyboardActions = KeyboardActions(onSearch = { onSearchAction() }),
+                    decorationBox = { innerTextField ->
+                        Box(contentAlignment = Alignment.CenterStart) {
+                            if (value.isEmpty()) {
+                                Text(
+                                    text = stringResource(R.string.chat_history_search_placeholder),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                            innerTextField()
+                        }
+                    }
+                )
+                if (value.isNotEmpty()) {
+                    IconButton(
+                        onClick = onClear,
+                        modifier = Modifier.size(34.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Close,
+                            contentDescription = stringResource(R.string.clear_search),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                } else {
+                    Spacer(modifier = Modifier.width(6.dp))
+                }
+            }
+        }
+        if (failed) {
+            Text(
+                text = stringResource(R.string.chat_history_search_failed),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.padding(start = 4.dp, top = 4.dp)
             )
         }
     }
@@ -1154,55 +1270,93 @@ fun ChatHistorySelector(
                 }
             }
 
-    val reorderableState = rememberReorderableLazyListState(actualLazyListState) { from, to ->
-        if (moveSaving) return@rememberReorderableLazyListState
-        val movedItem = flatItems.getOrNull(from.index) as? HistoryListItem.Item
-                ?: return@rememberReorderableLazyListState
+    // 拖拽期间只在本地重排，松手后一次性提交。
+    // 每一拍 onMove 都写库有两个后果：仓储会把全表 displayOrder 重排一遍，同一次拖拽的下一拍
+    // 仍拿着旧列表，于是被判成冲突并弹出“移动未保存”；而 onMove 是挂起回调，库要等它返回才
+    // 继续跟手，磁盘写入直接表现为拖拽卡顿。本地顺序只是待提交草稿，真实顺序仍由Room Flow投影。
+    var dragOrigin by remember { mutableStateOf<ChatHistory?>(null) }
+    var draggingItems by remember { mutableStateOf<List<HistoryListItem>?>(null) }
+    var dragActive by remember { mutableStateOf(false) }
+    val displayedItems = draggingItems ?: flatItems
+    val hapticFeedback = LocalHapticFeedback.current
 
-        val reorderedFlatList = flatItems.toMutableList().apply {
-            add(to.index, removeAt(from.index))
-        }
-
+    /** 把拖拽后的扁平列表还原成完整顺序：条目的分组与角色绑定由它上方最近的分组头/角色头决定。 */
+    fun resolveOrderedHistories(items: List<HistoryListItem>): List<ChatHistory> {
         var newGroup: String? = null
         var newCharacterCardName: String? = null
         var newCharacterGroupId: String? = null
-        val newOrderedHistories =
-                reorderedFlatList
-                    .mapNotNull {
-                        when (it) {
-                            is HistoryListItem.CharacterHeader -> {
-                                // 在绑定分类模式下，更新当前绑定（角色卡/群组）
-                                newCharacterCardName = it.characterCardName
-                                newCharacterGroupId = it.characterGroupId
-                                newGroup = null
-                                null
-                            }
-                            is HistoryListItem.Header -> {
-                                newGroup = it.groupValue
-                                null
-                            }
-                            is HistoryListItem.Item -> {
-                                // 根据当前显示模式决定是否更新 characterCardName
-                                val updatedHistory = if (historyDisplayMode == ChatHistoryDisplayMode.BY_CHARACTER_CARD) {
-                                    it.history.copy(
-                                        group = newGroup,
-                                        characterCardName = newCharacterCardName,
-                                        characterGroupId = newCharacterGroupId
-                                    )
-                                } else {
-                                    it.history.copy(group = newGroup)
-                                }
-                                updatedHistory
-                            }
+        return items
+            .mapNotNull {
+                when (it) {
+                    is HistoryListItem.CharacterHeader -> {
+                        // 在绑定分类模式下，更新当前绑定（角色卡/群组）
+                        newCharacterCardName = it.characterCardName
+                        newCharacterGroupId = it.characterGroupId
+                        newGroup = null
+                        null
+                    }
+                    is HistoryListItem.Header -> {
+                        newGroup = it.groupValue
+                        null
+                    }
+                    is HistoryListItem.Item -> {
+                        // 根据当前显示模式决定是否更新 characterCardName
+                        if (historyDisplayMode == ChatHistoryDisplayMode.BY_CHARACTER_CARD) {
+                            it.history.copy(
+                                group = newGroup,
+                                characterCardName = newCharacterCardName,
+                                characterGroupId = newCharacterGroupId
+                            )
+                        } else {
+                            it.history.copy(group = newGroup)
                         }
                     }
-                    .mapIndexed { index, history -> history.copy(displayOrder = index.toLong()) }
+                }
+            }
+            .mapIndexed { index, history -> history.copy(displayOrder = index.toLong()) }
+    }
 
-        val finalMovedItem =
-                newOrderedHistories.find { it.id == movedItem.history.id }
-                        ?: return@rememberReorderableLazyListState
+    fun commitDrag() {
+        val origin = dragOrigin
+        val items = draggingItems
+        dragOrigin = null
+        if (origin == null || items == null) {
+            draggingItems = null
+            return
+        }
+        val ordered = resolveOrderedHistories(items)
+        val finalMovedItem = ordered.firstOrNull { it.id == origin.id }
+        if (finalMovedItem == null) {
+            draggingItems = null
+            return
+        }
+        coroutineScope.launch {
+            // 失败时立刻退回仓储真实顺序，让错误提示与列表所见一致。
+            if (!submitMove(origin, finalMovedItem, ordered)) draggingItems = null
+        }
+    }
 
-        submitMove(movedItem.history, finalMovedItem, newOrderedHistories)
+    // 提交成功后等仓储回流再撤掉本地草稿；否则从写入完成到 Flow 到达之间列表会闪回旧顺序。
+    // 回流始终未达成时以仓储为准，本地草稿不能永久压住真实数据。
+    LaunchedEffect(flatItems, moveSaving, dragActive) {
+        if (draggingItems == null || moveSaving || dragActive) return@LaunchedEffect
+        fun List<HistoryListItem>.itemIds() = mapNotNull { (it as? HistoryListItem.Item)?.history?.id }
+        if (flatItems.itemIds() == draggingItems?.itemIds()) {
+            draggingItems = null
+            return@LaunchedEffect
+        }
+        delay(1500)
+        draggingItems = null
+    }
+
+    val reorderableState = rememberReorderableLazyListState(actualLazyListState) { from, to ->
+        val source = draggingItems ?: flatItems
+        if (from.index !in source.indices || to.index !in source.indices) {
+            return@rememberReorderableLazyListState
+        }
+        if (source[from.index] !is HistoryListItem.Item) return@rememberReorderableLazyListState
+        draggingItems = source.toMutableList().apply { add(to.index, removeAt(from.index)) }
+        hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
     }
 
     if (chatItemActionTarget != null) {
@@ -2148,68 +2302,19 @@ fun ChatHistorySelector(
 
         // 搜索常驻。折叠式搜索会在收起时保留查询词，列表继续被一个看不见的条件过滤；
         // 常驻输入框让过滤条件始终可见，清空也只需要一次点击。
-        OutlinedTextField(
+        // 高度与浏览器顶栏地址/搜索框取齐（HISTORY_SEARCH_FIELD_HEIGHT）：Material 默认输入框
+        // 连同 label 槽位占 56 dp，在这条本就紧凑的抽屉头部会白白吃掉一行列表高度。
+        HistorySearchField(
             value = searchQuery,
             onValueChange = onSearchQueryChange,
-            isError = searchFailed,
-            supportingText = if (searchFailed) {
-                {
-                    Text(
-                        text = stringResource(R.string.chat_history_search_failed),
-                        style = MaterialTheme.typography.labelSmall
-                    )
-                }
-            } else {
-                null
+            searching = isSearching,
+            failed = searchFailed,
+            onClear = {
+                onSearchQueryChange("")
+                focusManager.clearFocus()
             },
-            placeholder = {
-                Text(
-                    text = stringResource(R.string.chat_history_search_placeholder),
-                    style = MaterialTheme.typography.bodyMedium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            },
-            leadingIcon = {
-                if (isSearching) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(18.dp),
-                        strokeWidth = 2.dp
-                    )
-                } else {
-                    Icon(
-                        imageVector = Icons.Outlined.Search,
-                        contentDescription = null,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-            },
-            trailingIcon = {
-                if (searchQuery.isNotEmpty()) {
-                    IconButton(
-                        onClick = {
-                            onSearchQueryChange("")
-                            focusManager.clearFocus()
-                        },
-                        modifier = Modifier.size(36.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Close,
-                            contentDescription = stringResource(R.string.clear_search),
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                }
-            },
-            singleLine = true,
-            shape = KiyoriUiShapes.field,
-            textStyle = MaterialTheme.typography.bodyMedium,
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-            keyboardActions = KeyboardActions(onSearch = { focusManager.clearFocus() }),
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp)
-                .semantics { contentDescription = context.getString(R.string.search_chat_history_hint) }
+            onSearchAction = { focusManager.clearFocus() },
+            modifier = Modifier.padding(horizontal = 16.dp)
         )
 
         Spacer(modifier = Modifier.height(10.dp))
@@ -2307,7 +2412,7 @@ fun ChatHistorySelector(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(start = 16.dp, end = 6.dp, bottom = 2.dp),
+                    .padding(start = 16.dp, end = 8.dp, bottom = 2.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
@@ -2343,13 +2448,14 @@ fun ChatHistorySelector(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
-                .padding(end = 2.dp)
         ) {
+            // 分组头与对话条目的左右边界与“新建对话”“新建分组”一致，均为 16 dp；
+            // 快速滚动条是浮层，落在右侧留白上，不再从列表里切掉一条不对称的宽度。
             LazyColumn(
                 state = actualLazyListState,
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(start = 10.dp, end = 22.dp),
+                    .padding(horizontal = 16.dp),
                 contentPadding = PaddingValues(top = 8.dp, bottom = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
@@ -2392,7 +2498,7 @@ fun ChatHistorySelector(
                     }
                 }
                 items(
-                    items = if (filteredHistories.isEmpty()) emptyList() else flatItems,
+                    items = if (filteredHistories.isEmpty()) emptyList() else displayedItems,
                     key = {
                         when (it) {
                             is HistoryListItem.CharacterHeader -> it.key
@@ -2460,7 +2566,7 @@ fun ChatHistorySelector(
                                             collapsedCharacters + item.key
                                         }
                                 }
-                                .padding(horizontal = 6.dp, vertical = 4.dp),
+                                .padding(vertical = 4.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
@@ -2658,7 +2764,12 @@ fun ChatHistorySelector(
                         ReorderableItem(
                             reorderableState,
                             key = item.history.id,
-                            animateItemModifier = Modifier.animateItem(placementSpec = null)
+                            // 保留位置动画：拖拽时相邻项需要跟着让位才有连续感；
+                            // 淡入淡出关闭，否则重排会被误读成条目增删。
+                            animateItemModifier = Modifier.animateItem(
+                                fadeInSpec = null,
+                                fadeOutSpec = null
+                            )
                         ) { isDragging ->
                             val isSelected = item.history.id == currentId
                             // 侧滑会把条目内容平移到删除/编辑背景之上，条目必须不透明；
@@ -2726,8 +2837,22 @@ fun ChatHistorySelector(
                                                 val dragDescription = stringResource(R.string.drag_item, item.history.title)
                                                 IconButton(
                                                     modifier = Modifier
-                                                        .size(28.dp)
-                                                        .draggableHandle()
+                                                        .size(34.dp)
+                                                        .draggableHandle(
+                                                            enabled = !moveSaving,
+                                                            onDragStarted = {
+                                                                dragActive = true
+                                                                dragOrigin = item.history
+                                                                moveError = null
+                                                                hapticFeedback.performHapticFeedback(
+                                                                    HapticFeedbackType.LongPress
+                                                                )
+                                                            },
+                                                            onDragStopped = {
+                                                                dragActive = false
+                                                                commitDrag()
+                                                            }
+                                                        )
                                                         .semantics {
                                                             contentDescription = dragDescription
                                                         },
@@ -2856,7 +2981,7 @@ fun ChatHistorySelector(
 
             HistoryQuickScroller(
                 listState = actualLazyListState,
-                itemCount = flatItems.size,
+                itemCount = displayedItems.size,
                 onInteractionChange = onQuickScrollInteractionChange,
                 modifier = Modifier
                     .align(Alignment.CenterEnd)

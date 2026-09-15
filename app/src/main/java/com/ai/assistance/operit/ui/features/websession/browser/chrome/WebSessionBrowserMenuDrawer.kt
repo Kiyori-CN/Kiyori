@@ -159,7 +159,7 @@ internal fun WebSessionBrowserMenuDrawer(
                             enabled = incognitoEnabled,
                             tone = WebSessionBrowserMenuTone.INCOGNITO,
                         ),
-                        MenuAction("阅读模式", R.drawable.ic_kiyori_tool_reader, onOpenReaderMode, tone = WebSessionBrowserMenuTone.READER_MODE),
+                        MenuAction(stringResource(R.string.web_session_reader_mode), R.drawable.ic_kiyori_tool_reader, onOpenReaderMode, tone = WebSessionBrowserMenuTone.READER_MODE),
                         MenuAction(stringResource(R.string.web_session_page_source), R.drawable.ic_kiyori_tool_view_source, onOpenPageSource, tone = WebSessionBrowserMenuTone.PAGE_SOURCE),
                         MenuAction(stringResource(R.string.web_session_ad_marking), R.drawable.ic_kiyori_tool_ad_block, onOpenAdMarking, tone = WebSessionBrowserMenuTone.AD_MARKING),
                         MenuAction(stringResource(R.string.web_session_site_config), R.drawable.ic_kiyori_tool_site_config, onOpenSiteConfig, tone = WebSessionBrowserMenuTone.SITE_CONFIG),

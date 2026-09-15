@@ -8,15 +8,11 @@ import android.graphics.drawable.Icon as AndroidIcon
 import android.net.Uri
 import android.print.PrintAttributes
 import android.print.PrintManager
-import android.speech.tts.TextToSpeech
 import android.webkit.WebView
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.selection.SelectionContainer
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -32,7 +28,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import kotlin.coroutines.resume
-import org.json.JSONObject
 
 internal enum class BrowserPageTool { READER, SPEAK, FIND, SAVE_ARCHIVE, PDF, SHORTCUT }
 
@@ -144,8 +139,15 @@ internal fun BrowserPageToolsUi(tools: BrowserPageTools) {
         }
     }
     if (selected == BrowserPageTool.FIND && webView != null) BrowserFindDialog(webView, documentKey, onDismiss = { tools.selected = null })
+    // 阅读与朗读共用同一份正文提取与同一个整页版式；朗读只是进入时直接开始播报。
     if ((selected == BrowserPageTool.READER || selected == BrowserPageTool.SPEAK) && webView != null) {
-        BrowserReadingDialog(webView, documentKey, tools, selected == BrowserPageTool.SPEAK, onDismiss = { tools.selected = null })
+        BrowserReaderScreen(
+            webView = webView,
+            documentKey = documentKey,
+            tools = tools,
+            startSpeaking = selected == BrowserPageTool.SPEAK,
+            onDismiss = { tools.selected = null },
+        )
     }
 }
 
@@ -164,52 +166,4 @@ private fun BrowserFindDialog(webView: WebView, documentKey: String, onDismiss: 
         TextButton(onClick = { webView.findNext(false) }, enabled = query.isNotBlank()) { Text("上一项") }
         TextButton(onClick = { webView.findNext(true) }, enabled = query.isNotBlank()) { Text("下一项") }
     } }, dismissButton = { TextButton(onClick = onDismiss) { Text("关闭") } })
-}
-
-@Composable
-private fun BrowserReadingDialog(webView: WebView, documentKey: String, tools: BrowserPageTools, speaking: Boolean, onDismiss: () -> Unit) {
-    val context = LocalContext.current
-    var text by remember(documentKey) { mutableStateOf("") }
-    var status by remember(documentKey) { mutableStateOf("正在提取网页正文") }
-    var truncated by remember(documentKey) { mutableStateOf(false) }
-    var speechReady by remember { mutableStateOf(false) }
-    var speech by remember { mutableStateOf<TextToSpeech?>(null) }
-    DisposableEffect(webView, documentKey) {
-        var active = true
-        webView.evaluateJavascript("""(() => { const root = document.querySelector('article') || document.querySelector('main') || document.body; const text = root ? (root.innerText || '') : ''; return {text:text.slice(0,120000), truncated:text.length>120000}; })()""") { raw ->
-            if (active && tools.host.isAssignedTo(webView) && tools.documentKey == documentKey) {
-                try { val result = JSONObject(raw); text = result.optString("text"); truncated = result.optBoolean("truncated"); status = if (text.isBlank()) "当前网页没有可提取的正文" else "" }
-                catch (error: Exception) { status = "网页正文提取失败" }
-            }
-        }
-        onDispose { active = false }
-    }
-    DisposableEffect(speaking) {
-        var active = true
-        val engine = if (speaking) TextToSpeech(context) { code ->
-            if (active) { speechReady = code == TextToSpeech.SUCCESS; if (!speechReady) status = "系统朗读引擎不可用" }
-        } else null
-        speech = engine
-        onDispose { active = false; engine?.stop(); engine?.shutdown() }
-    }
-    AlertDialog(onDismissRequest = onDismiss, title = { Text(if (speaking) "网页朗读" else "阅读模式") }, text = {
-        Column(Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState())) {
-            if (status.isNotEmpty()) Text(status)
-            if (truncated) Text("正文超过显示上限，当前展示前 120,000 个字符")
-            SelectionContainer { Text(text) }
-        }
-    }, confirmButton = {
-        if (speaking) TextButton(enabled = speechReady && text.isNotBlank(), onClick = {
-            val engine = speech ?: return@TextButton
-            engine.stop()
-            // 系统引擎限制单次长度，完整分段排队；关闭面板或导航会停止朗读并释放引擎。
-            text.chunked((TextToSpeech.getMaxSpeechInputLength() - 1).coerceAtLeast(1)).forEachIndexed { i, chunk ->
-                if (engine.speak(chunk, if (i == 0) TextToSpeech.QUEUE_FLUSH else TextToSpeech.QUEUE_ADD, null, "page-$i") == TextToSpeech.ERROR) status = "朗读失败，请检查系统语音设置"
-            }
-        }) { Text("开始朗读") }
-        else TextButton(onClick = onDismiss) { Text("关闭") }
-    }, dismissButton = { if (speaking) Row {
-        TextButton(onClick = { speech?.stop() }) { Text("停止") }
-        TextButton(onClick = onDismiss) { Text("关闭") }
-    } })
 }

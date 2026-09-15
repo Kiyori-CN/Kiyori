@@ -64,10 +64,18 @@ class ChatOrderMoveTest {
         }
     }
 
-    @Test fun changedAnchorOrderOrGroupRejectsStaleMove() {
-        for (changed in listOf(a.copy(displayOrder = 7), a.copy(group = "renamed"))) {
+    @Test fun changedAnchorGroupOrBindingRejectsStaleMove() {
+        for (changed in listOf(a.copy(group = "renamed"), a.copy(characterCardName = "other"))) {
             assertThrows(ChatOrderChangedException::class.java) { applyChatOrderMove(listOf(changed) + all.drop(1), move()) }
         }
+    }
+
+    /** 每次移动都会重排全表序号；仅序号变化不是冲突，否则连续移动第二拍必然被拒。 */
+    @Test fun renumberedDisplayOrderAloneDoesNotRejectMove() {
+        val renumbered = all.mapIndexed { index, chat -> chat.copy(displayOrder = index * 10L + 100L) }
+        val result = applyChatOrderMove(renumbered, move())
+        assertEquals(listOf("c", "a", "hidden", "b"), result.map { it.id })
+        assertEquals(listOf(0L, 1L, 2L, 3L), result.map { it.displayOrder })
     }
 
     @Test fun pinChangeAndCrossPinAnchorAreRejected() {

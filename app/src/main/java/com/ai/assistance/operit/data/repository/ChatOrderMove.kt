@@ -2,10 +2,16 @@ package com.ai.assistance.operit.data.repository
 
 import com.ai.assistance.operit.data.model.ChatHistory
 
-/** 只比较位置与绑定；并发标题、用量及消息更新不应阻止排序或被旧UI快照覆盖。 */
+/**
+ * 只比较绑定与置顶桶；位置由锚点身份表达，不含 `displayOrder`。
+ *
+ * `displayOrder` 是每次移动都会被整表重排的派生稠密序号：把它当乐观锁，会让任何一次无关移动
+ * （包括用户自己上一拍的移动）使所有在手快照立即过期，界面上表现为明明没有并发编辑却反复
+ * 提示“移动未保存”。真正需要保护的是“移动项与锚点仍在同一排序桶、绑定未被改写”，这些字段
+ * 都与全局重排无关。并发标题、用量及消息更新同样不应阻止排序或被旧UI快照覆盖。
+ */
 data class ChatPositionSnapshot(
     val id: String,
-    val order: Long,
     val group: String?,
     val cardName: String?,
     val characterGroupId: String?,
@@ -13,7 +19,7 @@ data class ChatPositionSnapshot(
 ) {
     companion object {
         fun from(chat: ChatHistory) = ChatPositionSnapshot(
-            chat.id, chat.displayOrder, chat.group, chat.characterCardName, chat.characterGroupId, chat.pinned,
+            chat.id, chat.group, chat.characterCardName, chat.characterGroupId, chat.pinned,
         )
     }
 }
