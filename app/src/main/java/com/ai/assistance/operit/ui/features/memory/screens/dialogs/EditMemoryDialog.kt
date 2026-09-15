@@ -1,10 +1,8 @@
 package com.ai.assistance.operit.ui.features.memory.screens.dialogs
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.ExpandLess
@@ -21,8 +19,8 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
+import com.ai.assistance.operit.ui.components.KiyoriModalBottomDrawer
+import com.ai.assistance.operit.ui.components.KiyoriDrawerScaffold
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.ui.features.memory.screens.memoryCategoryLabel
 import com.ai.assistance.operit.data.model.MemoryLibraryPolicy
@@ -53,7 +51,6 @@ fun EditMemoryDialog(
 ) {
     val currentLocale = LocalConfiguration.current.locales[0]
     val defaultFolder = initialFolderPath
-    val scrollState = rememberScrollState()
     var category by rememberSaveable(memory?.id) { mutableStateOf(memory?.let(MemoryLibraryPolicy::category) ?: "other") }
     var title by rememberSaveable(memory?.id) { mutableStateOf(memory?.title ?: "") }
     var content by rememberSaveable(memory?.id) { mutableStateOf(memory?.content ?: "") }
@@ -73,7 +70,6 @@ fun EditMemoryDialog(
         category != (memory?.let(MemoryLibraryPolicy::category) ?: "other") ||
         folderPath != (memory?.folderPath ?: defaultFolder) || credibility != (memory?.credibility ?: 0.8f) ||
         importance != (memory?.importance ?: 0.5f) || tags != (memory?.tags?.map { it.name } ?: emptyList<String>()) || tagDraft.isNotBlank()
-    val requestDismiss = { if (!isSaving) { if (dirty) showDiscard = true else onDismiss() } }
     if (showDiscard) {
         AlertDialog(
         onDismissRequest = { showDiscard = false },
@@ -82,154 +78,113 @@ fun EditMemoryDialog(
         confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.library_discard)) } },
         dismissButton = { TextButton(onClick = { showDiscard = false }) { Text(stringResource(R.string.library_keep_editing)) } }
         )
-        return
     }
 
-    Dialog(
-        onDismissRequest = requestDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false)
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 20.dp, vertical = 24.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Surface(
-                modifier = Modifier
-                    .widthIn(max = 600.dp)
-                    .fillMaxWidth()
-                    .fillMaxHeight(0.9f)
-                    .imePadding(),
-                shape = MaterialTheme.shapes.extraLarge,
-                tonalElevation = 6.dp
-            ) {
-                Column(modifier = Modifier.fillMaxSize()) {
-                    Text(
-                        text = if (memory == null) {
-                            stringResource(if (libraryKind == MemoryLibraryPolicy.KNOWLEDGE) R.string.library_new_note else R.string.library_new_memory)
-                        } else {
-                            stringResource(R.string.memory_edit_memory)
-                        },
-                        style = MaterialTheme.typography.headlineSmall,
-                        modifier = Modifier.padding(start = 24.dp, top = 24.dp, end = 24.dp, bottom = 16.dp)
-                    )
-                    HorizontalDivider()
-
-                    Column(
-                        modifier = Modifier
-                            .weight(1f)
-                            .verticalScroll(scrollState)
-                            .padding(24.dp)
-                    ) {
-                        OutlinedTextField(
-                            value = title,
-                            onValueChange = { title = it },
-                            label = { Text(stringResource(R.string.memory_title)) },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true,
-                            enabled = !isSaving
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        OutlinedTextField(
-                            value = content,
-                            onValueChange = { content = it },
-                            label = { Text(stringResource(R.string.memory_content)) },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .heightIn(min = 160.dp, max = 280.dp),
-                            enabled = !isSaving && memory?.isDocumentNode != true
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        var categoryExpanded by remember { mutableStateOf(false) }
-                        Box {
-                            OutlinedButton(onClick = { categoryExpanded = true }, enabled = !isSaving) { Text(stringResource(R.string.library_category) + " · " + memoryCategoryLabel(category)) }
-                            DropdownMenu(expanded = categoryExpanded, onDismissRequest = { categoryExpanded = false }) {
-                                MemoryLibraryPolicy.categories.forEach { value ->
-                                    DropdownMenuItem(text = { Text(memoryCategoryLabel(value)) }, onClick = { category = value; categoryExpanded = false })
-                                }
-                            }
-                        }
-                        error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-                        FolderSelector(
-                            allFolderPaths = allFolderPaths,
-                            isSaving = isSaving,
-                            selectedPath = folderPath,
-                            onPathSelected = { folderPath = it }
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        TagsEditor(tags = tags, enabled = !isSaving, newTagText = tagDraft, onDraftChange = { tagDraft = it }, onTagsChanged = { tags = it })
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        OutlinedTextField(
-                            value = source,
-                            onValueChange = { source = it },
-                            label = { Text(stringResource(R.string.memory_source)) },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true,
-                            enabled = !isSaving
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        TextButton(onClick = { showAdvanced = !showAdvanced }) {
-                            Text(stringResource(R.string.library_advanced))
-                            Spacer(Modifier.width(8.dp))
-                            Icon(if (showAdvanced) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore, null)
-                        }
-                        if (showAdvanced) {
-                        Text("${stringResource(R.string.memory_credibility)}: ${String.format(currentLocale, "%.2f", credibility)}")
-                        Slider(
-                            value = credibility,
-                            onValueChange = { credibility = it },
-                            enabled = !isSaving,
-                            valueRange = 0f..1f
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        Text("${stringResource(R.string.memory_importance)}: ${String.format(currentLocale, "%.2f", importance)}")
-                        Slider(
-                            value = importance,
-                            onValueChange = { importance = it },
-                            enabled = !isSaving,
-                            valueRange = 0f..1f
-                        )
-                        }
+    KiyoriModalBottomDrawer(
+        onDismissRequest = onDismiss,
+        partialVisibleFraction = 0.92f,
+        confirmDismiss = {
+            if (isSaving) false else if (dirty) { showDiscard = true; false } else true
+        },
+    ) { dismiss ->
+        KiyoriDrawerScaffold(
+            title = stringResource(if (memory != null) R.string.memory_edit_memory
+                else if (libraryKind == MemoryLibraryPolicy.KNOWLEDGE) R.string.library_new_note else R.string.library_new_memory),
+            onClose = dismiss,
+            footer = {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(onClick = dismiss, enabled = !isSaving) {
+                        Text(stringResource(R.string.memory_cancel))
                     }
-
-                    HorizontalDivider()
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        horizontalArrangement = Arrangement.End
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Button(
+                        enabled = !isSaving && title.isNotBlank() && content.isNotBlank(),
+                        onClick = {
+                            onSave(
+                                memory,
+                                title,
+                                content,
+                                contentType,
+                                source.trim().ifBlank { "user_input" },
+                                credibility,
+                                importance,
+                                folderPath,
+                                (tags + tagDraft.trim()).filter { it.isNotBlank() }.distinct(),
+                                category
+                            )
+                        }
                     ) {
-                        TextButton(onClick = requestDismiss, enabled = !isSaving) {
-                            Text(stringResource(R.string.memory_cancel))
-                        }
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Button(
-                            enabled = !isSaving && title.isNotBlank() && content.isNotBlank(),
-                            onClick = {
-                                onSave(
-                                    memory,
-                                    title,
-                                    content,
-                                    contentType,
-                                    source.trim().ifBlank { "user_input" },
-                                    credibility,
-                                    importance,
-                                    folderPath,
-                                    (tags + tagDraft.trim()).filter { it.isNotBlank() }.distinct(),
-                                    category
-                                )
-                            }
-                        ) {
-                            Text(stringResource(if (isSaving) R.string.library_saving else R.string.memory_save))
-                        }
+                        Text(stringResource(if (isSaving) R.string.library_saving else R.string.memory_save))
                     }
                 }
+            },
+        ) {
+            // 抽屉正文已按 12dp 统一间距排列，这里不再另加 Spacer，避免出现两套间距体系。
+            OutlinedTextField(
+                value = title,
+                onValueChange = { title = it },
+                label = { Text(stringResource(R.string.memory_title)) },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                enabled = !isSaving
+            )
+            OutlinedTextField(
+                value = content,
+                onValueChange = { content = it },
+                label = { Text(stringResource(R.string.memory_content)) },
+                modifier = Modifier.fillMaxWidth().heightIn(min = 160.dp, max = 280.dp),
+                enabled = !isSaving && memory?.isDocumentNode != true
+            )
+            var categoryExpanded by remember { mutableStateOf(false) }
+            Box {
+                OutlinedButton(onClick = { categoryExpanded = true }, enabled = !isSaving) {
+                    Text(stringResource(R.string.library_category) + " · " + memoryCategoryLabel(category))
+                }
+                DropdownMenu(expanded = categoryExpanded, onDismissRequest = { categoryExpanded = false }) {
+                    MemoryLibraryPolicy.categories.forEach { value ->
+                        DropdownMenuItem(text = { Text(memoryCategoryLabel(value)) }, onClick = { category = value; categoryExpanded = false })
+                    }
+                }
+            }
+            error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+            FolderSelector(
+                allFolderPaths = allFolderPaths,
+                isSaving = isSaving,
+                selectedPath = folderPath,
+                onPathSelected = { folderPath = it }
+            )
+            TagsEditor(tags = tags, enabled = !isSaving, newTagText = tagDraft, onDraftChange = { tagDraft = it }, onTagsChanged = { tags = it })
+            OutlinedTextField(
+                value = source,
+                onValueChange = { source = it },
+                label = { Text(stringResource(R.string.memory_source)) },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                enabled = !isSaving
+            )
+            TextButton(onClick = { showAdvanced = !showAdvanced }) {
+                Text(stringResource(R.string.library_advanced))
+                Spacer(Modifier.width(8.dp))
+                Icon(if (showAdvanced) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore, null)
+            }
+            if (showAdvanced) {
+                Text("${stringResource(R.string.memory_credibility)}: ${String.format(currentLocale, "%.2f", credibility)}")
+                Slider(
+                    value = credibility,
+                    onValueChange = { credibility = it },
+                    enabled = !isSaving,
+                    valueRange = 0f..1f
+                )
+                Text("${stringResource(R.string.memory_importance)}: ${String.format(currentLocale, "%.2f", importance)}")
+                Slider(
+                    value = importance,
+                    onValueChange = { importance = it },
+                    enabled = !isSaving,
+                    valueRange = 0f..1f
+                )
             }
         }
     }

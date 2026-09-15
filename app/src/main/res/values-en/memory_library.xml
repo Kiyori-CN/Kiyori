@@ -86,4 +86,21 @@
     <string name="library_saved_document_search">Search saved document text</string>
     <string name="library_space_error">Space operation failed: %1$s</string>
     <string name="library_import_retry">The import session ended. Please select the document again.</string>
+    <string name="library_folder_delete_hint">Keeps the content and moves it to the root</string>
+    <string name="library_folder_name_required">Enter a folder name</string>
+    <string name="library_folder_path_unchanged">Enter a different path</string>
+    <string name="library_folder_path_descendant">A folder cannot move into its own subfolder</string>
+    <string name="library_folder_path_exists">That folder already exists</string>
+    <string name="library_folder_root">Root</string>
+    <string name="library_folder_current_path">Current path: %1$s</string>
+    <string name="library_folder_parent_path">Parent folder: %1$s</string>
+    <string name="library_folder_path_help">Use / to separate levels. Renaming also updates subfolders and their entries.</string>
+    <string name="library_import_retry_failed">Retry failed documents</string>
+    <string name="library_import_reading">Reading %1$d / %2$d</string>
+    <string name="library_import_saving">Saving %1$d / %2$d · %3$s</string>
+    <string name="library_import_failure_item">Item %1$d: %2$s</string>
+    <string name="library_import_summary">Saved %1$d, %2$d left to retry</string>
+    <string name="library_import_result">Document import: saved %1$d, %2$d left to retry</string>
+    <string name="library_settings_auto_hint">The automatic organisation switch applies immediately; other changes need Save.</string>
+    <string name="library_rebuild_requires_save">Save the cloud configuration before rebuilding the index.</string>
 </resources>

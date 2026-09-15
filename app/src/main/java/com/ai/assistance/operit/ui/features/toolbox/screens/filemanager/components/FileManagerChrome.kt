@@ -1,5 +1,7 @@
 package com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.components
 
+import com.ai.assistance.operit.ui.components.KiyoriToolbarAction
+import com.ai.assistance.operit.ui.components.KiyoriActionRole
 import android.os.Environment
 import android.os.StatFs
 import com.ai.assistance.operit.R
@@ -12,7 +14,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Sort
-import androidx.compose.material.icons.outlined.FilterAlt
+import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.MoreVert
@@ -67,7 +69,6 @@ fun FileManagerTopBar(
 ) {
     // 与 AI 使用相同的 TopAppBar 默认高度和状态栏消费方式；栏颜色隔离于设置页灰底。
     KiyoriBrowserTheme {
-        val actionModifier = Modifier.size(rememberKiyoriUiTokens().touchTarget).clip(KiyoriUiShapes.control)
         Column(Modifier.fillMaxWidth()) {
             TopAppBar(
                 windowInsets = WindowInsets.statusBars,
@@ -76,17 +77,13 @@ fun FileManagerTopBar(
                     IconButton(onClick = onExitFileManager) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "返回文件管理首页") }
                 },
                 actions = {
-                    IconButton(onClick = onShowSearchDialog, modifier = actionModifier) {
-                        BadgedBox(badge = { if (isSearching) Badge() }) { Icon(Icons.Outlined.Search, "搜索当前列", tint = KiyoriSemanticTone.BLUE.resolveColors().icon) }
-                    }
-                    IconButton(onClick = onShowFilter, modifier = actionModifier) {
-                        BadgedBox(badge = { if (hasFilter) Badge() }) { Icon(Icons.Outlined.FilterAlt, if (hasFilter) "过滤当前列，已启用" else "过滤当前列", tint = KiyoriSemanticTone.PURPLE.resolveColors().icon) }
-                    }
-                    IconButton(onClick = onShowSort, modifier = actionModifier) { Icon(Icons.AutoMirrored.Outlined.Sort, "排序当前列", tint = KiyoriSemanticTone.ORANGE.resolveColors().icon) }
-                    IconButton(onClick = onRefresh, enabled = !refreshing, modifier = actionModifier) {
-                        if (refreshing) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
-                        else Icon(Icons.Outlined.Refresh, "刷新当前列", tint = KiyoriSemanticTone.GREEN.resolveColors().icon)
-                    }
+                    KiyoriToolbarAction(Icons.Outlined.Search, "搜索当前列", KiyoriActionRole.NAVIGATE,
+                        badge = isSearching, onClick = onShowSearchDialog)
+                    KiyoriToolbarAction(Icons.Outlined.Tune, "筛选当前列", KiyoriActionRole.ORGANIZE,
+                        selected = hasFilter, badge = hasFilter, onClick = onShowFilter)
+                    KiyoriToolbarAction(Icons.AutoMirrored.Outlined.Sort, "排序当前列", KiyoriActionRole.ORGANIZE, onClick = onShowSort)
+                    KiyoriToolbarAction(Icons.Outlined.Refresh, "刷新当前列", KiyoriActionRole.EXECUTE,
+                        loading = refreshing, onClick = onRefresh)
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background,

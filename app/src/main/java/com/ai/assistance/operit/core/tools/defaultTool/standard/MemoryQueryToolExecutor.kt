@@ -36,6 +36,8 @@ class MemoryQueryToolExecutor(private val context: Context) : ToolExecutor {
         private const val TAG = "MemoryQueryToolExecutor"
         private const val MAX_QUERY_SNAPSHOTS_PER_PROFILE = 32
         private const val DEFAULT_RELEVANCE_THRESHOLD = 0.0
+        /** 列表结果只带摘要；超出部分由模型按 UUID 再取，避免一次返回大量 token。 */
+        private const val PREVIEW_CONTENT_CHARS = 600
 
         private data class QuerySnapshotState(
             val id: String,
@@ -195,6 +197,7 @@ class MemoryQueryToolExecutor(private val context: Context) : ToolExecutor {
                 "update_memory" -> executeUpdateMemory(tool)
                 "delete_memory" -> executeDeleteMemory(tool)
                 "move_memory" -> executeMoveMemory(tool)
+                "memory_folders" -> executeMemoryFolders(tool)
                 "update_user_profile" -> executeUpdateUserProfile(tool)
                 "update_user_preferences" -> executeLegacyUserPreferencesUpdate(tool)
                 "link_memories" -> executeLinkMemories(tool)
@@ -235,7 +238,7 @@ class MemoryQueryToolExecutor(private val context: Context) : ToolExecutor {
             )
         }
 
-        if (threshold != null && threshold < 0.0) {
+        if (threshold != null && (!threshold.isFinite() || threshold < 0.0)) {
             return ToolResult(
                 toolName = tool.name,
                 success = false,
@@ -326,6 +329,7 @@ class MemoryQueryToolExecutor(private val context: Context) : ToolExecutor {
             )
             ToolResult(toolName = tool.name, success = true, result = formattedResult)
         } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
             AppLogger.e(TAG, "Memory query failed", e)
             ToolResult(toolName = tool.name, success = false, result = StringResultData(""), error = "Failed to execute memory query: ${e.message}")
         }
@@ -345,7 +349,7 @@ class MemoryQueryToolExecutor(private val context: Context) : ToolExecutor {
                 toolName = tool.name,
                 success = false,
                 result = StringResultData(""),
-                error = "title parameter is required"
+                error = "uuid or title is required"
             )
         }
 
@@ -389,6 +393,7 @@ class MemoryQueryToolExecutor(private val context: Context) : ToolExecutor {
                 result = formattedResult
             )
         } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
             AppLogger.e(TAG, "Failed to get memory by title", e)
             ToolResult(
                 toolName = tool.name,
@@ -431,8 +436,8 @@ class MemoryQueryToolExecutor(private val context: Context) : ToolExecutor {
                         )
                     }
                     // 解析为1-based索引，转换为0-based
-                    val startIndex = (rangeParts[0].toIntOrNull() ?: 1) - 1
-                    val endIndex = (rangeParts[1].toIntOrNull() ?: totalChunks) - 1
+                    val startIndex = rangeParts[0].trim().toInt() - 1
+                    val endIndex = rangeParts[1].trim().toInt() - 1
                     
                     if (startIndex < 0 || endIndex >= totalChunks || startIndex > endIndex || endIndex - startIndex >= 100) {
                         return@withContext ToolResult(
@@ -448,7 +453,7 @@ class MemoryQueryToolExecutor(private val context: Context) : ToolExecutor {
                 // 单个分块
                 !chunkIndexParam.isNullOrBlank() -> {
                     // 解析为1-based索引，转换为0-based
-                    val chunkIndex = (chunkIndexParam.toIntOrNull() ?: 1) - 1
+                    val chunkIndex = chunkIndexParam.toInt() - 1
                     if (chunkIndex < 0 || chunkIndex >= totalChunks) {
                         return@withContext ToolResult(
                             toolName = toolName,
@@ -501,6 +506,7 @@ class MemoryQueryToolExecutor(private val context: Context) : ToolExecutor {
                 error = "Invalid number format in chunk parameters: ${e.message}"
             )
         } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
             AppLogger.e(TAG, "Failed to retrieve document chunks", e)
             ToolResult(
                 toolName = toolName,
@@ -566,6 +572,7 @@ class MemoryQueryToolExecutor(private val context: Context) : ToolExecutor {
                 )
             }
         } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
             AppLogger.e(TAG, "Failed to create memory", e)
             ToolResult(
                 toolName = tool.name,
@@ -585,7 +592,7 @@ class MemoryQueryToolExecutor(private val context: Context) : ToolExecutor {
                 toolName = tool.name,
                 success = false,
                 result = StringResultData(""),
-                error = "old_title parameter is required to identify the memory"
+                error = "uuid or old_title is required to identify the memory"
             )
         }
 
@@ -601,6 +608,18 @@ class MemoryQueryToolExecutor(private val context: Context) : ToolExecutor {
                     error = "Memory not found with title: $oldTitle"
                 )
             }
+
+            val chunkIndex = tool.parameters.find { it.name == "chunk_index" }?.value
+            if (memory.isDocumentNode && chunkIndex != null) {
+                val index = requireNotNull(chunkIndex.toIntOrNull()) { "chunk_index must be an integer starting at 1" }
+                require(index > 0) { "chunk_index must start at 1" }
+                val chunk = requireNotNull(memoryRepository.getChunkByIndex(memory.id, index - 1)) { "Chunk not found" }
+                val content = requireNotNull(tool.parameters.find { it.name == "content" }?.value) { "content is required with chunk_index" }
+                require(tool.parameters.none { it.name in setOf("folder_path", "tags", "category", "content_type", "source", "credibility", "importance") }) { "Update chunk content and metadata in separate calls" }
+                memoryRepository.updateDocument(memory, tool.parameters.find { it.name == "new_title" }?.value ?: memory.title, mapOf(chunk.id to content))
+                return ToolResult(toolName = tool.name, success = true, result = StringResultData("Updated UUID: ${memory.uuid}; chunk_index: $index. Read using the same UUID and chunk_index."))
+            }
+            require(chunkIndex == null) { "chunk_index applies only to imported documents" }
 
             // 获取要更新的字段，如果没有提供则使用原值
             val newTitle = tool.parameters.find { it.name == "new_title" }?.value ?: memory.title
@@ -627,7 +646,7 @@ class MemoryQueryToolExecutor(private val context: Context) : ToolExecutor {
             )
             
             if (updatedMemory != null) {
-                val message = "Successfully updated memory from '$oldTitle' to '$newTitle'"
+                val message = "Updated UUID: ${updatedMemory.uuid}; title: ${updatedMemory.title}. Read with get_memory_by_title(uuid)."
                 AppLogger.d(TAG, message)
                 ToolResult(
                     toolName = tool.name,
@@ -643,6 +662,7 @@ class MemoryQueryToolExecutor(private val context: Context) : ToolExecutor {
                 )
             }
         } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
             AppLogger.e(TAG, "Failed to update memory", e)
             ToolResult(
                 toolName = tool.name,
@@ -698,6 +718,7 @@ class MemoryQueryToolExecutor(private val context: Context) : ToolExecutor {
                 )
             }
         } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
             AppLogger.e(TAG, "Failed to delete memory", e)
             ToolResult(
                 toolName = tool.name,
@@ -735,6 +756,7 @@ class MemoryQueryToolExecutor(private val context: Context) : ToolExecutor {
                 result = StringResultData(message)
             )
         } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
             AppLogger.e(TAG, "Failed to update user.md", e)
             ToolResult(
                 toolName = tool.name,
@@ -872,6 +894,7 @@ class MemoryQueryToolExecutor(private val context: Context) : ToolExecutor {
                 result = resultData
             )
         } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
             AppLogger.e(TAG, "Failed to link memories", e)
             ToolResult(
                 toolName = tool.name,
@@ -967,6 +990,7 @@ class MemoryQueryToolExecutor(private val context: Context) : ToolExecutor {
                 )
             )
         } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
             AppLogger.e(TAG, "Failed to query memory links", e)
             ToolResult(
                 toolName = tool.name,
@@ -984,6 +1008,7 @@ class MemoryQueryToolExecutor(private val context: Context) : ToolExecutor {
         val hasSourceFolderParam = tool.parameters.any { it.name == "source_folder_path" }
         val titlesRaw = tool.parameters.find { it.name == "titles" }?.value
         val titles = parseTitlesParam(titlesRaw)
+        val uuids = parseTitlesParam(tool.parameters.find { it.name == "uuids" }?.value)
 
         if (targetFolderPath == null) {
             return ToolResult(
@@ -994,12 +1019,12 @@ class MemoryQueryToolExecutor(private val context: Context) : ToolExecutor {
             )
         }
 
-        if (titles.isEmpty() && !hasSourceFolderParam) {
+        if (uuids.isEmpty() && titles.isEmpty() && !hasSourceFolderParam) {
             return ToolResult(
                 toolName = tool.name,
                 success = false,
                 result = StringResultData(""),
-                error = "Provide titles and/or source_folder_path to select memories to move"
+                error = "Provide uuids, titles or source_folder_path to select memories to move"
             )
         }
 
@@ -1010,7 +1035,7 @@ class MemoryQueryToolExecutor(private val context: Context) : ToolExecutor {
 
         return try {
             val selectedByTitle = if (titles.isNotEmpty()) {
-                titles.flatMap { title -> memoryRepository.findMemoriesByTitle(title) }
+                titles.map { title -> requireNotNull(memoryRepository.findMemoryByTitle(title)) { "Title not found: $title; use UUID for exact selection" } }
             } else {
                 emptyList()
             }
@@ -1021,6 +1046,7 @@ class MemoryQueryToolExecutor(private val context: Context) : ToolExecutor {
             }
 
             val selected = when {
+                uuids.isNotEmpty() -> uuids.map { uuid -> requireNotNull(memoryRepository.findMemoryByUuid(uuid)) { "UUID not found: $uuid" } }
                 titles.isNotEmpty() && hasSourceFolderParam -> {
                     val folderIds = selectedByFolder.map { it.id }.toHashSet()
                     selectedByTitle.filter { folderIds.contains(it.id) }
@@ -1056,9 +1082,10 @@ class MemoryQueryToolExecutor(private val context: Context) : ToolExecutor {
             ToolResult(
                 toolName = tool.name,
                 success = true,
-                result = StringResultData("Successfully moved ${memoryIds.size} memories to '$destination'")
+                result = StringResultData("Moved ${memoryIds.size} memories to '$destination'. UUIDs: ${uniqueMemories.values.joinToString { it.uuid }}")
             )
         } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
             AppLogger.e(TAG, "Failed to move memories", e)
             ToolResult(
                 toolName = tool.name,
@@ -1066,6 +1093,35 @@ class MemoryQueryToolExecutor(private val context: Context) : ToolExecutor {
                 result = StringResultData(""),
                 error = "Failed to move memories: ${e.message}"
             )
+        }
+    }
+
+    private suspend fun executeMemoryFolders(tool: AITool): ToolResult {
+        return try {
+            val repository = getMemoryRepository(resolveActiveProfileId(tool))
+            val action = tool.parameters.find { it.name == "action" }?.value ?: "list"
+            val path = tool.parameters.find { it.name == "path" }?.value.orEmpty()
+            if (action != "list") require(path.isNotBlank()) { "path is required" }
+            when (action) {
+                "list" -> Unit
+                "create" -> check(repository.createFolder(path)) { "Could not create folder" }
+                "rename" -> {
+                    val target = requireNotNull(tool.parameters.find { it.name == "target_path" }?.value) { "target_path is required" }
+                    check(repository.renameFolder(path, target)) { "Could not rename folder" }
+                }
+                "delete" -> repository.deleteFolder(path)
+                else -> error("action must be list, create, rename or delete")
+            }
+            val offset = tool.parameters.find { it.name == "offset" }?.value?.toInt() ?: 0
+            require(offset >= 0) { "offset must be non-negative" }
+            val folders = repository.getAllFolderPaths()
+            val page = folders.drop(offset).take(100)
+            ToolResult(toolName = tool.name, success = true, result = StringResultData(
+                "Folders: ${folders.size}; offset: $offset; next_offset: ${if (offset + page.size < folders.size) offset + page.size else -1}\n" +
+                    page.joinToString("\n") + "\nFolder deletion preserves content and moves it to the root. Use query_memory(query=*, folder_path=...) to list entries."))
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            ToolResult(toolName = tool.name, success = false, result = StringResultData(""), error = e.message ?: e.javaClass.simpleName)
         }
     }
 
@@ -1185,6 +1241,7 @@ class MemoryQueryToolExecutor(private val context: Context) : ToolExecutor {
                 )
             )
         } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
             AppLogger.e(TAG, "Failed to update memory link", e)
             ToolResult(
                 toolName = tool.name,
@@ -1272,6 +1329,7 @@ class MemoryQueryToolExecutor(private val context: Context) : ToolExecutor {
                 result = StringResultData("Successfully deleted memory link: $resolvedLinkId")
             )
         } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
             AppLogger.e(TAG, "Failed to delete memory link", e)
             ToolResult(
                 toolName = tool.name,
@@ -1300,15 +1358,20 @@ class MemoryQueryToolExecutor(private val context: Context) : ToolExecutor {
             val chunkInfo: String?
             val chunkIndices: List<Int>?
             
+            // 结果必须自带下一步：模型只有拿到工具名和参数，才能从命中项走到正文。
             if (memory.isDocumentNode) {
                 val totalChunks = memoryRepository.getTotalChunkCount(memory.id)
-                chunkInfo = "$totalChunks chunks; use uuid with chunk_index, chunk_range or query to read evidence"
+                chunkInfo = "Imported document with $totalChunks chunks. The content below is a summary, not the document. " +
+                    "Read the text with get_memory_by_title(uuid=<UUID above>) plus chunk_index, chunk_range or query."
                 chunkIndices = null
-                content = memory.content.take(600)
+                content = memory.content.take(PREVIEW_CONTENT_CHARS)
             } else {
-                chunkInfo = null
                 chunkIndices = null
-                content = if (fullContent) memory.content else memory.content.take(600)
+                val full = fullContent || memory.content.length <= PREVIEW_CONTENT_CHARS
+                content = if (full) memory.content else memory.content.take(PREVIEW_CONTENT_CHARS)
+                chunkInfo = if (full) null else
+                    "Content truncated to $PREVIEW_CONTENT_CHARS of ${memory.content.length} characters. " +
+                        "Read it in full with get_memory_by_title(uuid=<UUID above>)."
             }
 
             MemoryQueryResultData.MemoryInfo(
@@ -1323,7 +1386,8 @@ class MemoryQueryToolExecutor(private val context: Context) : ToolExecutor {
                 libraryKind = MemoryLibraryPolicy.kind(memory),
                 category = MemoryLibraryPolicy.category(memory),
                 updatedAt = sdf.format(memory.updatedAt),
-                archived = memory.archived
+                archived = memory.archived,
+                folderPath = memory.folderPath.orEmpty()
             )
         }
         MemoryQueryResultData(

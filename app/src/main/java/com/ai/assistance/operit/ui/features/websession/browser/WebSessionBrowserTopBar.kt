@@ -1,5 +1,7 @@
 package com.ai.assistance.operit.ui.features.websession.browser
 
+import com.ai.assistance.operit.ui.components.KiyoriToolbarAction
+import com.ai.assistance.operit.ui.components.KiyoriActionRole
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
@@ -229,9 +231,10 @@ internal fun WebSessionBrowserTopBar(
                         }
                     }
                 }
-                BrowserChromeIconButton(
+                KiyoriToolbarAction(
                     icon = Icons.Outlined.Refresh,
-                    contentDescription = stringResource(R.string.web_session_refresh),
+                    role = KiyoriActionRole.EXECUTE,
+                    label = stringResource(R.string.web_session_refresh),
                     onClick = onRefresh,
                 )
             }

@@ -7,6 +7,7 @@ import com.ai.assistance.operit.data.db.ObjectBoxManager
 import com.ai.assistance.operit.data.model.Memory
 import com.ai.assistance.operit.data.model.MemoryLibraryPolicy
 import com.ai.assistance.operit.data.model.MemoryLink
+import com.ai.assistance.operit.data.model.MemoryProperty
 import com.ai.assistance.operit.data.model.MemoryTag
 import com.ai.assistance.operit.data.model.MemoryTag_
 import com.ai.assistance.operit.data.model.Memory_
@@ -29,6 +30,11 @@ import io.objectbox.kotlin.boxFor
 import io.objectbox.kotlin.query
 import io.objectbox.query.QueryBuilder
 import java.io.File
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.buffer
+import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -88,6 +94,18 @@ class MemoryRepository(private val context: Context, profileId: String) {
             return parts.takeIf { it.isNotEmpty() }?.joinToString("/")
         }
 
+        /** 记忆库页面渲染的实体；不含 MemoryAutoSaveCandidate。 */
+        private val OBSERVED_ENTITIES = setOf<Class<*>>(
+            Memory::class.java, MemoryLink::class.java, DocumentChunk::class.java,
+            MemoryTag::class.java, MemoryProperty::class.java,
+        )
+
+        fun validateFolderPath(path: String) {
+            require(path.none { it.isISOControl() } && path.replace('\\', '/').split('/').none { it.trim() in listOf(".", "..") }) {
+                "文件夹路径不能包含控制字符、. 或 .."
+            }
+        }
+
         private fun sanitizeIndexKey(raw: String): String {
             val normalized = raw.trim().ifBlank { "default" }
             return MemoryLibraryPolicy.digest(normalized).take(24)
@@ -107,6 +125,17 @@ class MemoryRepository(private val context: Context, profileId: String) {
     private val sanitizedProfileKey = sanitizeIndexKey(profileId)
     @Volatile
     private var lastDanglingCleanupAtMs: Long = 0L
+
+    /**
+     * 直接观察同一 BoxStore，覆盖 UI、工具、导入和备份写入；取消收集即释放订阅。
+     * 只转发记忆库自己渲染的实体：自动整理候选项在后台频繁写入，放行会让页面反复重查。
+     */
+    fun observeChanges(): Flow<Unit> = callbackFlow {
+        val subscription = store.subscribe().onlyChanges().observer { changed ->
+            if (changed in OBSERVED_ENTITIES) trySend(Unit)
+        }
+        awaitClose { subscription.cancel() }
+    }.buffer(Channel.CONFLATED)
 
     private fun normalizeStoredFolderPath(path: String?): String? =
         if (path == context.getString(R.string.memory_uncategorized)) null else normalizeFolderPath(path)
@@ -829,8 +858,16 @@ class MemoryRepository(private val context: Context, profileId: String) {
      * @return 创建的Memory对象。
      */
     suspend fun createMemoryFromDocument(documentName: String, originalPath: String, text: String, folderPath: String = ""): Memory = withContext(Dispatchers.IO) {
+        validateFolderPath(folderPath)
+        require(documentName.isNotBlank()) { "资料名称不能为空" }
         val safeText = ConversationAuditRedactor.redactText(text).value
         val parts = MemoryLibraryPolicy.chunks(safeText)
+        fun existingImport(): Memory? = memoryBox.query(Memory_.documentPath.equal(originalPath)).build().use { query ->
+            query.find().firstOrNull { existing -> existing.isDocumentNode && !existing.archived &&
+                normalizeStoredFolderPath(existing.folderPath) == normalizeStoredFolderPath(folderPath) &&
+                loadChunksForDocument(existing).sortedBy { it.chunkIndex }.map { it.content } == parts }
+        }
+        synchronized(indexLock) { existingImport()?.let { return@withContext it } }
         val cloudConfig = loadCloudEmbeddingConfig()
         val documentMemory = Memory(
             title = documentName.trim(),
@@ -850,6 +887,7 @@ class MemoryRepository(private val context: Context, profileId: String) {
             }
         }
         synchronized(indexLock) {
+            existingImport()?.let { return@withContext it }
             addMemoryToIndexInternal(documentMemory)
             store.runInTx {
                 memoryBox.put(documentMemory)
@@ -881,6 +919,7 @@ class MemoryRepository(private val context: Context, profileId: String) {
         memory.title = ConversationAuditRedactor.redactText(memory.title).value
         memory.content = ConversationAuditRedactor.redactText(memory.content).value
         memory.source = ConversationAuditRedactor.redactText(memory.source).value
+        memory.folderPath?.let(::validateFolderPath)
         memory.folderPath = normalizeStoredFolderPath(memory.folderPath)
         memory.credibility = memory.credibility.coerceIn(0.0f, 1.0f)
         memory.importance = memory.importance.coerceIn(0.0f, 1.0f)
@@ -906,7 +945,7 @@ class MemoryRepository(private val context: Context, profileId: String) {
         store.runInTx {
             val memory = requireNotNull(memoryBox.get(id)) { "条目已被删除" }
             memory.archived = archived
-            memory.updatedAt = Date()
+            memory.updatedAt = Date(maxOf(System.currentTimeMillis(), memory.updatedAt.time + 1))
             memoryBox.put(memory)
         }
     }
@@ -952,34 +991,26 @@ class MemoryRepository(private val context: Context, profileId: String) {
      * @return True if deletion was successful, false otherwise.
      */
     suspend fun deleteMemory(memoryId: Long): Boolean = withContext(Dispatchers.IO) {
-        val memory = findMemoryById(memoryId) ?: return@withContext false
-
-        // 如果是文档节点，删除其所有区块
-        if (memory.isDocumentNode) {
-            memory.documentChunks.reset()
-            val chunkIds = memory.documentChunks.map { it.id }
-            if (chunkIds.isNotEmpty()) {
-                chunkBox.removeByIds(chunkIds)
-                com.ai.assistance.operit.util.AppLogger.d("MemoryRepo", "Deleted ${chunkIds.size} associated chunks for document.")
+        synchronized(indexLock) {
+            val memory = memoryBox.get(memoryId) ?: return@withContext false
+            // 先让派生缓存失效，再在一个事务内删除事实，异常不得留下孤儿块或半删除关系。
+            removeMemoryFromIndexInternal(memory)
+            try {
+                store.callInTx<Boolean> {
+                    val chunkIds = chunkBox.query(DocumentChunk_.memoryId.equal(memoryId)).build().use { it.findIds() }
+                    if (chunkIds.isNotEmpty()) chunkBox.remove(*chunkIds)
+                    val links = collectLinkIdsForDeletion(setOf(memoryId), includeDangling = false)
+                    if (links.isNotEmpty()) linkBox.removeByIds(links)
+                    memoryBox.remove(memoryId)
+                }
+            } catch (failure: Throwable) {
+                // 事务回滚后条目仍然存在，索引必须跟着回滚，否则它会永久搜不到。
+                runCatching { addMemoryToIndexInternal(memory) }
+                throw failure
             }
         }
-
-        val linkIdsToDelete = collectLinkIdsForDeletion(setOf(memoryId), includeDangling = false)
-        if (linkIdsToDelete.isNotEmpty()) {
-            linkBox.removeByIds(linkIdsToDelete)
-            com.ai.assistance.operit.util.AppLogger.d(
-                "MemoryRepo",
-                "Deleted ${linkIdsToDelete.size} links while deleting memory id=$memoryId."
-            )
-        }
-        val removed = memoryBox.remove(memory)
-        if (removed) {
-            removeMemoryFromIndexInternal(memory, memoryAlreadyRemoved = true)
-        }
-        removed
     }
 
-    // --- Link CRUD Operations ---
     private fun collectLinkIdsForDeletion(
         memoryIdsToDelete: Set<Long>,
         includeDangling: Boolean = true
@@ -1903,17 +1934,9 @@ class MemoryRepository(private val context: Context, profileId: String) {
     }
 
     suspend fun updateChunk(chunkId: Long, newContent: String) = withContext(Dispatchers.IO) {
-        val chunk = chunkBox.get(chunkId) ?: return@withContext
-        val cloudConfig = searchSettingsPreferences.loadCloudEmbedding()
-
-        chunk.content = newContent
-        chunk.embedding = generateEmbedding(newContent, cloudConfig)
-        markEmbedding(chunk, cloudConfig)
-        chunkBox.put(chunk)
-        val owner = chunk.memory.target
-        if (owner != null) {
-            rebuildDocumentChunkIndex(owner, forcedDimension = chunk.embedding?.vector?.size)
-        }
+        val chunk = requireNotNull(chunkBox.get(chunkId)) { "区块已被删除" }
+        val owner = requireNotNull(chunk.memory.target) { "文档已被删除" }
+        updateDocument(owner, owner.title, mapOf(chunkId to newContent))
     }
 
     suspend fun addMemoryToIndex(memory: Memory) = withContext(Dispatchers.IO) {
@@ -2252,32 +2275,23 @@ class MemoryRepository(private val context: Context, profileId: String) {
      * @return 是否成功。
      */
     suspend fun renameFolder(oldPath: String, newPath: String): Boolean = withContext(Dispatchers.IO) {
-        val normalizedOldPath = normalizeStoredFolderPath(oldPath) ?: return@withContext false
-        val normalizedNewPath = normalizeStoredFolderPath(newPath) ?: return@withContext false
-        if (normalizedOldPath == normalizedNewPath) return@withContext true
-        
-        try {
-            // 获取该文件夹及其所有子文件夹下的记忆
-            val memories = memoryBox.all.filter { memory ->
-                val path = normalizeStoredFolderPath(memory.folderPath) ?: return@filter false
-                path == normalizedOldPath || path.startsWith("$normalizedOldPath/")
+        validateFolderPath(oldPath)
+        validateFolderPath(newPath)
+        val old = normalizeStoredFolderPath(oldPath) ?: return@withContext false
+        val target = normalizeStoredFolderPath(newPath) ?: return@withContext false
+        if (old == target) return@withContext true
+        require(!target.startsWith("$old/")) { "不能移动到自身的子文件夹" }
+        store.callInTx<Boolean> {
+            val all = memoryBox.all
+            require(all.none { normalizeStoredFolderPath(it.folderPath)?.let { path -> path == target || path.startsWith("$target/") } == true }) { "目标文件夹已存在" }
+            val records = all.filter { normalizeStoredFolderPath(it.folderPath)?.let { path -> path == old || path.startsWith("$old/") } == true }
+            require(records.isNotEmpty()) { "原文件夹已不存在" }
+            records.forEach { memory ->
+                memory.folderPath = target + requireNotNull(normalizeStoredFolderPath(memory.folderPath)).removePrefix(old)
+                memory.updatedAt = Date(maxOf(System.currentTimeMillis(), memory.updatedAt.time + 1))
             }
-            
-            // 批量更新路径
-            memories.forEach { memory ->
-                val currentPath = normalizeStoredFolderPath(memory.folderPath) ?: return@forEach
-                memory.folderPath = if (currentPath == normalizedOldPath) {
-                    normalizedNewPath
-                } else {
-                    normalizedNewPath + currentPath.removePrefix(normalizedOldPath)
-                }
-            }
-            
-            memoryBox.put(memories)
+            memoryBox.put(records)
             true
-        } catch (e: Exception) {
-            com.ai.assistance.operit.util.AppLogger.e("MemoryRepo", "Failed to rename folder", e)
-            false
         }
     }
 
@@ -2288,19 +2302,17 @@ class MemoryRepository(private val context: Context, profileId: String) {
      * @return 是否成功。
      */
     suspend fun moveMemoriesToFolder(memoryIds: List<Long>, targetFolderPath: String): Boolean = withContext(Dispatchers.IO) {
-        try {
-            val normalizedTarget = if (targetFolderPath == context.getString(R.string.memory_uncategorized)) {
-                null
-            } else {
-                normalizeStoredFolderPath(targetFolderPath)
+        validateFolderPath(targetFolderPath)
+        require(memoryIds.isNotEmpty()) { "请选择要移动的条目" }
+        val target = normalizeStoredFolderPath(targetFolderPath)
+        store.callInTx<Boolean> {
+            val records = memoryIds.distinct().map { requireNotNull(memoryBox.get(it)) { "条目已被删除，请刷新后重试" } }
+            records.forEach {
+                it.folderPath = target
+                it.updatedAt = Date(maxOf(System.currentTimeMillis(), it.updatedAt.time + 1))
             }
-            val memories = memoryIds.mapNotNull { findMemoryById(it) }
-            memories.forEach { it.folderPath = normalizedTarget }
-            memoryBox.put(memories)
+            memoryBox.put(records)
             true
-        } catch (e: Exception) {
-            com.ai.assistance.operit.util.AppLogger.e("MemoryRepo", "Failed to move memories", e)
-            false
         }
     }
 
@@ -2310,6 +2322,7 @@ class MemoryRepository(private val context: Context, profileId: String) {
      * @return 是否成功。
      */
     suspend fun createFolder(folderPath: String): Boolean = withContext(Dispatchers.IO) {
+        validateFolderPath(folderPath)
         try {
             val normalizedFolderPath = normalizeStoredFolderPath(folderPath) ?: return@withContext false
             // 检查是否已存在该文件夹
@@ -2396,6 +2409,8 @@ class MemoryRepository(private val context: Context, profileId: String) {
         newLibraryKind: String = MemoryLibraryPolicy.kind(memory),
         newCategory: String = MemoryLibraryPolicy.category(memory)
     ): Memory? = withContext(Dispatchers.IO) {
+        newFolderPath?.let(::validateFolderPath)
+        require(!memory.isDocumentNode || newContent == memory.content) { "文档正文请按区块编辑，不能只覆盖摘要" }
         val expectedUpdatedAt = memory.updatedAt.time
         val draft = requireNotNull(memoryBox.get(memory.id)) { "条目已被删除" }
         check(draft.updatedAt.time == expectedUpdatedAt) { "条目已被其他操作修改，请刷新后重试" }
@@ -2621,8 +2636,12 @@ class MemoryRepository(private val context: Context, profileId: String) {
             return@withContext false
         }
 
-        // 4. 在事务外处理向量索引和文件
-        memoriesToDelete.forEach(::removeMemoryFromIndexInternal)
+        // 4. 条目已从库中移除，受影响维度只需重建一次；逐条重建会在批量删除时放大成 O(n²) 写入。
+        synchronized(indexLock) {
+            rebuildAffectedMemoryVectorIndices(memoriesToDelete.map { it.embedding?.vector?.size })
+            memoriesToDelete.filter { it.isDocumentNode }
+                .forEach { memory -> deleteIndexFileIfExists(memory.chunkIndexFilePath?.let(::File)) }
+        }
         com.ai.assistance.operit.util.AppLogger.d("MemoryRepo", "Removed deleted memories from vector indices and cleaned up chunk index files.")
 
         return@withContext true
@@ -2722,7 +2741,10 @@ class MemoryRepository(private val context: Context, profileId: String) {
             // 删除目录结构，保留所有正文、文档块和关系；子目录必须一起解除归属，
             // 否则虚拟树会立即从子路径重新生成刚刚删除的父目录。
             store.runInTx {
-                memories.forEach { memory -> memory.folderPath = null }
+                memories.forEach { memory ->
+                    memory.folderPath = null
+                    memory.updatedAt = Date(maxOf(System.currentTimeMillis(), memory.updatedAt.time + 1))
+                }
                 memoryBox.put(memories)
             }
             com.ai.assistance.operit.util.AppLogger.d("MemoryRepo", "Deleted folder '$folderPath', moved ${memories.size} memories to uncategorized")

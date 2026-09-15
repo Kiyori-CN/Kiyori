@@ -4731,6 +4731,7 @@ Kini anda boleh menggunakan mod AutoGLM di antara muka perbualan.</string>
     <string name="toolreg_create_memory_desc">Cipta ingatan: %1$s</string>
     <string name="toolreg_update_memory_desc">Kemas kini ingatan: %1$s -&gt; %2$s</string>
     <string name="toolreg_delete_memory_desc">Padam ingatan: %1$s</string>
+    <string name="toolreg_memory_folders_desc">Folder ingatan: %1$s</string>
     <string name="toolreg_link_memories_desc">Paut ingatan: 「%1$s」 -&gt; 「%2$s」 (Jenis: %3$s)</string>
     <string name="toolreg_use_package_desc">Gunakan pakej alat: %1$s</string>
     <string name="toolreg_calculate_desc">Kira ungkapan: %1$s</string>

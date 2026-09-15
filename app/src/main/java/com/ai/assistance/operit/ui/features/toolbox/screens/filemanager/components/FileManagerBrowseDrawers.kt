@@ -12,21 +12,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
+import com.ai.assistance.operit.ui.components.KiyoriDrawerScaffold
 import com.ai.assistance.operit.ui.components.KiyoriModalBottomDrawer
 import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.models.*
 
 @Composable
 internal fun FileManagerBrowseDrawer(title: String, location: String, onDismiss: () -> Unit,
+    footer: @Composable (dismiss: () -> Unit) -> Unit = {},
     content: @Composable ColumnScope.(dismiss: () -> Unit) -> Unit,
 ) {
     KiyoriModalBottomDrawer(onDismissRequest = onDismiss) { dismiss ->
-            Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text(title, Modifier.weight(1f), style = MaterialTheme.typography.titleLarge)
-                IconButton(onClick = dismiss) { Icon(Icons.Outlined.Close, "关闭") }
-            }
-        // 标题与关闭按钮固定；键盘和系统栏由共享宿主消费一次，长表单只滚动正文。
-        Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).padding(bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        KiyoriDrawerScaffold(title, dismiss, footer = { footer(dismiss) }) {
             if (location.isNotEmpty()) Text(location, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             content(dismiss)
         }
@@ -42,7 +38,16 @@ fun FileManagerFilterDrawer(pane: FileManagerPane, state: FileManagerPaneState, 
     var error by remember { mutableStateOf<String?>(null) }
     var confirmed by remember { mutableStateOf<FileManagerFilterDraft?>(null) }
     FileManagerBrowseDrawer("过滤 · ${paneLabel(pane)}", fileManagerLocationLabel(FileManagerLocation(state.path, state.environment)),
-        onDismiss = { onDismiss(); confirmed?.let(onApply) }) { dismiss ->
+        onDismiss = { onDismiss(); confirmed?.let(onApply) }, footer = { dismiss ->
+        error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            OutlinedButton(onClick = { confirmed = FileManagerFilterDraft(); dismiss() }, modifier = Modifier.weight(1f)) { Text("清除过滤") }
+            Button(onClick = {
+                try { draft.compile(); confirmed = draft; dismiss() }
+                catch (failure: IllegalArgumentException) { error = failure.message }
+            }, modifier = Modifier.weight(1f)) { Text("应用过滤") }
+        }
+        }) { _ ->
         Text("确认后只更新${paneLabel(pane)}；不同条件同时满足，多种格式任选其一。", style = MaterialTheme.typography.bodySmall)
         OutlinedTextField(draft.name, { draft = draft.copy(name = it) }, Modifier.fillMaxWidth(), label = { Text("文件名包含") }, singleLine = true)
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -81,14 +86,6 @@ fun FileManagerFilterDrawer(pane: FileManagerPane, state: FileManagerPaneState, 
             OutlinedTextField(draft.to, { draft = draft.copy(to = it) }, Modifier.fillMaxWidth(), label = { Text("结束日期 yyyy-MM-dd（含当天）") }, singleLine = true)
         }
         Text("大小与格式仅匹配文件；时间不可用的项目不匹配时间条件。留空表示不限。", style = MaterialTheme.typography.bodySmall)
-        error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            OutlinedButton(onClick = { confirmed = FileManagerFilterDraft(); dismiss() }, modifier = Modifier.weight(1f)) { Text("清除过滤") }
-            Button(onClick = {
-                try { draft.compile(); confirmed = draft; dismiss() }
-                catch (failure: IllegalArgumentException) { error = failure.message }
-            }, modifier = Modifier.weight(1f)) { Text("应用过滤") }
-        }
     }
 }
 
@@ -101,13 +98,21 @@ internal fun sortLabel(mode: FileManagerSortMode) = when (mode) {
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun FileManagerSortDrawer(pane: FileManagerPane, state: FileManagerPaneState, onDismiss: () -> Unit,
-    onApply: (FileManagerSortMode, Boolean) -> Unit,
+    onApply: (FileManagerSortMode, Boolean, Boolean) -> Unit,
+    folderOverride: Boolean = false,
+    onReset: () -> Unit = {},
 ) {
     var mode by remember { mutableStateOf(state.sortMode) }
     var descending by remember { mutableStateOf(state.sortDescending) }
     var apply by remember { mutableStateOf(false) }
+    var reset by remember { mutableStateOf(false) }
+    var folderOnly by remember { mutableStateOf(folderOverride) }
     FileManagerBrowseDrawer("排序 · ${paneLabel(pane)}", fileManagerLocationLabel(FileManagerLocation(state.path, state.environment)),
-        { onDismiss(); if (apply) onApply(mode, descending) }) { dismiss ->
+        { onDismiss(); if (reset) onReset() else if (apply) onApply(mode, descending, folderOnly) },
+        footer = { dismiss ->
+            if (folderOverride) TextButton({ reset = true; dismiss() }, enabled = !apply && !reset) { Text("恢复全局默认排序") }
+            Button({ apply = true; dismiss() }, Modifier.fillMaxWidth(), enabled = !apply && !reset) { Text("应用排序") }
+        }) { _ ->
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             FileManagerSortMode.entries.forEach { item -> FilterChip(mode == item, { mode = item }, label = { Text(sortLabel(item)) }) }
         }
@@ -115,7 +120,12 @@ fun FileManagerSortDrawer(pane: FileManagerPane, state: FileManagerPaneState, on
             FilterChip(!descending, { descending = false }, label = { Text(if (mode == FileManagerSortMode.MODIFIED) "最早在前" else "升序") })
             FilterChip(descending, { descending = true }, label = { Text(if (mode == FileManagerSortMode.MODIFIED) "最新在前" else "降序") })
         }
-        Text("目录始终优先；仅更改${paneLabel(pane)}的排列，另一列保持不变。")
-        Button({ apply = true; dismiss() }, Modifier.fillMaxWidth()) { Text("应用排序") }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("仅应用于此文件夹", Modifier.weight(1f))
+            Switch(folderOnly, { folderOnly = it })
+        }
+        Text(if (folderOnly) "保存当前路径的排序，重新进入仍生效。" else "更新全局默认排序，并清除此文件夹的覆盖；其他文件夹的覆盖保持不变。",
+            style = MaterialTheme.typography.bodySmall)
+        Text("目录始终优先。", style = MaterialTheme.typography.bodySmall)
     }
 }

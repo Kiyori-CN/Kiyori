@@ -54,6 +54,9 @@ import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.models.*
 import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.models.fileManagerJoinPath
 
 import com.ai.assistance.operit.data.preferences.FileManagerPreferences
+import com.ai.assistance.operit.data.preferences.folderSort
+import com.ai.assistance.operit.data.preferences.withSort
+import com.ai.assistance.operit.data.preferences.moveFolderSorts
 import com.ai.assistance.operit.data.preferences.FileManagerSettings
 import com.ai.assistance.operit.data.preferences.FileManagerHiddenEntry
 import kotlinx.coroutines.sync.Mutex
@@ -957,7 +960,7 @@ class FileManagerViewModel(
         val updated = if (settingsStore != null) {
             settingsStore.update(transform)
             settingsStore.current
-        } else transform(FileManagerSettings(showHiddenFiles, sortMode, sortDescending, itemSize, showManuallyHiddenFiles, manuallyHiddenFiles))
+        } else transform(FileManagerSettings(showHiddenFiles = showHiddenFiles, sortMode = sortMode, sortDescending = sortDescending, itemSize = itemSize, showManuallyHiddenFiles = showManuallyHiddenFiles, manuallyHiddenFiles = manuallyHiddenFiles))
         applySettings(updated)
     }
 
@@ -968,8 +971,17 @@ class FileManagerViewModel(
         showManuallyHiddenFiles = settings.showManuallyHiddenFiles
         manuallyHiddenFiles = settings.manuallyHiddenFiles
         itemSize = settings.itemSize
-        // 设置中的排序仅是新会话默认值，当前两栏保持各自已确认的顺序。
-        if (hiddenChanged) FileManagerPane.entries.forEach(::projectPane)
+        // 当前路径覆盖优先；全局变更只影响未覆盖路径，不触发额外文件 IO。
+        FileManagerPane.entries.forEach { pane ->
+            val state = paneState(pane)
+            val local = settings.folderSort(state.path, state.environment)
+            val mode = local?.mode ?: settings.sortMode
+            val descending = local?.descending ?: settings.sortDescending
+            if (state.sortMode != mode || state.sortDescending != descending) {
+                updatePane(pane) { it.copy(sortMode = mode, sortDescending = descending) }
+                loadPaneDirectory(pane, background = true)
+            } else if (hiddenChanged) projectPane(pane)
+        }
     }
 
     fun toggleHiddenFiles() = changeSettings { it.copy(showHiddenFiles = !it.showHiddenFiles) }
@@ -1004,19 +1016,36 @@ class FileManagerViewModel(
 
     fun cycleSortMode() = selectSortMode(FileManagerSortMode.entries[(sortMode.ordinal + 1) % FileManagerSortMode.entries.size])
 
+    // 快捷排序作用于当前所在目录，和抽屉里「仅应用于此文件夹」保持同一语义，不改动全局默认。
     fun selectSortMode(mode: FileManagerSortMode) {
         if (sortMode == mode) return
-        applySort(activePane, mode, mode != FileManagerSortMode.NAME)
+        applySort(activePane, mode, mode != FileManagerSortMode.NAME, folderOnly = true)
     }
 
     fun toggleSortDirection() {
-        applySort(activePane, sortMode, !sortDescending)
+        applySort(activePane, sortMode, !sortDescending, folderOnly = true)
     }
 
-    fun applySort(pane: FileManagerPane, mode: FileManagerSortMode, descending: Boolean) {
-        updatePane(pane) { it.copy(sortMode = mode, sortDescending = descending) }
-        // 取消旧排序请求并使用同一目录代际，避免在途读取以旧顺序回写。
-        loadPaneDirectory(pane, background = true)
+    fun hasFolderSort(location: FileManagerLocation): Boolean =
+        settingsStore?.current?.folderSort(location.path, location.environment) != null
+
+    fun resetFolderSort(pane: FileManagerPane, location: FileManagerLocation) {
+        val state = paneState(pane)
+        if (state.path != location.path || state.environment != location.environment) return
+        changeSettings { settings -> settings.copy(folderSorts = settings.folderSorts.filterNot { it.matches(location.path, location.environment) }) }
+    }
+
+    fun applySort(pane: FileManagerPane, mode: FileManagerSortMode, descending: Boolean,
+        folderOnly: Boolean,
+        location: FileManagerLocation = FileManagerLocation(paneState(pane).path, paneState(pane).environment),
+    ) {
+        val state = paneState(pane)
+        if (state.path != location.path || state.environment != location.environment) return
+        if (settingsStore != null) changeSettings { it.withSort(location.path, location.environment, mode, descending, folderOnly) }
+        else {
+            updatePane(pane) { it.copy(sortMode = mode, sortDescending = descending) }
+            loadPaneDirectory(pane, background = true)
+        }
     }
 
     fun refreshPane(pane: FileManagerPane = activePane) {
@@ -1087,6 +1116,10 @@ class FileManagerViewModel(
         directoryJobs.remove(pane)?.cancel()
         val requestVersion = (directoryRequestVersions[pane] ?: 0L) + 1L
         directoryRequestVersions[pane] = requestVersion
+        settingsStore?.current?.let { settings ->
+            val local = settings.folderSort(path, environment)
+            updatePane(pane) { it.copy(sortMode = local?.mode ?: settings.sortMode, sortDescending = local?.descending ?: settings.sortDescending) }
+        }
         val requestedSortMode = paneState(pane).sortMode
         val requestedDescending = paneState(pane).sortDescending
         updatePane(pane) { it.copy(refreshing = manualRefresh) }
@@ -1828,6 +1861,9 @@ class FileManagerViewModel(
                     }
                     outcome = if (result.success) FileManagerTransferOutcome.COMPLETED else FileManagerTransferOutcome.FAILED
                     if (result.success) {
+                        settingsStore?.update { it.moveFolderSorts(
+                            fileManagerJoinPath(request.location.path, request.name),
+                            fileManagerJoinPath(request.location.path, name), request.location.environment) }
                         finalRename = FileManagerRenameState()
                         // 旧名称选择不能残留，否则下一次批量操作会指向已经不存在的项目。
                         FileManagerPane.entries.forEach { pane ->

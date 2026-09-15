@@ -1,6 +1,8 @@
 package com.ai.assistance.operit.ui.features.memory.screens.dialogs
 
-import android.widget.Toast
+import com.ai.assistance.operit.ui.components.KiyoriModalBottomDrawer
+import com.ai.assistance.operit.ui.components.KiyoriDrawerScaffold
+import androidx.compose.runtime.saveable.rememberSaveable
 import com.ai.assistance.operit.data.preferences.ApiPreferences
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.rememberCoroutineScope
@@ -8,16 +10,12 @@ import kotlinx.coroutines.launch
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -58,7 +56,7 @@ import com.kiyori.design.theme.KiyoriUiShapes
 import kotlin.math.roundToInt
 
 @Composable
-fun MemorySearchSettingsDialog(
+fun MemoryLibrarySettingsSheet(
     currentConfig: MemorySearchConfig,
     autoSaveIntervalMinutes: Int,
     memoryExtractionCustomRules: String,
@@ -76,15 +74,15 @@ fun MemorySearchSettingsDialog(
     onSimulateSearch: () -> Unit
 ) {
     val currentLocale = LocalConfiguration.current.locales[0]
-    var keywordWeight by remember(currentConfig) { mutableFloatStateOf(currentConfig.keywordWeight) }
-    var tagWeight by remember(currentConfig) { mutableFloatStateOf(currentConfig.tagWeight) }
-    var vectorWeight by remember(currentConfig) { mutableFloatStateOf(currentConfig.vectorWeight) }
-    var edgeWeight by remember(currentConfig) { mutableFloatStateOf(currentConfig.edgeWeight) }
-    var scoreMode by remember(currentConfig) { mutableStateOf(currentConfig.scoreMode) }
-    var editedAutoSaveIntervalMinutes by remember(autoSaveIntervalMinutes) {
+    var keywordWeight by rememberSaveable(currentConfig) { mutableFloatStateOf(currentConfig.keywordWeight) }
+    var tagWeight by rememberSaveable(currentConfig) { mutableFloatStateOf(currentConfig.tagWeight) }
+    var vectorWeight by rememberSaveable(currentConfig) { mutableFloatStateOf(currentConfig.vectorWeight) }
+    var edgeWeight by rememberSaveable(currentConfig) { mutableFloatStateOf(currentConfig.edgeWeight) }
+    var scoreMode by rememberSaveable(currentConfig) { mutableStateOf(currentConfig.scoreMode) }
+    var editedAutoSaveIntervalMinutes by rememberSaveable(autoSaveIntervalMinutes) {
         mutableFloatStateOf(autoSaveIntervalMinutes.toFloat())
     }
-    var editedMemoryExtractionCustomRules by remember(memoryExtractionCustomRules) {
+    var editedMemoryExtractionCustomRules by rememberSaveable(memoryExtractionCustomRules) {
         mutableStateOf(memoryExtractionCustomRules)
     }
 
@@ -112,63 +110,72 @@ fun MemorySearchSettingsDialog(
         model = model
     ).normalized()
 
-    val rebuildEnabled = !isRebuilding
+    val rebuildEnabled = !isRebuilding && !isSaving && editedCloudConfig == cloudConfig.normalized()
 
-    AlertDialog(
-        modifier = Modifier.fillMaxHeight(0.86f),
-        onDismissRequest = onDismiss,
-        shape = KiyoriUiShapes.dialog,
-        title = {
-            Text(
-                text = stringResource(R.string.memory_search_settings_title),
-                style = MaterialTheme.typography.titleLarge
-            )
-        },
-        text = {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+    KiyoriModalBottomDrawer(onDismissRequest = onDismiss, confirmDismiss = { !isSaving }) { dismiss ->
+        KiyoriDrawerScaffold(
+            title = stringResource(R.string.library_settings),
+            onClose = dismiss,
+            footer = {
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedButton(
+                    enabled = !isSaving && !isRebuilding,
+                    onClick = {
+                        val defaults = MemorySearchConfig()
+                        scoreMode = defaults.scoreMode
+                        keywordWeight = defaults.keywordWeight
+                        tagWeight = defaults.tagWeight
+                        vectorWeight = defaults.vectorWeight
+                        edgeWeight = defaults.edgeWeight
+                        editedAutoSaveIntervalMinutes =
+                            MemorySearchSettingsPreferences.DEFAULT_AUTO_SAVE_INTERVAL_MINUTES.toFloat()
+                        editedMemoryExtractionCustomRules =
+                            MemorySearchSettingsPreferences.DEFAULT_MEMORY_EXTRACTION_CUSTOM_RULES
+                    }
+                ) {
+                    Text(stringResource(R.string.memory_search_reset_default))
+                }
+            Button(
+                enabled = !isSaving,
+                onClick = {
+                    val endpointValidationError = validateCloudEmbeddingEndpoint(
+                        endpoint = endpoint,
+                        blankError = endpointBlankError,
+                        schemeError = endpointSchemeError,
+                        multipleUrlsError = endpointMultipleUrlsError
+                    )
+                    if (cloudEnabled && endpointValidationError != null) {
+                        cloudEndpointError = endpointValidationError
+                        return@Button
+                    }
+
+                    cloudEndpointError = null
+                    onSave(
+                        MemorySearchConfig(
+                            scoreMode = scoreMode,
+                            keywordWeight = keywordWeight,
+                            tagWeight = tagWeight,
+                            vectorWeight = vectorWeight,
+                            edgeWeight = edgeWeight
+                        ).normalized(),
+                        editedCloudConfig,
+                        editedAutoSaveIntervalMinutes.roundToInt(),
+                        editedMemoryExtractionCustomRules
+                    )
+                }
             ) {
+                Text(stringResource(R.string.memory_save))
+            }
+                }
+            },
+        ) {
+                SettingsSection(title = stringResource(R.string.memory_auto_save_settings_title)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(stringResource(R.string.library_auto_save), modifier = Modifier.weight(1f))
                     Switch(checked = automaticEnabled, onCheckedChange = { enabled -> settingsScope.launch { apiPreferences.saveEnableMemoryAutoUpdate(enabled) } })
                 }
                 Text(stringResource(R.string.library_auto_hint), style = MaterialTheme.typography.bodySmall)
-                Text(stringResource(R.string.library_cloud_notice), style = MaterialTheme.typography.bodyMedium)
-                SettingsSection(title = stringResource(R.string.memory_search_weight_section)) {
-                    SliderSettingItem(
-                        title = stringResource(R.string.memory_search_keyword_weight),
-                        value = keywordWeight,
-                        valueText = String.format(currentLocale, "%.2f", keywordWeight),
-                        valueRange = 0.0f..20.0f,
-                        onValueChange = { keywordWeight = it }
-                    )
-                    SliderSettingItem(
-                        title = stringResource(R.string.memory_search_tag_weight),
-                        value = tagWeight,
-                        valueText = String.format(currentLocale, "%.2f", tagWeight),
-                        valueRange = 0.0f..20.0f,
-                        onValueChange = { tagWeight = it }
-                    )
-                    SliderSettingItem(
-                        title = stringResource(R.string.memory_search_vector_weight),
-                        value = vectorWeight,
-                        valueText = String.format(currentLocale, "%.2f", vectorWeight),
-                        valueRange = 0.0f..2.0f,
-                        onValueChange = { vectorWeight = it }
-                    )
-                    SliderSettingItem(
-                        title = stringResource(R.string.memory_search_edge_weight),
-                        value = edgeWeight,
-                        valueText = String.format(currentLocale, "%.2f", edgeWeight),
-                        valueRange = 0.0f..2.0f,
-                        onValueChange = { edgeWeight = it }
-                    )
-                }
-
-                SettingsSection(title = stringResource(R.string.memory_auto_save_settings_title)) {
+                    Text(stringResource(R.string.library_settings_auto_hint), style = MaterialTheme.typography.bodySmall)
                     SliderSettingItem(
                         title = stringResource(R.string.memory_auto_save_interval_minutes),
                         value = editedAutoSaveIntervalMinutes,
@@ -209,7 +216,39 @@ fun MemorySearchSettingsDialog(
                     )
                 }
 
+                SettingsSection(title = stringResource(R.string.memory_search_weight_section)) {
+                    SliderSettingItem(
+                        title = stringResource(R.string.memory_search_keyword_weight),
+                        value = keywordWeight,
+                        valueText = String.format(currentLocale, "%.2f", keywordWeight),
+                        valueRange = 0.0f..20.0f,
+                        onValueChange = { keywordWeight = it }
+                    )
+                    SliderSettingItem(
+                        title = stringResource(R.string.memory_search_tag_weight),
+                        value = tagWeight,
+                        valueText = String.format(currentLocale, "%.2f", tagWeight),
+                        valueRange = 0.0f..20.0f,
+                        onValueChange = { tagWeight = it }
+                    )
+                    SliderSettingItem(
+                        title = stringResource(R.string.memory_search_vector_weight),
+                        value = vectorWeight,
+                        valueText = String.format(currentLocale, "%.2f", vectorWeight),
+                        valueRange = 0.0f..2.0f,
+                        onValueChange = { vectorWeight = it }
+                    )
+                    SliderSettingItem(
+                        title = stringResource(R.string.memory_search_edge_weight),
+                        value = edgeWeight,
+                        valueText = String.format(currentLocale, "%.2f", edgeWeight),
+                        valueRange = 0.0f..2.0f,
+                        onValueChange = { edgeWeight = it }
+                    )
+                }
+
                 SettingsSection(title = stringResource(R.string.memory_embedding_cloud_title)) {
+                    Text(stringResource(R.string.library_cloud_notice), style = MaterialTheme.typography.bodySmall)
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -259,7 +298,7 @@ fun MemorySearchSettingsDialog(
                                 IconButton(onClick = { showApiKey = !showApiKey }) {
                                     Icon(
                                         imageVector = if (showApiKey) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                        contentDescription = null
+                                        contentDescription = stringResource(if (showApiKey) R.string.hide_api_key else R.string.show_api_key)
                                     )
                                 }
                             },
@@ -308,6 +347,7 @@ fun MemorySearchSettingsDialog(
                         dimensions = dimensionUsage.chunkDimensions
                     )
 
+                    if (editedCloudConfig != cloudConfig.normalized()) Text(stringResource(R.string.library_rebuild_requires_save), style = MaterialTheme.typography.bodySmall)
                     OutlinedButton(
                         onClick = onRebuild,
                         enabled = rebuildEnabled,
@@ -358,64 +398,8 @@ fun MemorySearchSettingsDialog(
                         Text(stringResource(R.string.memory_search_simulation_open))
                     }
                 }
-            }
-        },
-        confirmButton = {
-            Button(
-                enabled = !isSaving,
-                onClick = {
-                    val endpointValidationError = validateCloudEmbeddingEndpoint(
-                        endpoint = endpoint,
-                        blankError = endpointBlankError,
-                        schemeError = endpointSchemeError,
-                        multipleUrlsError = endpointMultipleUrlsError
-                    )
-                    if (cloudEnabled && endpointValidationError != null) {
-                        cloudEndpointError = endpointValidationError
-                        return@Button
-                    }
-
-                    cloudEndpointError = null
-                    onSave(
-                        MemorySearchConfig(
-                            scoreMode = scoreMode,
-                            keywordWeight = keywordWeight,
-                            tagWeight = tagWeight,
-                            vectorWeight = vectorWeight,
-                            edgeWeight = edgeWeight
-                        ).normalized(),
-                        editedCloudConfig,
-                        editedAutoSaveIntervalMinutes.roundToInt(),
-                        editedMemoryExtractionCustomRules
-                    )
-                }
-            ) {
-                Text(stringResource(R.string.memory_save))
-            }
-        },
-        dismissButton = {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(
-                    onClick = {
-                        scoreMode = MemoryScoreMode.BALANCED
-                        keywordWeight = 10.0f
-                        tagWeight = 0.0f
-                        vectorWeight = 0.0f
-                        edgeWeight = 0.4f
-                        editedAutoSaveIntervalMinutes =
-                            MemorySearchSettingsPreferences.DEFAULT_AUTO_SAVE_INTERVAL_MINUTES.toFloat()
-                        editedMemoryExtractionCustomRules =
-                            MemorySearchSettingsPreferences.DEFAULT_MEMORY_EXTRACTION_CUSTOM_RULES
-                    }
-                ) {
-                    Text(stringResource(R.string.memory_search_reset_default))
-                }
-                OutlinedButton(onClick = onDismiss) {
-                    Text(stringResource(R.string.memory_cancel))
-                }
-            }
         }
-    )
+    }
 }
 
 @Composable
@@ -452,7 +436,6 @@ private fun DimensionUsageBlock(
     title: String,
     dimensions: List<DimensionCount>
 ) {
-    val context = LocalContext.current
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(
             text = title,
@@ -466,13 +449,11 @@ private fun DimensionUsageBlock(
                 style = MaterialTheme.typography.bodySmall
             )
         } else {
-            val compact = dimensions.joinToString(separator = "  ·  ") { item ->
-                context.getString(
-                    R.string.memory_embedding_dimension_item,
-                    item.dimension,
-                    item.count
-                )
-            }
+            // 走 stringResource 才会跟随 Compose 的配置变化重组，直接用 Context 会留住旧语言。
+            // joinToString 不是 inline 函数，它的 lambda 里不能调用 @Composable；先用 inline 的 map 取值。
+            val compact = dimensions.map { item ->
+                stringResource(R.string.memory_embedding_dimension_item, item.dimension, item.count)
+            }.joinToString(separator = "  ·  ")
             Text(
                 text = compact,
                 style = MaterialTheme.typography.labelMedium

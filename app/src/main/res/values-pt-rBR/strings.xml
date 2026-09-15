@@ -4387,6 +4387,7 @@ Agora é possível usar o modo AutoGLM na interface de diálogo.</string>
     <string name="toolreg_create_memory_desc">Criar memória: %1$s</string>
     <string name="toolreg_update_memory_desc">Atualizar memória: %1$s -&gt; %2$s</string>
     <string name="toolreg_delete_memory_desc">Excluir memória: %1$s</string>
+    <string name="toolreg_memory_folders_desc">Pastas de memória: %1$s</string>
     <string name="toolreg_link_memories_desc">Memória de link: "%1$s" -&gt; "%2$s" (Tipo: %3$s)</string>
     <string name="toolreg_use_package_desc">Usando o kit de ferramentas: %1$s</string>
     <string name="toolreg_calculate_desc">Expressão calculada: %1$s</string>

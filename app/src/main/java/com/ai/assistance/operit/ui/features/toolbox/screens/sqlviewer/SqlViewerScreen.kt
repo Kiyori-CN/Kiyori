@@ -52,6 +52,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.ai.assistance.operit.R
+import com.ai.assistance.operit.ui.components.KiyoriDrawerScaffold
 import com.ai.assistance.operit.ui.components.KiyoriModalBottomDrawer
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -152,14 +153,38 @@ fun SqlViewerScreen(navController: NavController? = null) {
         }
 
     if (isCurrentScreen && showControlsSheet) {
-        KiyoriModalBottomDrawer(onDismissRequest = { showControlsSheet = false }) { _ ->
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 16.dp)
-                    .padding(bottom = 24.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+        KiyoriModalBottomDrawer(onDismissRequest = { showControlsSheet = false }) { dismissDrawer ->
+            // 执行与清空固定在底部：表清单很长时，按钮不能被挤到滚动区外面。
+            KiyoriDrawerScaffold(
+                title = stringResource(R.string.sql_viewer_title),
+                onClose = dismissDrawer,
+                footer = {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        FilledTonalButton(
+                            onClick = {
+                                viewModel.runQuery(sqlText, pageSize ?: state.pageSize, 0, enablePaging, append = false)
+                            },
+                            enabled = !state.isRunning && sqlText.isNotBlank() && (!enablePaging || pageSize != null),
+                            shape = KiyoriUiShapes.control,
+                        ) {
+                            Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(stringResource(R.string.sql_viewer_run))
+                        }
+                        OutlinedButton(
+                            onClick = { sqlText = "" },
+                            shape = KiyoriUiShapes.control,
+                        ) {
+                            Icon(Icons.Outlined.Clear, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(stringResource(R.string.sql_viewer_clear))
+                        }
+                    }
+                },
             ) {
                 FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -191,55 +216,23 @@ fun SqlViewerScreen(navController: NavController? = null) {
                     shape = KiyoriUiShapes.field,
                 )
 
-                Column(
+                Row(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        FilledTonalButton(
-                            onClick = {
-                                viewModel.runQuery(sqlText, pageSize ?: state.pageSize, 0, enablePaging, append = false)
-                            },
-                            enabled = !state.isRunning && sqlText.isNotBlank() && (!enablePaging || pageSize != null),
-                            shape = KiyoriUiShapes.control,
-                        ) {
-                            Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(stringResource(R.string.sql_viewer_run))
-                        }
-                        OutlinedButton(
-                            onClick = {
-                                sqlText = ""
-                            },
-                            shape = KiyoriUiShapes.control,
-                        ) {
-                            Icon(Icons.Outlined.Clear, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(stringResource(R.string.sql_viewer_clear))
-                        }
-                    }
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text(stringResource(R.string.sql_viewer_page_size))
-                        Spacer(modifier = Modifier.weight(1f))
-                        OutlinedTextField(
-                            value = pageSizeText,
-                            onValueChange = { pageSizeText = it },
-                            enabled = enablePaging,
-                            isError = enablePaging && pageSize == null,
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            modifier = Modifier.width(80.dp),
-                            singleLine = true,
-                            shape = KiyoriUiShapes.field,
-                        )
-                    }
+                    Text(stringResource(R.string.sql_viewer_page_size))
+                    Spacer(modifier = Modifier.weight(1f))
+                    OutlinedTextField(
+                        value = pageSizeText,
+                        onValueChange = { pageSizeText = it },
+                        enabled = enablePaging,
+                        isError = enablePaging && pageSize == null,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.width(80.dp),
+                        singleLine = true,
+                        shape = KiyoriUiShapes.field,
+                    )
                 }
 
                 if (enablePaging && pageSize == null) {

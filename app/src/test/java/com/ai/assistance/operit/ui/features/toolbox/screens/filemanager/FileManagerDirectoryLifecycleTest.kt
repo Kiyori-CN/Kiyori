@@ -349,7 +349,7 @@ class FileManagerDirectoryLifecycleTest {
         val model = createModel(directory)
         scheduler.runCurrent()
         model.showHiddenFiles = false
-        model.applySort(FileManagerPane.LEFT, FileManagerSortMode.SIZE, false)
+        model.applySort(FileManagerPane.LEFT, FileManagerSortMode.SIZE, false, folderOnly = true)
         model.navigateToPath("/", "repo:documents")
         scheduler.runCurrent()
         val request = directory.requests[2]

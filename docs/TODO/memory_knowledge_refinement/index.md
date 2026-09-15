@@ -163,3 +163,30 @@ Repository 覆盖 260 条记忆/130 个区块的跨批统计、新建编辑与�
 SHA-256：`F29C1BC0232E4AACF17FDE62B9D405876D37DC9CD10D0DC2606D3FED45060AC9`。
 `apksigner verify --verbose` 通过（v2，1 个签名者）；`zipalign -c -P 16 4` 通过。
 中英文记忆库资源 53 个 key 一致。产物信息只描述该次构建，不代表设备或远端 CI 验收。
+
+## 2026-09-15 系统优化轮
+
+- 基线：`219043fbdabb256da32c87e67e50448171dccfce`，`main`，工作区干净。
+- 目标：记忆/知识与 AI Tool 一致性优先；统一语义顶栏与固定 Footer 抽屉，补齐文件夹排序持久化。
+- 阶段：数据与工具审计 → 公共组件及页面接线 → 持久化与并发修复 → 回归、Lint、Debug APK → 精确提交推送。
+- 范围：既有 Repository、ViewModel、偏好、页面及相关契约；不更改协议身份、设备、服务或依赖版本。
+- 风险及回滚：保护现有库与稳定 UUID；配置只新增兼容字段；按本轮提交可回退代码。
+- 验收：针对性行为测试、工具契约、静态与文档检查、Lint；设备视觉、IME、手势与真实 AI 调用保持 `verification_pending`。
+
+### 本轮实际验证结果
+
+- `:app:compileDebugKotlin` 通过，变更文件无新增编译警告。
+- `:app:testDebugUnitTest` 通过：2981 项，0 失败，1 跳过。其中新增 12 项（文件夹排序作用域 8 项、文档编码回退 4 项）。
+- `FileManagerPreferencesTest` 中一条断言按新的排序作用域契约重写：全局默认现在会作用到没有局部覆盖的目录，快捷排序写的是当前路径的覆盖而非全局值。
+- `:app:lintDebug` 失败，唯一未过项为 `MissingTranslation`（104 条，全部位于 `memory_library.xml`）。
+  该模块自建库起只提供 `values` 与 `values-en`，缺 es/id/ko/ms/pt；基线提交 `219043fbd` 的文件构成相同，
+  且 `library_memories` 等 key 不在 `app/lint-baseline.xml` 中，因此 **基线同样无法通过 lintDebug**，本轮未引入该失败。
+  其中 87 条为既有 key，17 条为本轮新增 key（沿用该模块既有的 zh+en 约定）。
+  本轮修复了唯一一条可归因于本次改动的 lint 错误（`LocalContextGetResourceValueCall`）。
+- 未运行：Release 构建、APK 打包签名、设备安装、真机视觉/IME/手势验证、真实模型的 Tool 调用。
+
+### 已知限制
+
+- `memory_library.xml` 仍缺 5 个语种，需要人工或本地化流程补齐，不适合在本轮机器生成。
+- 导入使用非持久化的 `OpenMultipleDocuments` URI 授权，进程重建后「重试失败资料」可能因授权失效而再次失败。
+- 语义检索首次会顺带补写文档索引路径，可能多触发一轮列表刷新；补写后条件不再成立，不会持续自激。

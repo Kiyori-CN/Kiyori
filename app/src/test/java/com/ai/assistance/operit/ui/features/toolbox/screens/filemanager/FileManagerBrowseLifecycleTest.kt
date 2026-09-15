@@ -57,7 +57,7 @@ class FileManagerBrowseLifecycleTest {
     @Test fun `sorting is pane local and swap transports selection scroll filters history and active content`() = runTest(dispatcher) {
         val model = model()
         model.navigateToPath("/left"); scheduler.runCurrent()
-        model.applySort(FileManagerPane.LEFT, FileManagerSortMode.SIZE, true); scheduler.runCurrent()
+        model.applySort(FileManagerPane.LEFT, FileManagerSortMode.SIZE, true, folderOnly = true); scheduler.runCurrent()
         model.selectAll()
         model.applyDirectoryFilter(FileManagerPane.LEFT, FileManagerLocation("/left", null), FileManagerFilterDraft(formats = "jpg"))
         model.saveScrollPosition(FileManagerPane.LEFT, FileManagerLocation("/left", null), FileManagerScrollPosition(1, 12))

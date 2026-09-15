@@ -23,6 +23,11 @@ import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
+import com.ai.assistance.operit.ui.components.KiyoriModalBottomDrawer
+import com.ai.assistance.operit.ui.components.KiyoriDrawerScaffold
+import com.ai.assistance.operit.ui.components.rememberDelayedLoading
+import com.ai.assistance.operit.data.repository.MemoryRepository
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -188,7 +193,10 @@ fun FolderNavigator(
     onFolderRename: ((String, String) -> Unit)? = null,
     onFolderDelete: ((String) -> Unit)? = null,
     onFolderCreate: ((String) -> Unit)? = null,
+    /** 写入进行中：目录操作必须禁用，重复提交会产生冲突。 */
     isBusy: Boolean = false,
+    /** 查询进行中：只影响指示器，不禁用目录，本地刷新几十毫秒内完成时不展示。 */
+    isLoading: Boolean = false,
     error: String? = null,
     // New parameters for profile selection
     profileList: List<String>,
@@ -227,7 +235,9 @@ fun FolderNavigator(
                 Text(title, style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
                 IconButton(onClick = onDismissRequest) { Icon(Icons.Outlined.Close, stringResource(R.string.memory_close)) }
             }
-            Box(Modifier.fillMaxWidth().height(4.dp)) { if (isBusy) LinearProgressIndicator(Modifier.fillMaxWidth()) }
+            // 固定高度占位，指示器出现和消失都不推动下方列表。
+            val showProgress = rememberDelayedLoading(isBusy || isLoading)
+            Box(Modifier.fillMaxWidth().height(4.dp)) { if (showProgress) LinearProgressIndicator(Modifier.fillMaxWidth()) }
             // 空间和目录操作跟随列表滚动，横屏/大字体时仍给目录留下可用空间。
             LazyColumn(Modifier.weight(1f).fillMaxWidth(), contentPadding = PaddingValues(bottom = 16.dp)) {
                 item {
@@ -263,6 +273,8 @@ fun FolderNavigator(
     // 对话框
     if (showCreateDialog) {
         FolderCreateDialog(
+            parentPath = selectedFolderPath,
+            folderPaths = folderPaths,
             onDismiss = { showCreateDialog = false },
             onCreate = { newPath ->
                 onFolderCreate?.invoke(com.ai.assistance.operit.data.repository.MemoryRepository.normalizeFolderPath(newPath) ?: newPath)
@@ -274,6 +286,7 @@ fun FolderNavigator(
     if (showRenameDialog && contextMenuFolder != null) {
         FolderRenameDialog(
             currentPath = contextMenuFolder!!,
+            folderPaths = folderPaths,
             onDismiss = {
                 showRenameDialog = false
                 contextMenuFolder = null
@@ -521,120 +534,71 @@ private fun FolderContextMenu(
     onRename: () -> Unit,
     onDelete: () -> Unit
 ) {
-    androidx.compose.material3.AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.memory_folder_operations)) },
-        text = {
-            Column {
-                Text("${stringResource(R.string.memory_folder_label)}: $folderPath", style = MaterialTheme.typography.bodySmall)
-            }
-        },
-        confirmButton = {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                TextButton(onClick = {
-                    onRename()
-                    // 不调用 onDismiss()，让菜单自动隐藏
-                }) {
-                    Text(stringResource(R.string.memory_rename_folder))
-                }
-                TextButton(onClick = {
-                    onDelete()
-                    // 不调用 onDismiss()，让菜单自动隐藏
-                }) {
-                    Text(stringResource(R.string.memory_delete), color = MaterialTheme.colorScheme.error)
-                }
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.memory_cancel))
-            }
+    // 选择先记录，等抽屉收起后再执行：直接在点击时打开下一层会让两个弹层同屏。
+    var action by remember { mutableStateOf<FolderMenuAction?>(null) }
+    KiyoriModalBottomDrawer(onDismissRequest = {
+        when (action) {
+            FolderMenuAction.RENAME -> onRename()
+            FolderMenuAction.DELETE -> onDelete()
+            null -> onDismiss()
         }
-    )
+    }) { dismiss ->
+        KiyoriDrawerScaffold(stringResource(R.string.memory_folder_operations), dismiss) {
+            Text(folderPath, style = MaterialTheme.typography.bodyMedium)
+            ListItem(headlineContent = { Text(stringResource(R.string.memory_rename_folder)) },
+                leadingContent = { Icon(Icons.Outlined.Edit, null) },
+                modifier = Modifier.clickable { action = FolderMenuAction.RENAME; dismiss() })
+            ListItem(headlineContent = { Text(stringResource(R.string.memory_delete), color = MaterialTheme.colorScheme.error) },
+                supportingContent = { Text(stringResource(R.string.library_folder_delete_hint)) }, leadingContent = { Icon(Icons.Outlined.Delete, null) },
+                modifier = Modifier.clickable { action = FolderMenuAction.DELETE; dismiss() })
+        }
+    }
 }
 
-/**
- * 创建文件夹对话框
- */
+private enum class FolderMenuAction { RENAME, DELETE }
+
 @Composable
-private fun FolderCreateDialog(
-    onDismiss: () -> Unit,
-    onCreate: (String) -> Unit
-) {
-    var folderName by remember { mutableStateOf("") }
-    
-    androidx.compose.material3.AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.memory_create_folder)) },
-        text = {
-            Column {
-                Text(stringResource(R.string.memory_folder_path_hint), style = MaterialTheme.typography.bodySmall)
-                Spacer(modifier = Modifier.height(8.dp))
-                androidx.compose.material3.OutlinedTextField(
-                    value = folderName,
-                    onValueChange = { folderName = it },
-                    label = { Text(stringResource(R.string.memory_folder_path_label)) },
-                    placeholder = { Text(stringResource(R.string.memory_folder_path_example)) },
-                    singleLine = true
-                )
-            }
-        },
-        confirmButton = {
-            TextButton(
-                onClick = { if (folderName.isNotBlank()) onCreate(folderName.trim()) },
-                enabled = folderName.isNotBlank()
-            ) {
-                Text(stringResource(R.string.memory_create))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.memory_cancel))
-            }
-        }
-    )
+private fun FolderCreateDialog(parentPath: String, folderPaths: List<String>, onDismiss: () -> Unit, onCreate: (String) -> Unit) {
+    FolderPathSheet(null, parentPath, folderPaths, onDismiss, onCreate)
 }
 
-/**
- * 重命名文件夹对话框
- */
 @Composable
-private fun FolderRenameDialog(
-    currentPath: String,
-    onDismiss: () -> Unit,
-    onRename: (String) -> Unit
-) {
-    var newName by remember(currentPath) { mutableStateOf(currentPath) }
-    
-    androidx.compose.material3.AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.memory_rename_folder)) },
-        text = {
-            Column {
-                Text("${stringResource(R.string.memory_current_path)}: $currentPath", style = MaterialTheme.typography.bodySmall)
-                Spacer(modifier = Modifier.height(8.dp))
-                androidx.compose.material3.OutlinedTextField(
-                    value = newName,
-                    onValueChange = { newName = it },
-                    label = { Text(stringResource(R.string.memory_new_path)) },
-                    singleLine = true
-                )
-            }
-        },
-        confirmButton = {
-            TextButton(
-                onClick = { if (newName.isNotBlank() && newName != currentPath) onRename(newName.trim()) },
-                enabled = newName.isNotBlank() && newName != currentPath
-            ) {
-                Text(stringResource(R.string.memory_rename_folder))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.memory_cancel))
-            }
+private fun FolderRenameDialog(currentPath: String, folderPaths: List<String>, onDismiss: () -> Unit, onRename: (String) -> Unit) {
+    FolderPathSheet(currentPath, "", folderPaths, onDismiss, onRename)
+}
+
+@Composable
+private fun FolderPathSheet(currentPath: String?, parentPath: String, folderPaths: List<String>, onDismiss: () -> Unit, onApply: (String) -> Unit) {
+    var path by rememberSaveable(currentPath, parentPath) { mutableStateOf(currentPath ?: parentPath.takeIf { it.isNotBlank() }?.plus("/").orEmpty()) }
+    var confirmed by remember { mutableStateOf(false) }
+    val normalized = MemoryRepository.normalizeFolderPath(path)
+    val current = currentPath?.let { MemoryRepository.normalizeFolderPath(it) }
+    val nameRequired = stringResource(R.string.library_folder_name_required)
+    val pathUnchanged = stringResource(R.string.library_folder_path_unchanged)
+    val pathDescendant = stringResource(R.string.library_folder_path_descendant)
+    val pathExists = stringResource(R.string.library_folder_path_exists)
+    val invalid = runCatching {
+        MemoryRepository.validateFolderPath(path)
+        require(normalized != null && !path.endsWith('/')) { nameRequired }
+        require(current == null || normalized != current) { pathUnchanged }
+        require(current == null || !normalized.startsWith("$current/")) { pathDescendant }
+        require(folderPaths.none { it == normalized || it.startsWith("$normalized/") }) { pathExists }
+    }.exceptionOrNull()?.message
+    KiyoriModalBottomDrawer(onDismissRequest = { onDismiss(); if (confirmed) onApply(requireNotNull(normalized)) }) { dismiss ->
+        KiyoriDrawerScaffold(stringResource(if (currentPath == null) R.string.memory_create_folder else R.string.memory_rename_folder), dismiss,
+            footer = {
+                Button(onClick = { confirmed = true; dismiss() }, enabled = invalid == null && !confirmed, modifier = Modifier.fillMaxWidth()) {
+                    Text(stringResource(R.string.confirm))
+                }
+            }) {
+            Text(if (currentPath != null) stringResource(R.string.library_folder_current_path, currentPath)
+                else stringResource(R.string.library_folder_parent_path, parentPath.ifBlank { stringResource(R.string.library_folder_root) }),
+                style = MaterialTheme.typography.bodySmall)
+            OutlinedTextField(path, { path = it }, Modifier.fillMaxWidth(), label = { Text(stringResource(R.string.memory_folder_path_label)) },
+                singleLine = true, isError = path.isNotEmpty() && invalid != null,
+                supportingText = { Text(invalid ?: stringResource(R.string.library_folder_path_help)) })
         }
-    )
+    }
 }
 
 /**

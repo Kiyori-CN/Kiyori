@@ -17,6 +17,9 @@ class MemorySearchSettingsPreferences(context: Context, profileId: String) {
         Context.MODE_PRIVATE
     )
 
+    fun loadGraphVisible(): Boolean = searchPrefs.getBoolean("graph_visible", false)
+    fun saveGraphVisible(visible: Boolean) { searchPrefs.edit { putBoolean("graph_visible", visible) } }
+
     fun load(): MemorySearchConfig {
         val config = MemorySearchConfig(
             scoreMode = MemoryScoreMode.entries[searchPrefs.getInt(KEY_SCORE_MODE, MemoryScoreMode.BALANCED.ordinal)],

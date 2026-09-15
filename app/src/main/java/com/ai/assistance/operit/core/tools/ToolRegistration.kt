@@ -914,6 +914,12 @@ fun registerAllTools(handler: AIToolHandler, context: Context) {
             }
     )
 
+    handler.registerTool(
+        name = "memory_folders",
+        descriptionGenerator = { tool -> s(R.string.toolreg_memory_folders_desc, tool.parameters.find { it.name == "action" }?.value ?: "list") },
+        executor = { tool -> ToolGetter.getMemoryQueryToolExecutor(context).invoke(tool) },
+    )
+
     // 注册批量移动记忆工具
     handler.registerTool(
             name = "move_memory",

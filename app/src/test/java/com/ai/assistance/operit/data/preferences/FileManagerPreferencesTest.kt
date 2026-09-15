@@ -115,7 +115,7 @@ class FileManagerPreferencesTest {
         assertEquals(1f, store.current.itemSize)
     }
 
-    @Test fun `hidden preference reaches both panes while session sorting remains independent of defaults`() = runTest {
+    @Test fun `hidden preference reaches both panes and the global sort default reaches unoverridden folders`() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         Dispatchers.setMain(dispatcher)
         val models = ViewModelStore()
@@ -138,16 +138,21 @@ class FileManagerPreferencesTest {
                 assertEquals(listOf("visible"), model.rightPaneState.files.filterNot { it.name == ".." }.map { it.name })
                 store.update { it.copy(showHiddenFiles = true, sortMode = FileManagerSortMode.SIZE, sortDescending = true) }
                 runCurrent()
-                assertEquals(listOf(".hidden", "visible"), model.leftPaneState.files.filterNot { it.name == ".." }.map { it.name })
-                assertEquals(listOf(".hidden", "visible"), model.rightPaneState.files.filterNot { it.name == ".." }.map { it.name })
-                assertEquals(FileManagerSortMode.NAME, model.sortMode)
+                // 全局默认改为「按大小降序」后立即重排：visible 是 2 字节，.hidden 是 1 字节。
+                assertEquals(listOf("visible", ".hidden"), model.leftPaneState.files.filterNot { it.name == ".." }.map { it.name })
+                assertEquals(listOf("visible", ".hidden"), model.rightPaneState.files.filterNot { it.name == ".." }.map { it.name })
+                // 没有局部覆盖的目录跟随全局默认，两栏都会应用。
+                assertEquals(FileManagerSortMode.SIZE, model.leftPaneState.sortMode)
+                assertEquals(FileManagerSortMode.SIZE, model.rightPaneState.sortMode)
                 model.toggleHiddenFiles()
                 model.toggleSortDirection()
                 runCurrent()
                 assertFalse(store.current.showHiddenFiles)
+                // 快捷排序写的是「这个目录」的覆盖：全局默认不变，两栏停在同一路径时都跟随该覆盖。
                 assertTrue(store.current.sortDescending)
-                assertTrue(model.leftPaneState.sortDescending)
+                assertFalse(model.leftPaneState.sortDescending)
                 assertFalse(model.rightPaneState.sortDescending)
+                assertNotNull(store.current.folderSort(model.leftPaneState.path, model.leftPaneState.environment))
                 assertEquals(1.2f, store.current.itemSize)
             } finally {
                 models.clear()

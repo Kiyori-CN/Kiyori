@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.statusBars
@@ -97,7 +98,12 @@ internal fun KiyoriDraggableBottomDrawer(
         val statusBarInset = with(density) { WindowInsets.statusBars.getTop(this).toDp() }
         val drawerHeight = (maxHeight - statusBarInset).coerceAtLeast(1.dp)
         val drawerHeightPx = with(density) { drawerHeight.toPx() }.coerceAtLeast(1f)
-        val partialOffsetFraction = 1f - partialVisibleFraction
+        // 键盘显示时提高部分展开锚点，给 Header / Footer 留出真实视口；不能仅在屏幕外 padding。
+        val imeHeightPx = WindowInsets.ime.getBottom(density)
+        val minimumVisibleFraction = if (imeHeightPx > 0) {
+            (imeHeightPx + with(density) { 240.dp.toPx() }) / drawerHeightPx
+        } else 0f
+        val partialOffsetFraction = 1f - maxOf(partialVisibleFraction, minimumVisibleFraction).coerceAtMost(1f)
         val contentViewportHeight =
             resolveKiyoriBottomDrawerContentViewportHeight(
                 drawerHeightDp = drawerHeight.value,

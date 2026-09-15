@@ -43,6 +43,7 @@ data class FileManagerSettings(
     val drawerRemoved: Set<String> = emptySet(),
     val drawerNames: Map<String, String> = emptyMap(),
     val defaultWorkspacePath: String = "",
+    val folderSorts: List<FileManagerFolderSort> = emptyList(),
 )
 
 /** 只重置浏览偏好；通过 copy 保留入口身份、别名及今后增加的非浏览字段。 */
@@ -54,6 +55,7 @@ internal fun FileManagerSettings.resetBrowsing(): FileManagerSettings {
         showSeconds = defaults.showSeconds, showDirectorySizes = defaults.showDirectorySizes,
         showHiddenFiles = defaults.showHiddenFiles, showManuallyHiddenFiles = defaults.showManuallyHiddenFiles,
         sortMode = defaults.sortMode, sortDescending = defaults.sortDescending,
+        folderSorts = defaults.folderSorts,
         refreshIntervalSeconds = defaults.refreshIntervalSeconds,
     )
 }

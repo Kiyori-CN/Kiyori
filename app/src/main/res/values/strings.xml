@@ -5747,6 +5747,7 @@
     <string name="toolreg_create_memory_desc">创建记忆: %1$s</string>
     <string name="toolreg_update_memory_desc">更新记忆: %1$s -&gt; %2$s</string>
     <string name="toolreg_delete_memory_desc">删除记忆: %1$s</string>
+    <string name="toolreg_memory_folders_desc">记忆文件夹: %1$s</string>
     <string name="toolreg_link_memories_desc">链接记忆: 「%1$s」 -&gt; 「%2$s」 (类型: %3$s)</string>
     <string name="toolreg_use_package_desc">使用工具包: %1$s</string>
     <string name="toolreg_calculate_desc">计算表达式: %1$s</string>

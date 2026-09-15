@@ -4914,6 +4914,7 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="toolreg_create_memory_desc">Crear recuerdo: %1$s</string>
     <string name="toolreg_update_memory_desc">Actualizar recuerdo: %1$s -&gt; %2$s</string>
     <string name="toolreg_delete_memory_desc">Eliminar recuerdo: %1$s</string>
+    <string name="toolreg_memory_folders_desc">Carpetas de recuerdos: %1$s</string>
     <string name="toolreg_link_memories_desc">Enlazar recuerdos: «%1$s» -&gt; «%2$s» (Tipo: %3$s)</string>
     <string name="toolreg_use_package_desc">Usar paquete de herramientas: %1$s</string>
     <string name="toolreg_calculate_desc">Calcular expresión: %1$s</string>

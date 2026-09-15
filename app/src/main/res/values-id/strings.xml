@@ -4733,6 +4733,7 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="toolreg_create_memory_desc">Buat memori: %1$s</string>
     <string name="toolreg_update_memory_desc">Perbarui memori: %1$s -&gt; %2$s</string>
     <string name="toolreg_delete_memory_desc">Hapus memori: %1$s</string>
+    <string name="toolreg_memory_folders_desc">Folder memori: %1$s</string>
 
     <string name="toolreg_link_memories_desc">Tautkan memori: "%1$s" -&gt; "%2$s" (Tipe: %3$s)</string>
     <string name="toolreg_use_package_desc">Gunakan paket alat: %1$s</string>

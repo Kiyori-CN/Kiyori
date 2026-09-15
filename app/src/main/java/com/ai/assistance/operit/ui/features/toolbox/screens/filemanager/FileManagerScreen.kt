@@ -733,7 +733,9 @@ private fun FileManagerContent(onBack: () -> Unit, onOpenSettings: () -> Unit, m
             onApply = { draft -> viewModel.applyDirectoryFilter(browsePane, FileManagerLocation(frozen.path, frozen.environment), draft) })
         if (browseKind == "sort") com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.components.FileManagerSortDrawer(
             browsePane, frozen, onDismiss = { browseKind = ""; browseState = null },
-            onApply = { mode, descending -> viewModel.applySort(browsePane, mode, descending) })
+            folderOverride = viewModel.hasFolderSort(FileManagerLocation(frozen.path, frozen.environment)),
+            onReset = { viewModel.resetFolderSort(browsePane, FileManagerLocation(frozen.path, frozen.environment)) },
+            onApply = { mode, descending, folderOnly -> viewModel.applySort(browsePane, mode, descending, folderOnly, FileManagerLocation(frozen.path, frozen.environment)) })
     }
     if (showSearchHistory) com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.components.FileManagerSearchHistoryDrawer(
         viewModel.history.searches, viewModel.historyError, { showSearchHistory = false }, viewModel::openSearchRecord, viewModel::removeSearchRecord)

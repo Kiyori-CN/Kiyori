@@ -1,5 +1,7 @@
 package com.ai.assistance.operit.ui.features.chat.screens
 
+import com.ai.assistance.operit.ui.components.KiyoriToolbarAction
+import com.ai.assistance.operit.ui.components.KiyoriActionRole
 import android.content.ClipboardManager
 import android.os.Build
 import android.provider.Settings
@@ -903,102 +905,21 @@ val actualViewModel: ChatViewModel =
     ) {
         if (isCurrentScreen) {
             setTopBarActions {
-                val browserInk = com.kiyori.design.theme.KiyoriSemanticTone.BLUE.resolveColors().icon
-                val fileInk = com.kiyori.design.theme.KiyoriSemanticTone.ORANGE.resolveColors().icon
-                val terminalInk = com.kiyori.design.theme.KiyoriSemanticTone.GREEN.resolveColors().icon
-                val detailsInk = com.kiyori.design.theme.KiyoriSemanticTone.PURPLE.resolveColors().icon
-                val actionSelection = MaterialTheme.colorScheme.surfaceVariant
                 // 共享浏览器入口：进入 Browser Home 时只转挂现有 WebSession，不创建第二个 WebView。
-                IconButton(
-                        modifier = Modifier.size(uiTokens.touchTarget).clip(KiyoriUiShapes.control),
-                        enabled = !isWorkspacePreparing,
-                        onClick = openBrowser,
-                        colors =
-                            IconButtonDefaults.iconButtonColors(
-                                contentColor = browserInk,
-                                disabledContentColor = browserInk.copy(alpha = 0.38f),
-                            ),
-                ) {
-                    Icon(
-                            imageVector = Icons.Outlined.Language,
-                            contentDescription = stringResource(R.string.kiyori_shell_browser_home),
-                    )
-                }
-
+                KiyoriToolbarAction(Icons.Outlined.Language, stringResource(R.string.kiyori_shell_browser_home),
+                    KiyoriActionRole.NAVIGATE, enabled = !isWorkspacePreparing, onClick = openBrowser)
                 val openFileManager = com.ai.assistance.operit.ui.main.components.LocalKiyoriOpenFileManager.current
-                IconButton(
-                    modifier = Modifier.size(uiTokens.touchTarget).clip(KiyoriUiShapes.control),
-                    enabled = openFileManager != null,
-                    onClick = { openFileManager?.invoke() },
-                    colors = IconButtonDefaults.iconButtonColors(contentColor = fileInk),
-                ) {
-                    Icon(Icons.Outlined.Folder, contentDescription = "文件管理器")
-                }
-
-                // AI电脑模式切换按钮
-                IconButton(
-                        modifier = Modifier.size(uiTokens.touchTarget).clip(KiyoriUiShapes.control),
-                        enabled = !isWorkspacePreparing,
-                        onClick = {
-                            // The terminal is an overlay in this same composition. Release any
-                            // chat/terminal input connection before changing panels, otherwise
-                            // the next chat IME frame can retain the terminal's inset translation.
-                            screenFocusManager.clearFocus(force = true)
-                            screenKeyboardController?.hide()
-                            actualViewModel.onAiComputerButtonClick()
-                        },
-                        colors =
-                            IconButtonDefaults.iconButtonColors(
-                                containerColor =
-                                    if (showAiComputer) {
-                                        actionSelection
-                                    } else {
-                                        Color.Transparent
-                                    },
-                                contentColor = terminalInk,
-                                disabledContainerColor = Color.Transparent,
-                                disabledContentColor = terminalInk.copy(alpha = 0.38f),
-                            ),
-                ) {
-                    Icon(
-                            imageVector = Icons.Outlined.Terminal,
-                            contentDescription = stringResource(R.string.ai_computer),
-                    )
-                }
-
-                IconButton(
-                        modifier = Modifier.size(uiTokens.touchTarget).clip(KiyoriUiShapes.control),
-                        enabled = !isWorkspacePreparing,
-                        onClick = {
-                            actualViewModel.onConversationDetailsButtonClick()
-                        },
-                        colors =
-                            IconButtonDefaults.iconButtonColors(
-                                containerColor =
-                                    if (showConversationDetails) {
-                                        actionSelection
-                                    } else {
-                                        Color.Transparent
-                                    },
-                                contentColor = detailsInk,
-                                disabledContainerColor = Color.Transparent,
-                                disabledContentColor = detailsInk.copy(alpha = 0.38f),
-                            ),
-                ) {
-                    BadgedBox(
-                        badge = {
-                            if (hasConversationAuditWarning) {
-                                Badge()
-                            }
-                        }
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Outlined.Article,
-                            contentDescription =
-                                stringResource(R.string.conversation_details_title),
-                        )
-                    }
-                }
+                KiyoriToolbarAction(Icons.Outlined.Folder, stringResource(R.string.file_manager_title), KiyoriActionRole.ORGANIZE,
+                    enabled = openFileManager != null, onClick = { openFileManager?.invoke() })
+                KiyoriToolbarAction(Icons.Outlined.Terminal, stringResource(R.string.ai_computer),
+                    KiyoriActionRole.EXECUTE, enabled = !isWorkspacePreparing, selected = showAiComputer, onClick = {
+                        screenFocusManager.clearFocus(force = true)
+                        screenKeyboardController?.hide()
+                        actualViewModel.onAiComputerButtonClick()
+                    })
+                KiyoriToolbarAction(Icons.AutoMirrored.Outlined.Article, stringResource(R.string.conversation_details_title),
+                    KiyoriActionRole.CONFIGURE, enabled = !isWorkspacePreparing, selected = showConversationDetails,
+                    badge = hasConversationAuditWarning, onClick = { actualViewModel.onConversationDetailsButtonClick() })
             }
         }
     }

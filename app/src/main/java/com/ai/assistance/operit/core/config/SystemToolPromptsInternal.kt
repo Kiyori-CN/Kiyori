@@ -646,6 +646,8 @@ object SystemToolPromptsInternal {
                 categoryName = "Extended Memory Tools",
                 tools =
                     listOf(
+                        memoryFolderToolPrompt,
+                        memoryMoveToolPrompt,
                         ToolPrompt(
                             name = "create_memory",
                             description = "Creates a new memory node in the library. Use this when you want to save important information for future reference.",
@@ -664,6 +666,7 @@ object SystemToolPromptsInternal {
                             name = "update_memory",
                             description = "Updates an existing memory node by title. Use this to modify an existing memory's content or metadata.",
                             parametersStructured = listOf(
+                                ToolParameterSchema(name = "chunk_index", type = "integer", description = "Imported document: 1-based chunk to replace with content (1-1800 chars). Omit for note or metadata edits. Do not combine with other metadata except new_title.", required = false),
                                 ToolParameterSchema(name = "category", type = "string", description = "preference, fact, decision, experience, event, other", required = false),
                                 ToolParameterSchema(name = "uuid", type = "string", description = "Stable memory UUID; preferred over title to disambiguate. 提供 UUID 时可以省略标题。", required = false),
                                 ToolParameterSchema(name = "old_title", type = "string", description = "Title, required unless uuid is supplied", required = false),
@@ -3685,6 +3688,8 @@ object SystemToolPromptsInternal {
                 categoryName = "拓展记忆工具",
                 tools =
                     listOf(
+                        memoryFolderToolPrompt,
+                        memoryMoveToolPrompt,
                         ToolPrompt(
                             name = "create_memory",
                             description = "在记忆库中创建新的记忆节点。当你想保存重要信息供将来参考时使用。",
@@ -3703,6 +3708,7 @@ object SystemToolPromptsInternal {
                             name = "update_memory",
                             description = "通过标题更新现有的记忆节点。用于修改现有记忆的内容或元数据。",
                             parametersStructured = listOf(
+                                ToolParameterSchema(name = "chunk_index", type = "integer", description = "Imported document: 1-based chunk to replace with content (1-1800 chars). Omit for note or metadata edits. Do not combine with other metadata except new_title.", required = false),
                                 ToolParameterSchema(name = "category", type = "string", description = "preference, fact, decision, experience, event, other", required = false),
                                 ToolParameterSchema(name = "uuid", type = "string", description = "Stable memory UUID; preferred over title to disambiguate. 提供 UUID 时可以省略标题。", required = false),
                                 ToolParameterSchema(name = "old_title", type = "string", description = "精确标题；提供 uuid 时可省略", required = false),

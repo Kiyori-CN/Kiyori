@@ -36,10 +36,6 @@ import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.ai.assistance.operit.core.tools.AIToolHandler
-import com.ai.assistance.operit.core.tools.StringResultData
-import com.ai.assistance.operit.data.model.AITool
-import com.ai.assistance.operit.data.model.ToolParameter
 import com.ai.assistance.operit.data.preferences.preferencesManager
 import com.ai.assistance.operit.ui.features.memory.screens.dialogs.BatchDeleteConfirmDialog
 import com.ai.assistance.operit.ui.features.memory.screens.dialogs.DocumentViewDialog
@@ -50,23 +46,15 @@ import com.ai.assistance.operit.ui.features.memory.screens.dialogs.EdgeInfoDialo
 import com.ai.assistance.operit.ui.features.memory.screens.dialogs.EditEdgeDialog
 import com.ai.assistance.operit.ui.features.memory.viewmodel.MemoryViewModel
 import com.ai.assistance.operit.ui.features.memory.viewmodel.MemoryViewModelFactory
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import java.io.File
-import java.io.FileOutputStream
-import java.io.IOException
-import java.util.UUID
-import android.provider.OpenableColumns
 import android.widget.Toast
-import com.ai.assistance.operit.util.AppLogger
 
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.res.stringResource
 import com.ai.assistance.operit.R
-import com.ai.assistance.operit.ui.features.memory.screens.dialogs.MemorySearchSettingsDialog
+import com.ai.assistance.operit.ui.features.memory.screens.dialogs.MemoryLibrarySettingsSheet
 import com.ai.assistance.operit.ui.features.memory.screens.dialogs.MemorySearchSimulationDialog
 import com.ai.assistance.operit.ui.main.components.LocalIsCurrentScreen
 
@@ -84,8 +72,6 @@ fun MemoryScreen() {
 
     val selectedProfileId = activeProfileId
     var showFolderNavigator by rememberSaveable { mutableStateOf(false) }
-    var isImporting by remember { mutableStateOf(false) }
-
 
     val viewModel: MemoryViewModel =
         viewModel(
@@ -93,6 +79,7 @@ fun MemoryScreen() {
             factory = MemoryViewModelFactory(context, selectedProfileId)
         )
     val uiState by viewModel.uiState.collectAsState()
+    val isImporting = uiState.isImporting
     var importProfileId by rememberSaveable { mutableStateOf<String?>(null) }
     var importFolderPath by rememberSaveable { mutableStateOf("") }
     // 系统文件选择器可能经历 Activity 重建，保存目标身份而不是仅保存对象引用。
@@ -130,13 +117,6 @@ fun MemoryScreen() {
         catch (e: Exception) { spaceError = resources.getString(R.string.library_space_error, e.message ?: e.javaClass.simpleName) }
     }
 
-    LaunchedEffect(isCurrentScreen, selectedProfileId) {
-        if (isCurrentScreen) {
-            viewModel.loadMemoryGraph()
-            viewModel.loadFolderPaths()
-        }
-    }
-
     LaunchedEffect(uiState.message) {
         val message = uiState.message ?: return@LaunchedEffect
         Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
@@ -144,138 +124,13 @@ fun MemoryScreen() {
     }
 
     val filePickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenDocument(),
-        onResult = { uri ->
-            uri?.let { fileUri ->
-                val importViewModel = pendingImportViewModel
-                if (importViewModel == null) {
-                    Toast.makeText(context, resources.getString(R.string.library_import_retry), Toast.LENGTH_LONG).show()
-                    return@rememberLauncherForActivityResult
-                }
-                val importFolder = importFolderPath
-                importProfileId = null
-                isImporting = true
-                scope.launch {
-                    var tempFile: File? = null
-                    try {
-                        // More robust file name extraction
-                        val (fileName, mimeType) = withContext(Dispatchers.IO) {
-                            // Execute ContentResolver operations on IO thread
-                            var extractedFileName = "Untitled"
-                            context.contentResolver.query(fileUri, null, null, null, null)
-                                ?.use { cursor ->
-                                    if (cursor.moveToFirst()) {
-                                        val displayNameIndex =
-                                            cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-                                        if (displayNameIndex != -1) {
-                                            extractedFileName = cursor.getString(displayNameIndex)
-                                        }
-                                    }
-                                }
-
-                            val extractedMimeType = context.contentResolver.getType(fileUri)
-                            Pair(extractedFileName, extractedMimeType)
-                        }
-
-                        if (mimeType != null && mimeType.startsWith("text")) {
-                            val content = withContext(Dispatchers.IO) {
-                                val inputStream =
-                                    context.contentResolver.openInputStream(fileUri)
-                                        ?: throw IOException("ContentResolver returned no input stream")
-                                inputStream.bufferedReader().use { reader ->
-                                    val buffer = CharArray(8192)
-                                    val text = StringBuilder()
-                                    while (true) {
-                                        val count = reader.read(buffer)
-                                        if (count < 0) break
-                                        require(text.length + count <= 2_000_000) { "文档超过 200 万字符，请拆分后导入" }
-                                        text.append(buffer, 0, count)
-                                    }
-                                    text.toString() }
-                            }
-                            importViewModel.importDocument(fileName, fileUri.toString(), content, importFolder)
-                        } else {
-                            // For binary files, use the tool
-                            val extension =
-                                fileName
-                                    .substringAfterLast('.', missingDelimiterValue = "")
-                                    .filter(Char::isLetterOrDigit)
-                                    .take(12)
-                            val tempFileName =
-                                buildString {
-                                    append("memory_import_")
-                                    append(UUID.randomUUID())
-                                    if (extension.isNotEmpty()) {
-                                        append('.')
-                                        append(extension)
-                                    }
-                                }
-                            tempFile = File(context.cacheDir, tempFileName)
-                            withContext(Dispatchers.IO) {
-                                val inputStream =
-                                    context.contentResolver.openInputStream(fileUri)
-                                        ?: throw IOException("ContentResolver returned no input stream")
-                                inputStream.use { input ->
-                                    FileOutputStream(tempFile).use { output ->
-                                        val buffer = ByteArray(8192)
-                                        var copied = 0L
-                                        while (true) {
-                                            val count = input.read(buffer)
-                                            if (count < 0) break
-                                            copied += count
-                                            require(copied <= 32L * 1024 * 1024) { "资料超过 32 MB，请拆分后导入" }
-                                            output.write(buffer, 0, count)
-                                        }
-                                    }
-                                }
-                            }
-
-                            val result = withContext(Dispatchers.IO) {
-                                val toolHandler = AIToolHandler.getInstance(context)
-                                val tool = AITool(
-                                    name = "read_file_full",
-                                    parameters = listOf(ToolParameter("path", tempFile.absolutePath))
-                                )
-                                toolHandler.executeTool(tool)
-                            }
-
-                            if (result.success) {
-                                // Assuming result.result can be cast to StringResultData
-                                val resultData = result.result
-                                val content = if (resultData is StringResultData) {
-                                    resultData.value
-                                } else {
-                                    resultData.toString()
-                                }
-                                importViewModel.importDocument(fileName, fileUri.toString(), content, importFolder)
-                            } else {
-                                throw IOException("read_file_full failed: ${result.error}")
-                            }
-                        }
-                    } catch (error: CancellationException) {
-                        throw error
-                    } catch (e: Exception) {
-                        AppLogger.e("MemoryScreen", "Error processing file: $fileUri", e)
-                        Toast.makeText(
-                            context,
-                            resources.getString(
-                                R.string.memory_error_import_document,
-                                e.message ?: e.javaClass.simpleName,
-                            ),
-                            Toast.LENGTH_LONG,
-                        ).show()
-                    } finally {
-                        isImporting = false
-                        tempFile?.let { file ->
-                            if (file.exists() && !file.delete()) {
-                                AppLogger.w(
-                                    "MemoryScreen",
-                                    "Unable to delete temporary import file: ${file.name}",
-                                )
-                            }
-                        }
-                    }
-                }
+        contract = ActivityResultContracts.OpenMultipleDocuments(),
+        onResult = { uris ->
+            val target = pendingImportViewModel
+            importProfileId = null
+            if (uris.isNotEmpty()) {
+                if (target == null) Toast.makeText(context, resources.getString(R.string.library_import_retry), Toast.LENGTH_LONG).show()
+                else target.importDocuments(uris, importFolderPath)
             }
         }
     )
@@ -365,7 +220,8 @@ fun MemoryScreen() {
                     },
                     onFolderDelete = { folderPath -> viewModel.deleteFolder(folderPath) },
                     onFolderCreate = { folderPath -> viewModel.createFolder(folderPath) },
-                    isBusy = spaceBusy || uiState.isLoading || uiState.isSaving || isImporting,
+                    isBusy = spaceBusy || uiState.isSaving || isImporting,
+                    isLoading = uiState.isLoading,
                     error = spaceError ?: uiState.error,
                     profileList = profileList,
                     profileNameMap = profileNameMap,
@@ -402,7 +258,7 @@ fun MemoryScreen() {
             // 对话框层
             if (isCurrentScreen) {
             if (uiState.isSearchSettingsDialogVisible) {
-                MemorySearchSettingsDialog(
+                MemoryLibrarySettingsSheet(
                     currentConfig = uiState.searchConfig,
                     autoSaveIntervalMinutes = uiState.autoSaveIntervalMinutes,
                     memoryExtractionCustomRules = uiState.memoryExtractionCustomRules,

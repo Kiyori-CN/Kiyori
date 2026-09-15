@@ -24,10 +24,11 @@ internal fun KiyoriModalBottomDrawer(
     onDismissRequest: () -> Unit,
     modifier: Modifier = Modifier,
     partialVisibleFraction: Float? = null,
+    confirmDismiss: () -> Boolean = { true },
     content: @Composable ColumnScope.(dismissDrawer: () -> Unit) -> Unit,
 ) {
     var isVisible by remember { mutableStateOf(true) }
-    val dismissDrawer = { isVisible = false }
+    val dismissDrawer = { if (isVisible && confirmDismiss()) isVisible = false }
 
     // 选择器可能由 LazyColumn.item、Card 或滚动 Column 直接调用。若把 fillMaxSize 的抽屉
     // 留在调用点，它会参与父布局测量，产生空白占位并可能被滚动容器裁剪；Dialog 才是这里的
@@ -59,6 +60,7 @@ internal fun KiyoriModalBottomDrawer(
                 partialVisibleFraction = resolvedPartialVisibleFraction,
                 onDismissRequest = dismissDrawer,
                 onHidden = onDismissRequest,
+                confirmDismiss = confirmDismiss,
             ) {
                 content(dismissDrawer)
             }

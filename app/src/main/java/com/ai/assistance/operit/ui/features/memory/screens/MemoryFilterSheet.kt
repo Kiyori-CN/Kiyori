@@ -4,8 +4,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.selection.selectable
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -18,6 +16,7 @@ import com.ai.assistance.operit.data.model.MemoryLibraryPolicy
 import com.ai.assistance.operit.ui.features.memory.viewmodel.MemoryUiState
 import com.ai.assistance.operit.ui.features.memory.viewmodel.MemoryViewModel
 import com.kiyori.design.theme.KiyoriUiShapes
+import com.ai.assistance.operit.ui.components.KiyoriDrawerScaffold
 import com.ai.assistance.operit.ui.components.KiyoriModalBottomDrawer
 import androidx.compose.ui.semantics.paneTitle
 import androidx.compose.ui.semantics.semantics
@@ -33,12 +32,17 @@ internal fun MemoryFilterSheet(state: MemoryUiState, viewModel: MemoryViewModel,
     val matchingTags = remember(tagOptions, tagQuery) { tagOptions.filter { it.contains(tagQuery, ignoreCase = true) } }
     val title = stringResource(R.string.library_organize)
     KiyoriModalBottomDrawer(onDismissRequest = onDismiss, modifier = Modifier.semantics { paneTitle = title }) { dismissDrawer ->
-        // 高度交给共享抽屉的可见视口，半展开/横屏时底部操作仍留在屏内。
-        Column(Modifier.fillMaxSize()) {
-            Row(Modifier.fillMaxWidth().padding(start = 24.dp, end = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text(title, style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
-                IconButton(onClick = dismissDrawer) { Icon(Icons.Outlined.Close, stringResource(R.string.memory_close)) }
-            }
+        KiyoriDrawerScaffold(
+            title = title,
+            onClose = dismissDrawer,
+            scrollableContent = false,
+            footer = {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    TextButton(onClick = { viewModel.resetOrganizationFilters(); tagQuery = "" }) { Text(stringResource(R.string.library_reset_filters)) }
+                    Button(onClick = dismissDrawer) { Text(stringResource(R.string.library_done)) }
+                }
+            },
+        ) {
             LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(horizontal = 24.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 item {
                     Text(stringResource(R.string.library_sort), style = MaterialTheme.typography.titleSmall)
@@ -79,11 +83,6 @@ internal fun MemoryFilterSheet(state: MemoryUiState, viewModel: MemoryViewModel,
                     Text(stringResource(if (tagQuery.isBlank()) R.string.library_no_tags else R.string.library_no_results),
                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-            }
-            HorizontalDivider()
-            Row(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 12.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                TextButton(onClick = { viewModel.resetOrganizationFilters(); tagQuery = "" }) { Text(stringResource(R.string.library_reset_filters)) }
-                Button(onClick = dismissDrawer) { Text(stringResource(R.string.library_done)) }
             }
         }
     }

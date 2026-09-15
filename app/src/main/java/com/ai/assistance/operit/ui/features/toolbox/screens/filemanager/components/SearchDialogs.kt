@@ -36,6 +36,7 @@ import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material.icons.rounded.ExpandLess
 
 import androidx.compose.ui.text.input.KeyboardType
+import com.ai.assistance.operit.ui.components.KiyoriDrawerScaffold
 import com.ai.assistance.operit.ui.components.KiyoriModalBottomDrawer
 import com.ai.assistance.operit.core.tools.FileSearchNameMode
 import com.ai.assistance.operit.ui.features.toolbox.screens.filemanager.models.*
@@ -55,13 +56,12 @@ fun SearchDialog(showDialog: Boolean, searchQuery: String, onQueryChange: (Strin
     var historyAfterClose by remember { mutableStateOf(false) }
     val validation = remember(searchQuery, form) { runCatching { form.options(searchQuery) }.exceptionOrNull()?.message }
     KiyoriModalBottomDrawer(onDismissRequest = { onDismiss(); if (submitAfterClose) onSearch(); if (historyAfterClose) onHistory() }) { dismiss ->
-        Column(Modifier.fillMaxWidth().imePadding().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).padding(bottom = 20.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                FileManagerIconBadge(Icons.Outlined.Search, KiyoriSemanticTone.BLUE, 36.dp)
-                Text("搜索文件 · $paneLabel", Modifier.weight(1f).padding(start = 12.dp), style = MaterialTheme.typography.titleLarge)
-                IconButton(onClick = dismiss) { Icon(Icons.Outlined.Close, "关闭搜索") }
+        KiyoriDrawerScaffold("搜索文件 · $paneLabel", dismiss, footer = {
+            validation?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+            Button(onClick = { submitAfterClose = true; dismiss() }, enabled = validation == null, modifier = Modifier.fillMaxWidth()) {
+                Icon(Icons.Outlined.Search, null, Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)); Text("开始搜索")
             }
+        }) {
             Text(location, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             OutlinedTextField(value = searchQuery, onValueChange = onQueryChange,
                 label = { Text("文件或文件夹名称") }, placeholder = { Text(when (form.nameMode) {
@@ -114,10 +114,6 @@ fun SearchDialog(showDialog: Boolean, searchQuery: String, onQueryChange: (Strin
                 }
                 SearchCheckRow("包含隐藏文件和文件夹", form.includeHidden) { onFormChange(form.copy(includeHidden = it)) }
                 TextButton(onClick = { onFormChange(FileManagerSearchForm(recursive = form.recursive)) }) { Text("重置高级条件") }
-            }
-            validation?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-            Button(onClick = { submitAfterClose = true; dismiss() }, enabled = validation == null, modifier = Modifier.fillMaxWidth()) {
-                Icon(Icons.Outlined.Search, null, Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)); Text("开始搜索")
             }
         }
     }

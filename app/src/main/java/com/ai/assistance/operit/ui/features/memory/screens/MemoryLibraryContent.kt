@@ -24,6 +24,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.ai.assistance.operit.R
+import com.ai.assistance.operit.ui.components.rememberDelayedLoading
 import com.ai.assistance.operit.data.model.Memory
 import com.ai.assistance.operit.data.model.MemoryLibraryPolicy
 import com.ai.assistance.operit.ui.features.memory.viewmodel.MemoryUiState
@@ -77,10 +78,11 @@ internal fun MemoryLibraryContent(
                 onGraph = { keyboard?.hide(); viewModel.setGraphVisible(!latestState.value.showGraph) },
                 onFilter = { keyboard?.hide(); showFilters = true },
                 onSettings = { keyboard?.hide(); viewModel.showSearchSettingsDialog(true) },
-                onRefresh = { keyboard?.hide(); viewModel.loadMemoryGraph(); viewModel.loadFolderPaths() },
+                onRefresh = { keyboard?.hide(); viewModel.refresh() },
             )
         }
     }
+    val showLoading = rememberDelayedLoading(state.isLoading)
     val knowledge = state.libraryKind == MemoryLibraryPolicy.KNOWLEDGE
     val pendingQuery = state.searchQuery.trim() != state.appliedSearchQuery
     val filterCount = listOf(state.showArchived, state.categoryFilter != null, state.tagFilter != null).count { it }
@@ -134,12 +136,18 @@ internal fun MemoryLibraryContent(
                 state.categoryFilter?.let { category -> item { ActiveFilter(memoryCategoryLabel(category)) { viewModel.setCategoryFilter(null) } } }
                 state.tagFilter?.let { tag -> item { ActiveFilter("# $tag") { viewModel.setTagFilter(null) } } }
             }
-            // 固定高度避免加载条出现时推动整个列表。
-            Box(Modifier.fillMaxWidth().height(4.dp)) {
-                if (state.isLoading || isImporting) LinearProgressIndicator(Modifier.fillMaxWidth())
+            // 加载状态保留用于禁用操作，视觉反馈延迟展示；快速本地刷新不闪烁。
+            // 进度位于固定层，不插入列表布局，已有内容保持阅读位置。
+            if (!isImporting && state.canRetryImport) {
+                Text(state.importFailures.joinToString("\n"), Modifier.padding(horizontal = 16.dp),
+                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error, maxLines = 3)
+                TextButton(onClick = viewModel::retryImport) { Text(stringResource(R.string.library_import_retry_failed)) }
             }
             when {
-                isImporting -> LibraryEmptyState(R.string.library_importing, R.string.library_importing_hint, knowledge = true)
+                isImporting -> LibraryEmptyState(R.string.library_importing, message = state.importProgress, knowledge = true) {
+                    CircularProgressIndicator(Modifier.size(28.dp))
+                    TextButton(onClick = viewModel::cancelImport) { Text(stringResource(R.string.cancel_action)) }
+                }
                 pendingQuery -> LibraryEmptyState(R.string.library_search_ready, R.string.library_search_ready_hint, search = true) {
                     Button(onClick = search) { Text(stringResource(R.string.library_search_action)) }
                 }
@@ -147,7 +155,7 @@ internal fun MemoryLibraryContent(
                     Button(onClick = search, enabled = !state.isLoading) { Text(stringResource(R.string.library_retry)) }
                 }
                 state.isLoading && (state.memories.isEmpty() || state.showGraph) -> Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(Modifier.size(28.dp), strokeWidth = 3.dp)
+                    if (showLoading) CircularProgressIndicator(Modifier.size(28.dp), strokeWidth = 3.dp)
                 }
                 state.memories.isEmpty() -> LibraryEmptyState(
                     if (onlyArchive) R.string.library_archive_empty else if (filtered) R.string.library_no_results else if (knowledge) R.string.library_knowledge_empty else R.string.library_empty,
@@ -188,6 +196,9 @@ internal fun MemoryLibraryContent(
                     }
                 }
             }
+        }
+        if (showLoading && state.memories.isNotEmpty() && !state.showGraph) {
+            CircularProgressIndicator(Modifier.align(Alignment.TopEnd).padding(16.dp).size(24.dp), strokeWidth = 2.dp)
         }
         if (state.memories.isNotEmpty() && !state.showGraph && !pendingQuery && state.error == null && !busy) {
             Box(Modifier.align(Alignment.BottomEnd).padding(16.dp)) {

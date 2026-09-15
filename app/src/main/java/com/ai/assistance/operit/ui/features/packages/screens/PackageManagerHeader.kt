@@ -1,5 +1,7 @@
 package com.ai.assistance.operit.ui.features.packages.screens
 
+import com.ai.assistance.operit.ui.components.KiyoriToolbarAction
+import com.ai.assistance.operit.ui.components.KiyoriActionRole
 import androidx.annotation.StringRes
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
@@ -279,69 +281,28 @@ private fun RowScope.PackageManagerTopBarActionButton(
     val isPrimaryTab =
         selectedTab == PackageTab.PLUGINS || selectedTab == PackageTab.PACKAGES
     val childActionEnabled = isPrimaryTab || !isBusy
-    val disabledContentColor = contentColor.copy(alpha = 0.38f)
 
     when (action) {
-        PackageManagerTopBarAction.ENVIRONMENT -> {
-            IconButton(onClick = onEnvironmentClick) {
-                Icon(
-                    imageVector = Icons.Outlined.Settings,
-                    contentDescription = stringResource(R.string.script_settings),
-                    tint = contentColor,
-                )
-            }
-        }
-
-        PackageManagerTopBarAction.MARKET -> {
-            IconButton(
-                onClick = onMarketClick,
-                enabled = childActionEnabled,
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.Store,
-                    contentDescription =
-                        stringResource(
-                            when (selectedTab) {
-                                PackageTab.PLUGINS -> R.string.screen_title_package_market
-                                PackageTab.PACKAGES -> R.string.screen_title_script_market
-                                PackageTab.SKILLS -> R.string.screen_title_skill_market
-                                PackageTab.MCP -> R.string.mcp_market
-                            }
-                        ),
-                    tint = if (childActionEnabled) contentColor else disabledContentColor,
-                )
-            }
-        }
+        PackageManagerTopBarAction.ENVIRONMENT -> KiyoriToolbarAction(Icons.Outlined.Settings,
+            stringResource(R.string.script_settings), KiyoriActionRole.CONFIGURE, onClick = onEnvironmentClick)
+        PackageManagerTopBarAction.MARKET -> KiyoriToolbarAction(Icons.Outlined.Store,
+            stringResource(when (selectedTab) {
+                PackageTab.PLUGINS -> R.string.screen_title_package_market
+                PackageTab.PACKAGES -> R.string.screen_title_script_market
+                PackageTab.SKILLS -> R.string.screen_title_skill_market
+                PackageTab.MCP -> R.string.mcp_market
+            }), KiyoriActionRole.NAVIGATE, enabled = childActionEnabled, onClick = onMarketClick)
 
         PackageManagerTopBarAction.ADD -> {
             var scriptMenuExpanded by remember(selectedTab) { mutableStateOf(false) }
 
             Box {
-                IconButton(
-                    enabled = childActionEnabled,
-                    onClick = {
-                        if (selectedTab == PackageTab.PACKAGES) {
-                            scriptMenuExpanded = true
-                        } else {
-                            onImportClick()
-                        }
-                    }
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Add,
-                        contentDescription =
-                            stringResource(
-                                if (selectedTab == PackageTab.PLUGINS) {
-                                    R.string.import_external_plugin
-                                } else if (selectedTab == PackageTab.PACKAGES) {
-                                    R.string.script_add_actions
-                                } else {
-                                    R.string.import_action
-                                }
-                            ),
-                        tint = if (childActionEnabled) contentColor else disabledContentColor,
-                    )
-                }
+                KiyoriToolbarAction(Icons.Outlined.Add,
+                    stringResource(if (selectedTab == PackageTab.PLUGINS) R.string.import_external_plugin
+                        else if (selectedTab == PackageTab.PACKAGES) R.string.script_add_actions else R.string.import_action),
+                    KiyoriActionRole.ORGANIZE, enabled = childActionEnabled, onClick = {
+                        if (selectedTab == PackageTab.PACKAGES) scriptMenuExpanded = true else onImportClick()
+                    })
 
                 DropdownMenu(
                     expanded = selectedTab == PackageTab.PACKAGES && scriptMenuExpanded,
@@ -386,57 +347,13 @@ private fun RowScope.PackageManagerTopBarActionButton(
             }
         }
 
-        PackageManagerTopBarAction.REFRESH -> {
-            IconButton(
-                onClick = onRefreshClick,
-                enabled = !isBusy,
-            ) {
-                if (isRefreshing) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(19.dp),
-                        strokeWidth = 2.dp,
-                        color = contentColor,
-                    )
-                } else {
-                    Icon(
-                        imageVector = Icons.Outlined.Refresh,
-                        contentDescription = stringResource(R.string.refresh),
-                        tint = if (isBusy) disabledContentColor else contentColor,
-                    )
-                }
-            }
-        }
+        PackageManagerTopBarAction.REFRESH -> KiyoriToolbarAction(Icons.Outlined.Refresh,
+            stringResource(R.string.refresh), KiyoriActionRole.EXECUTE, enabled = !isBusy, loading = isRefreshing, onClick = onRefreshClick)
+        PackageManagerTopBarAction.ERROR -> KiyoriToolbarAction(Icons.Filled.Error,
+            stringResource(R.string.error_occurred_simple), KiyoriActionRole.ERROR, onClick = onErrorClick)
+        PackageManagerTopBarAction.START -> KiyoriToolbarAction(Icons.Outlined.PlayArrow,
+            stringResource(R.string.start_plugin), KiyoriActionRole.EXECUTE, enabled = !isBusy, loading = isStarting, onClick = onStartClick)
 
-        PackageManagerTopBarAction.ERROR -> {
-            IconButton(onClick = onErrorClick) {
-                Icon(
-                    imageVector = Icons.Filled.Error,
-                    contentDescription = stringResource(R.string.error_occurred_simple),
-                    tint = MaterialTheme.colorScheme.error,
-                )
-            }
-        }
-
-        PackageManagerTopBarAction.START -> {
-            IconButton(
-                onClick = onStartClick,
-                enabled = !isBusy,
-            ) {
-                if (isStarting) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(19.dp),
-                        strokeWidth = 2.dp,
-                        color = contentColor,
-                    )
-                } else {
-                    Icon(
-                        imageVector = Icons.Outlined.PlayArrow,
-                        contentDescription = stringResource(R.string.start_plugin),
-                        tint = if (isBusy) disabledContentColor else contentColor,
-                    )
-                }
-            }
-        }
     }
 }
 

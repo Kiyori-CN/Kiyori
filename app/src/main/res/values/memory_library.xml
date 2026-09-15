@@ -86,4 +86,21 @@
     <string name="library_saved_document_search">搜索已保存的正文</string>
     <string name="library_space_error">空间操作失败：%1$s</string>
     <string name="library_import_retry">导入会话已结束，请重新选择资料。</string>
+    <string name="library_folder_delete_hint">保留正文，移到根目录</string>
+    <string name="library_folder_name_required">请输入文件夹名称</string>
+    <string name="library_folder_path_unchanged">请输入不同的路径</string>
+    <string name="library_folder_path_descendant">不能移动到自身的子目录</string>
+    <string name="library_folder_path_exists">目标文件夹已存在</string>
+    <string name="library_folder_root">根目录</string>
+    <string name="library_folder_current_path">当前路径：%1$s</string>
+    <string name="library_folder_parent_path">父文件夹：%1$s</string>
+    <string name="library_folder_path_help">使用 / 分隔层级；重命名会同步更新子目录和条目归属。</string>
+    <string name="library_import_retry_failed">重试失败的资料</string>
+    <string name="library_import_reading">正在处理 %1$d / %2$d</string>
+    <string name="library_import_saving">正在保存 %1$d / %2$d · %3$s</string>
+    <string name="library_import_failure_item">第 %1$d 项：%2$s</string>
+    <string name="library_import_summary">已保存 %1$d 项，待重试 %2$d 项</string>
+    <string name="library_import_result">资料导入：已保存 %1$d 项，待重试 %2$d 项</string>
+    <string name="library_settings_auto_hint">自动整理开关即时生效；其余调整请点击保存。</string>
+    <string name="library_rebuild_requires_save">请先保存云端配置，再重建索引。</string>
 </resources>

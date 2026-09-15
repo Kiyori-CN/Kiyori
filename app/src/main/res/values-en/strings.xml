@@ -5303,6 +5303,7 @@
     <string name="toolreg_create_memory_desc">Create memory: %1$s</string>
     <string name="toolreg_update_memory_desc">Update memory: %1$s -&gt; %2$s</string>
     <string name="toolreg_delete_memory_desc">Delete memory: %1$s</string>
+    <string name="toolreg_memory_folders_desc">Memory folders: %1$s</string>
     <string name="toolreg_link_memories_desc">Link memories: [%1$s] -&gt; [%2$s] (type: %3$s)</string>
     <string name="toolreg_use_package_desc">Use tool package: %1$s</string>
     <string name="toolreg_calculate_desc">Calculate expression: %1$s</string>
