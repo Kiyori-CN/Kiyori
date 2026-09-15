@@ -17,6 +17,12 @@ class MemoryLibraryPolicyTest {
         assertEquals("memory", MemoryLibraryPolicy.kind(Memory()))
     }
 
+    @Test fun diaryIsAFirstClassKind() {
+        assertEquals(MemoryLibraryPolicy.DIARY, MemoryLibraryPolicy.kind(Memory(libraryKind = MemoryLibraryPolicy.DIARY)))
+        assertTrue(MemoryLibraryPolicy.matches(Memory(libraryKind = MemoryLibraryPolicy.DIARY), MemoryLibraryPolicy.DIARY))
+        assertFalse(MemoryLibraryPolicy.matches(Memory(libraryKind = MemoryLibraryPolicy.DIARY), MemoryLibraryPolicy.MEMORY))
+    }
+
     @Test fun archiveAndTypeAreIndependentScopes() {
         val archived = Memory(title = "fact", archived = true)
         assertFalse(MemoryLibraryPolicy.matches(archived, null))

@@ -19,6 +19,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.data.model.Memory
+import com.ai.assistance.operit.data.model.MemoryLibraryPolicy
 import com.ai.assistance.operit.ui.features.memory.viewmodel.MemoryFolderBrowsePolicy
 import com.ai.assistance.operit.ui.features.memory.viewmodel.MemoryUiState
 import com.ai.assistance.operit.ui.features.memory.viewmodel.MemoryViewModel
@@ -101,9 +102,11 @@ internal fun ColumnScope.MemoryFolderList(
         if (searching) state.memories else MemoryFolderBrowsePolicy.directEntries(state.memories, state.selectedFolderPath)
     }
     val folders = if (searching) emptyList() else childFolders
+    val diary = state.libraryKind == MemoryLibraryPolicy.DIARY
+    val diaryGroups = diary && !searching && !state.sortByTitle
     // 范围切换回到结果起点，单纯刷新数据保持阅读位置。
     key(state.libraryKind, state.appliedSearchQuery, state.selectedFolderPath, state.showArchived,
-        state.categoryFilter, state.tagFilter, state.sortByTitle) {
+        state.categoryFilter, state.tagFilter, state.diaryStatusFilter, state.sortByTitle) {
         LazyColumn(
             Modifier.weight(1f).fillMaxWidth(),
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 96.dp),
@@ -135,8 +138,12 @@ internal fun ColumnScope.MemoryFolderList(
                     onOpen = { viewModel.selectFolder(path) },
                 )
             }
-            items(entries, key = { it.id }) { memory ->
-                MemoryLibraryCard(memory, dateFormat, showFolder = searching) { viewModel.selectMemory(memory) }
+            // 日记按开篇日期分组：一天可以写多篇，日期抬头才是找回某次工作的入口。
+            // 搜索结果与标题排序保持平铺，用户此时要的是同一套顺序而不是再分一次组。
+            if (diaryGroups) diaryDayGroups(entries, dateFormat) { viewModel.selectMemory(it) }
+            else items(entries, key = { it.id }) { memory ->
+                if (diary) MemoryDiaryCard(memory, dateFormat, showFolder = searching) { viewModel.selectMemory(memory) }
+                else MemoryLibraryCard(memory, dateFormat, showFolder = searching) { viewModel.selectMemory(memory) }
             }
             if (folders.isEmpty() && entries.isEmpty()) item {
                 EmptyFolderNotice(searching = searching, onCreateFolder = onCreateFolder)

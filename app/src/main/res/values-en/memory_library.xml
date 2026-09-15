@@ -1,7 +1,8 @@
 <resources>
     <string name="library_memories">Memories</string>
     <string name="library_knowledge">Knowledge</string>
-    <string name="library_search">Search content and tags</string>
+    <string name="library_diaries">Diaries</string>
+    <string name="library_new_diary">New diary</string>
     <string name="library_clear_search">Clear search</string>
     <string name="library_search_action">Search</string>
     <string name="library_settings">Memory and retrieval settings</string>
@@ -108,4 +109,43 @@
     <string name="library_folder_empty">This location is empty</string>
     <string name="library_folder_empty_hint">Add an entry here, or create a subfolder first.</string>
     <string name="library_rebuild_requires_save">Save the cloud configuration before rebuilding the index.</string>
+    <!-- Diaries -->
+    <string name="library_diary">Diary</string>
+    <string name="library_diary_empty">Track work in progress</string>
+    <string name="library_diary_hint">Write down progress, decisions and evidence\nfor complex work, and continue it any time.</string>
+    <string name="library_diary_status">Diary status</string>
+    <string name="library_diary_status_all">All statuses</string>
+    <string name="library_diary_status_active">In progress</string>
+    <string name="library_diary_status_closed">Completed</string>
+    <string name="library_diary_entries">%1$d entries</string>
+    <string name="library_diary_append">Continue</string>
+    <string name="library_diary_append_hint">Note the progress, decision or evidence</string>
+    <string name="library_diary_append_action">Add entry</string>
+    <string name="library_diary_close">Close diary</string>
+    <string name="library_diary_close_title">Close this diary?</string>
+    <string name="library_diary_close_message">A closing entry is appended. You can still continue later, which marks it in progress again.</string>
+    <string name="library_diary_close_summary">Closing summary (optional)</string>
+    <string name="library_diary_reopen_hint">This diary is completed. Adding another entry marks it in progress again.</string>
+    <string name="library_diary_archived_hint">Archived diaries are excluded from search and cannot be continued. Restore it to keep writing.</string>
+    <string name="library_diary_preface">Opening</string>
+    <string name="library_diary_no_entries">No entries yet. Write the first one.</string>
+    <string name="library_diary_today">Today</string>
+    <string name="library_diary_yesterday">Yesterday</string>
+    <string name="library_diary_started">Started %1$s</string>
+    <string name="library_diary_phase">Phase</string>
+    <string name="library_diary_edit_full">Edit full text</string>
+    <string name="library_diary_edit_hint">Editing the full text rewrites history. Use Continue below for day-to-day entries.</string>
+    <string name="library_diary_new_hint">Start with what this work is and why, then continue entry by entry.</string>
+    <string name="library_phase_note">Note</string>
+    <string name="library_phase_plan">Plan</string>
+    <string name="library_phase_progress">Progress</string>
+    <string name="library_phase_decision">Decision</string>
+    <string name="library_phase_evidence">Evidence</string>
+    <string name="library_phase_risk">Risk</string>
+    <string name="library_phase_validation">Validation</string>
+    <string name="library_phase_closed">Closing</string>
+    <string name="library_search_in_memories">Search memories and tags</string>
+    <string name="library_search_in_diaries">Search diaries and tags</string>
+    <string name="library_search_in_knowledge">Search documents and tags</string>
+    <string name="library_folder_new_child">New subfolder</string>
 </resources>

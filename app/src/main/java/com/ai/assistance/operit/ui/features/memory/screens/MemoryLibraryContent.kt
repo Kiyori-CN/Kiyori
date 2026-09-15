@@ -8,6 +8,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.EventNote
 import androidx.compose.material.icons.automirrored.outlined.MenuBook
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
@@ -85,15 +86,21 @@ internal fun MemoryLibraryContent(
     }
     val showLoading = rememberDelayedLoading(state.isLoading)
     val knowledge = state.libraryKind == MemoryLibraryPolicy.KNOWLEDGE
+    val diary = state.libraryKind == MemoryLibraryPolicy.DIARY
     val pendingQuery = state.searchQuery.trim() != state.appliedSearchQuery
-    val filterCount = listOf(state.showArchived, state.categoryFilter != null, state.tagFilter != null).count { it }
+    val filterCount = listOf(state.showArchived, state.categoryFilter != null, state.tagFilter != null,
+        state.diaryStatusFilter != null).count { it }
     // 文件夹本身是新建目标；空文件夹也必须提供添加入口，不能只允许重置位置。
     val filtered = state.appliedSearchQuery.isNotBlank() || filterCount > 0
     val onlyArchive = state.showArchived && filterCount == 1 && state.appliedSearchQuery.isBlank() && state.selectedFolderPath.isBlank()
     val busy = isImporting || state.isSaving
     val search = { keyboard?.hide(); viewModel.searchMemories() }
     val create = { viewModel.startEditing(null) }
-    val primaryLabel = stringResource(if (knowledge) R.string.library_import else R.string.library_new_memory)
+    val primaryLabel = stringResource(when {
+        knowledge -> R.string.library_import
+        diary -> R.string.library_new_diary
+        else -> R.string.library_new_memory
+    })
     // 搜索或筛选生效时展示整棵子树的平铺结果；否则逐级浏览当前目录。
     val browsingSearch = state.appliedSearchQuery.isNotBlank() || filterCount > 0
     // 目录层级耗尽才把 Back 交还给壳；弹层仍由各自的宿主先处理。
@@ -115,19 +122,34 @@ internal fun MemoryLibraryContent(
                     }
                     Icon(Icons.Outlined.ExpandMore, null, Modifier.size(18.dp))
                 }
-                SingleChoiceSegmentedButtonRow(Modifier.weight(1.15f)) {
-                    listOf(R.string.library_memories, R.string.library_knowledge).forEachIndexed { index, label ->
-                        SegmentedButton(selected = knowledge == (index == 1),
-                            onClick = { viewModel.setLibraryKind(if (index == 1) MemoryLibraryPolicy.KNOWLEDGE else MemoryLibraryPolicy.MEMORY) },
-                            shape = SegmentedButtonDefaults.itemShape(index, 2), enabled = !busy,
-                            icon = {}
-                        ) { Text(stringResource(label), maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                // 三段控件比两段更挤：去掉选中打勾图标并压缩字号，长文案才不会在窄屏被截成省略号。
+                SingleChoiceSegmentedButtonRow(Modifier.weight(1.6f)) {
+                    MemoryLibraryPolicy.kinds.forEachIndexed { index, kind ->
+                        SegmentedButton(selected = state.libraryKind == kind,
+                            onClick = { viewModel.setLibraryKind(kind) },
+                            shape = SegmentedButtonDefaults.itemShape(index, MemoryLibraryPolicy.kinds.size),
+                            enabled = !busy, icon = {}
+                        ) {
+                            Text(
+                                stringResource(when (kind) {
+                                    MemoryLibraryPolicy.KNOWLEDGE -> R.string.library_knowledge
+                                    MemoryLibraryPolicy.DIARY -> R.string.library_diaries
+                                    else -> R.string.library_memories
+                                }),
+                                style = MaterialTheme.typography.labelMedium,
+                                maxLines = 1, overflow = TextOverflow.Ellipsis,
+                            )
+                        }
                     }
                 }
             }
             TextField(value = state.searchQuery, onValueChange = viewModel::onSearchQueryChange,
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-                placeholder = { Text(stringResource(R.string.library_search), style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                placeholder = { Text(stringResource(when {
+                    knowledge -> R.string.library_search_in_knowledge
+                    diary -> R.string.library_search_in_diaries
+                    else -> R.string.library_search_in_memories
+                }), style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                 textStyle = MaterialTheme.typography.bodyMedium, shape = KiyoriUiShapes.field,
                 colors = TextFieldDefaults.colors(focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
                     unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
@@ -144,6 +166,7 @@ internal fun MemoryLibraryContent(
                 if (state.showArchived) item { ActiveFilter(stringResource(R.string.library_archived)) { viewModel.setArchivedFilter(false) } }
                 state.categoryFilter?.let { category -> item { ActiveFilter(memoryCategoryLabel(category)) { viewModel.setCategoryFilter(null) } } }
                 state.tagFilter?.let { tag -> item { ActiveFilter("# $tag") { viewModel.setTagFilter(null) } } }
+                state.diaryStatusFilter?.let { status -> item { ActiveFilter(diaryStatusLabel(status)) { viewModel.setDiaryStatusFilter(null) } } }
             }
             // 加载状态保留用于禁用操作，视觉反馈延迟展示；快速本地刷新不闪烁。
             // 进度位于固定层，不插入列表布局，已有内容保持阅读位置。
@@ -153,7 +176,7 @@ internal fun MemoryLibraryContent(
                 TextButton(onClick = viewModel::retryImport) { Text(stringResource(R.string.library_import_retry_failed)) }
             }
             when {
-                isImporting -> LibraryEmptyState(R.string.library_importing, message = state.importProgress, knowledge = true) {
+                isImporting -> LibraryEmptyState(R.string.library_importing, message = state.importProgress, kind = MemoryLibraryPolicy.KNOWLEDGE) {
                     CircularProgressIndicator(Modifier.size(28.dp))
                     TextButton(onClick = viewModel::cancelImport) { Text(stringResource(R.string.cancel_action)) }
                 }
@@ -168,9 +191,21 @@ internal fun MemoryLibraryContent(
                 }
                 // 空目录不能吞掉整页：当前位置没有条目但仍有子目录时，逐级浏览必须留在列表里。
                 state.memories.isEmpty() && (state.showGraph || browsingSearch || state.folderPaths.isEmpty()) -> LibraryEmptyState(
-                    if (onlyArchive) R.string.library_archive_empty else if (filtered) R.string.library_no_results else if (knowledge) R.string.library_knowledge_empty else R.string.library_empty,
-                    if (onlyArchive) R.string.library_archive_hint else if (filtered) R.string.library_filter_hint else if (knowledge) R.string.library_knowledge_hint else R.string.library_memory_hint,
-                    knowledge = knowledge
+                    when {
+                        onlyArchive -> R.string.library_archive_empty
+                        filtered -> R.string.library_no_results
+                        knowledge -> R.string.library_knowledge_empty
+                        diary -> R.string.library_diary_empty
+                        else -> R.string.library_empty
+                    },
+                    when {
+                        onlyArchive -> R.string.library_archive_hint
+                        filtered -> R.string.library_filter_hint
+                        knowledge -> R.string.library_knowledge_hint
+                        diary -> R.string.library_diary_hint
+                        else -> R.string.library_memory_hint
+                    },
+                    kind = state.libraryKind
                 ) {
                     if (filtered) OutlinedButton(onClick = viewModel::resetFilters) { Text(stringResource(R.string.library_reset_filters)) }
                     else {
@@ -205,9 +240,22 @@ internal fun MemoryLibraryContent(
                 ExtendedFloatingActionButton(onClick = { addMenu = true },
                     icon = { Icon(Icons.Outlined.Add, null) }, text = { Text(stringResource(R.string.library_add)) })
                 DropdownMenu(expanded = addMenu, onDismissRequest = { addMenu = false }) {
-                    if (knowledge) DropdownMenuItem(text = { Text(stringResource(R.string.library_import)) }, leadingIcon = { Icon(Icons.Outlined.UploadFile, null) }, onClick = { addMenu = false; onImport() })
-                    DropdownMenuItem(text = { Text(stringResource(if (knowledge) R.string.library_new_note else R.string.library_new_memory)) },
-                        leadingIcon = { Icon(if (knowledge) Icons.Outlined.EditNote else Icons.Outlined.Add, null) }, onClick = { addMenu = false; create() })
+                    // 新建目标始终是当前目录；菜单只按内容类型换名字和图标，位置语义保持一致。
+                    if (knowledge) DropdownMenuItem(text = { Text(stringResource(R.string.library_import)) },
+                        leadingIcon = { Icon(Icons.Outlined.UploadFile, null) }, onClick = { addMenu = false; onImport() })
+                    DropdownMenuItem(
+                        text = { Text(stringResource(when {
+                            knowledge -> R.string.library_new_note
+                            diary -> R.string.library_new_diary
+                            else -> R.string.library_new_memory
+                        })) },
+                        leadingIcon = { Icon(when {
+                            knowledge -> Icons.Outlined.EditNote
+                            diary -> Icons.AutoMirrored.Outlined.EventNote
+                            else -> Icons.Outlined.Add
+                        }, null) },
+                        onClick = { addMenu = false; create() },
+                    )
                     DropdownMenuItem(text = { Text(stringResource(R.string.foldernav_new_folder)) },
                         leadingIcon = { Icon(Icons.Outlined.CreateNewFolder, null) }, onClick = { addMenu = false; showCreateFolder = true })
                 }
@@ -234,15 +282,21 @@ private fun ActiveFilter(label: String, onRemove: () -> Unit) {
 @Composable
 private fun ColumnScope.LibraryEmptyState(
     title: Int, hint: Int? = null, message: String? = null,
-    knowledge: Boolean = false, search: Boolean = false, error: Boolean = false,
+    kind: String? = null, search: Boolean = false, error: Boolean = false,
     actions: @Composable ColumnScope.() -> Unit = {}
 ) {
     Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
         Column(Modifier.widthIn(max = 400.dp).fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 32.dp, vertical = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Surface(shape = MaterialTheme.shapes.extraLarge, color = if (error) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.primaryContainer) {
-                Icon(when { error -> Icons.Outlined.ErrorOutline; search -> Icons.Outlined.Search; knowledge -> Icons.AutoMirrored.Outlined.MenuBook; else -> Icons.Outlined.Psychology },
-                    null, Modifier.padding(18.dp).size(28.dp), tint = if (error) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onPrimaryContainer)
+                Icon(when {
+                    error -> Icons.Outlined.ErrorOutline
+                    search -> Icons.Outlined.Search
+                    kind == MemoryLibraryPolicy.KNOWLEDGE -> Icons.AutoMirrored.Outlined.MenuBook
+                    kind == MemoryLibraryPolicy.DIARY -> Icons.AutoMirrored.Outlined.EventNote
+                    else -> Icons.Outlined.Psychology
+                }, null, Modifier.padding(18.dp).size(28.dp),
+                    tint = if (error) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onPrimaryContainer)
             }
             Text(stringResource(title), style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center)
             Text(message ?: hint?.let { stringResource(it) }.orEmpty(), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)

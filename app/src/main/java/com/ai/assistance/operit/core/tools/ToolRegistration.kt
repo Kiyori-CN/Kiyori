@@ -914,6 +914,20 @@ fun registerAllTools(handler: AIToolHandler, context: Context) {
             }
     )
 
+    // 日记续写只追加一节，和 update_memory 的“覆盖正文”是不同的写入语义，因此单独注册。
+    handler.registerTool(
+        name = "append_diary",
+        descriptionGenerator = { tool ->
+            s(
+                R.string.toolreg_append_diary_desc,
+                tool.parameters.find { it.name == "title" }?.value
+                    ?: tool.parameters.find { it.name == "uuid" }?.value
+                    ?: ""
+            )
+        },
+        executor = { tool -> ToolGetter.getMemoryQueryToolExecutor(context).invoke(tool) },
+    )
+
     handler.registerTool(
         name = "memory_folders",
         descriptionGenerator = { tool -> s(R.string.toolreg_memory_folders_desc, tool.parameters.find { it.name == "action" }?.value ?: "list") },

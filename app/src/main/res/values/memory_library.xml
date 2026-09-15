@@ -1,7 +1,8 @@
 <resources>
     <string name="library_memories">记忆</string>
     <string name="library_knowledge">知识</string>
-    <string name="library_search">搜索记忆、知识与标签</string>
+    <string name="library_diaries">日记</string>
+    <string name="library_new_diary">新建日记</string>
     <string name="library_clear_search">清空搜索</string>
     <string name="library_search_action">搜索</string>
     <string name="library_settings">记忆与检索设置</string>
@@ -108,4 +109,43 @@
     <string name="library_folder_empty">这个位置还是空的</string>
     <string name="library_folder_empty_hint">可以在这里新建条目，或者先建一个子文件夹。</string>
     <string name="library_rebuild_requires_save">请先保存云端配置，再重建索引。</string>
+    <!-- 日记 -->
+    <string name="library_diary">日记</string>
+    <string name="library_diary_empty">记录正在推进的工作</string>
+    <string name="library_diary_hint">把复杂任务的进展、决策和证据写成一篇日记，\n之后随时续写。</string>
+    <string name="library_diary_status">日记状态</string>
+    <string name="library_diary_status_all">全部状态</string>
+    <string name="library_diary_status_active">进行中</string>
+    <string name="library_diary_status_closed">已完结</string>
+    <string name="library_diary_entries">%1$d 条记录</string>
+    <string name="library_diary_append">续写</string>
+    <string name="library_diary_append_hint">记下这次的进展、决策或证据</string>
+    <string name="library_diary_append_action">追加记录</string>
+    <string name="library_diary_close">结束日记</string>
+    <string name="library_diary_close_title">结束这篇日记？</string>
+    <string name="library_diary_close_message">会追加一条收尾记录。之后仍可继续续写，续写后重新标记为进行中。</string>
+    <string name="library_diary_close_summary">收尾总结（可留空）</string>
+    <string name="library_diary_reopen_hint">这篇日记已完结。继续追加会重新标记为进行中。</string>
+    <string name="library_diary_archived_hint">已归档的日记不参与检索，也不能续写。恢复后即可继续记录。</string>
+    <string name="library_diary_preface">开篇</string>
+    <string name="library_diary_no_entries">还没有记录，写下第一条。</string>
+    <string name="library_diary_today">今天</string>
+    <string name="library_diary_yesterday">昨天</string>
+    <string name="library_diary_started">开始于 %1$s</string>
+    <string name="library_diary_phase">阶段</string>
+    <string name="library_diary_edit_full">编辑全文</string>
+    <string name="library_diary_edit_hint">编辑全文会改写历史记录。日常记录请用下方的续写。</string>
+    <string name="library_diary_new_hint">先写下这次要做什么、判断依据是什么，之后逐条续写。</string>
+    <string name="library_phase_note">记录</string>
+    <string name="library_phase_plan">计划</string>
+    <string name="library_phase_progress">进展</string>
+    <string name="library_phase_decision">决策</string>
+    <string name="library_phase_evidence">证据</string>
+    <string name="library_phase_risk">风险</string>
+    <string name="library_phase_validation">验证</string>
+    <string name="library_phase_closed">收尾</string>
+    <string name="library_search_in_memories">搜索记忆与标签</string>
+    <string name="library_search_in_diaries">搜索日记与标签</string>
+    <string name="library_search_in_knowledge">搜索资料与标签</string>
+    <string name="library_folder_new_child">新建子文件夹</string>
 </resources>

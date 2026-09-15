@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.ai.assistance.operit.data.model.Memory
+import com.ai.assistance.operit.data.model.MemoryDiaryPolicy
 import com.ai.assistance.operit.data.model.MemoryLibraryPolicy
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.CancellationException
@@ -44,6 +45,8 @@ data class MemoryUiState(
         val showGraph: Boolean = false,
         val categoryFilter: String? = null,
         val tagFilter: String? = null,
+        /** 只在日记范围生效：active = 进行中，closed = 已完结。 */
+        val diaryStatusFilter: String? = null,
         val sortByTitle: Boolean = false,
         val availableTags: List<String> = emptyList(),
         val isSaving: Boolean = false,
@@ -170,7 +173,9 @@ class MemoryViewModel(
         }
         val memories = withContext(Dispatchers.IO) { scopeMemories.filter { memory ->
             (snapshot.categoryFilter == null || MemoryLibraryPolicy.category(memory) == snapshot.categoryFilter) &&
-                (snapshot.tagFilter == null || memory.tags.any { it.name == snapshot.tagFilter })
+                (snapshot.tagFilter == null || memory.tags.any { it.name == snapshot.tagFilter }) &&
+                // 完结状态由正文的收尾小节推导，没有第二份状态字段可以和正文对不上。
+                (snapshot.diaryStatusFilter == null || MemoryDiaryPolicy.status(memory.content) == snapshot.diaryStatusFilter)
         }.let { records ->
             when {
                 snapshot.sortByTitle -> records.sortedBy { it.title.lowercase() }
@@ -235,7 +240,8 @@ class MemoryViewModel(
     fun setLibraryKind(kind: String) {
         if (_uiState.value.libraryKind == kind) return
         clearSelection()
-        _uiState.update { it.copy(libraryKind = kind, categoryFilter = null, tagFilter = null, selectedMemory = null) }
+        _uiState.update { it.copy(libraryKind = kind, categoryFilter = null, tagFilter = null,
+            diaryStatusFilter = null, selectedMemory = null) }
         searchMemories()
     }
 
@@ -263,9 +269,15 @@ class MemoryViewModel(
         searchMemories()
     }
 
+    fun setDiaryStatusFilter(status: String?) {
+        _uiState.update { it.copy(diaryStatusFilter = status) }
+        searchMemories()
+    }
+
     fun resetFilters() {
         clearSelection()
-        _uiState.update { it.copy(searchQuery = "", appliedSearchQuery = "", selectedFolderPath = "", categoryFilter = null, tagFilter = null, showArchived = false, sortByTitle = false) }
+        _uiState.update { it.copy(searchQuery = "", appliedSearchQuery = "", selectedFolderPath = "", categoryFilter = null,
+            tagFilter = null, diaryStatusFilter = null, showArchived = false, sortByTitle = false) }
         searchMemories()
     }
 
@@ -849,13 +861,13 @@ class MemoryViewModel(
     fun createMemory(title: String, content: String, contentType: String = "text/plain",
         source: String = "user_input", credibility: Float = 0.8f, importance: Float = 0.5f,
         folderPath: String = _uiState.value.selectedFolderPath, tags: List<String> = emptyList(),
-        category: String = "other") {
+        category: String = "other", diaryPhase: String = MemoryDiaryPolicy.NOTE) {
         if (_uiState.value.isSaving) return
         viewModelScope.launch {
             _uiState.update { it.copy(isSaving = true, error = null) }
             try {
                 repository.createMemory(title.trim(), content.trim(), contentType, source,
-                    folderPath, tags, credibility, importance, _uiState.value.libraryKind, category)
+                    folderPath, tags, credibility, importance, _uiState.value.libraryKind, category, diaryPhase)
                 _uiState.update { it.copy(isEditing = false, editingMemory = null) }
                 refreshCurrentSearch()
                 loadFolderPaths()
@@ -870,6 +882,29 @@ class MemoryViewModel(
             }
         }
     }
+    /**
+     * 续写日记：追加一条记录后重新读取当前条目，详情页立刻显示新写入的内容。
+     * 不重读会让时间线停在旧正文，用户看不出这次追加到底有没有生效。
+     */
+    fun appendDiaryEntry(memory: Memory, body: String, phase: String) {
+        if (_uiState.value.isSaving) return
+        viewModelScope.launch {
+            _uiState.update { it.copy(isSaving = true, error = null) }
+            try {
+                val updated = repository.appendDiaryEntry(memory, body, phase)
+                _uiState.update { state ->
+                    if (updated != null && state.selectedMemory?.id == memory.id) state.copy(selectedMemory = updated) else state
+                }
+                refreshCurrentSearch()
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                _uiState.update { it.copy(error = context.getString(R.string.memory_error_append_diary, e.message ?: "Unknown error")) }
+            } finally {
+                _uiState.update { it.copy(isSaving = false) }
+            }
+        }
+    }
+
     /** 编辑记忆 */
     fun updateMemory(
         memory: Memory,

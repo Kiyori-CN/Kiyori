@@ -24,7 +24,19 @@
                 { "name": "folder_path", "description": { "zh": "可选：文件夹路径，默认空（根目录）", "en": "Optional: folder path (default: empty = root)" }, "type": "string", "required": false },
                 { "name": "tags", "description": { "zh": "可选：标签（逗号分隔字符串）", "en": "Optional: tags (comma-separated string)" }, "type": "string", "required": false },
                 { "name": "credibility", "description": { "zh": "可选：可信度 0-1，默认 0.8", "en": "Optional: credibility 0-1 (default: 0.8)" }, "type": "number", "required": false },
-                { "name": "importance", "description": { "zh": "可选：重要性 0-1，默认 0.5", "en": "Optional: importance 0-1 (default: 0.5)" }, "type": "number", "required": false }
+                { "name": "importance", "description": { "zh": "可选：重要性 0-1，默认 0.5", "en": "Optional: importance 0-1 (default: 0.5)" }, "type": "number", "required": false },
+                { "name": "library_kind", "description": { "zh": "可选：memory 记忆 / diary 日记 / knowledge 知识，默认 memory", "en": "Optional: memory / diary / knowledge (default: memory)" }, "type": "string", "required": false },
+                { "name": "phase", "description": { "zh": "可选：仅日记，开篇阶段 note/plan/progress/decision/evidence/risk/validation", "en": "Optional: diary only, opening phase note/plan/progress/decision/evidence/risk/validation" }, "type": "string", "required": false }
+            ]
+        },
+        {
+            "name": "append_diary",
+            "description": { "zh": "向已有日记追加一条带时间戳的记录，不改写既有内容。phase=closed 表示结束。", "en": "Append one timestamped entry to an existing diary without rewriting earlier entries. phase=closed completes it." },
+            "parameters": [
+                { "name": "uuid", "description": { "zh": "可选：日记 UUID（优先使用，可定位同名条目）", "en": "Optional: diary UUID (preferred; resolves duplicate titles)" }, "type": "string", "required": false },
+                { "name": "title", "description": { "zh": "日记标题（未提供 uuid 时必填）", "en": "Diary title (required when uuid is omitted)" }, "type": "string", "required": false },
+                { "name": "content", "description": { "zh": "记录正文，最多 20000 字符；phase=closed 时可省略", "en": "Entry text, up to 20000 characters; optional when phase=closed" }, "type": "string", "required": false },
+                { "name": "phase", "description": { "zh": "可选：note/plan/progress/decision/evidence/risk/validation/closed，默认 note", "en": "Optional: note/plan/progress/decision/evidence/risk/validation/closed (default: note)" }, "type": "string", "required": false }
             ]
         },
         {
@@ -138,9 +150,22 @@ const ExtendedMemoryTools = (function () {
             tags: params.tags,
             credibility: params.credibility,
             importance: params.importance,
+            libraryKind: params.library_kind,
+            phase: params.phase,
             callerCardId: resolveCallerCardId(),
         });
         return { success: result.length > 0, message: '记忆创建完成', data: result };
+    }
+    // 只追加，不改写：要更正之前的记录就再追加一条说明，或显式调用 update_memory 改写全文。
+    async function append_diary(params) {
+        const result = await Tools.Memory.appendDiary({
+            uuid: params.uuid,
+            title: params.title,
+            content: params.content,
+            phase: params.phase,
+            callerCardId: resolveCallerCardId(),
+        });
+        return { success: result.length > 0, message: '日记续写完成', data: result };
     }
     async function update_memory(params) {
         const result = await Tools.Memory.update({
@@ -260,6 +285,7 @@ const ExtendedMemoryTools = (function () {
         // 这些工具都可能修改记忆/偏好，默认不做自动化演示，避免污染用户数据。
         results.push({ tool: 'create_memory', result: { success: null, message: '未测试（会写入记忆库）' } });
         results.push({ tool: 'update_memory', result: { success: null, message: '未测试（会修改记忆库）' } });
+        results.push({ tool: 'append_diary', result: { success: null, message: '未测试（会写入日记）' } });
         results.push({ tool: 'delete_memory', result: { success: null, message: '未测试（会删除记忆库数据）' } });
         results.push({ tool: 'move_memory', result: { success: null, message: '未测试（会批量修改记忆文件夹）' } });
         results.push({ tool: 'link_memories', result: { success: null, message: '未测试（会修改记忆库链接）' } });
@@ -276,6 +302,7 @@ const ExtendedMemoryTools = (function () {
     return {
         create_memory: (params) => wrapToolExecution(create_memory, params),
         update_memory: (params) => wrapToolExecution(update_memory, params),
+        append_diary: (params) => wrapToolExecution(append_diary, params),
         delete_memory: (params) => wrapToolExecution(delete_memory, params),
         move_memory: (params) => wrapToolExecution(move_memory, params),
         link_memories: (params) => wrapToolExecution(link_memories, params),
@@ -288,6 +315,7 @@ const ExtendedMemoryTools = (function () {
 })();
 exports.create_memory = ExtendedMemoryTools.create_memory;
 exports.update_memory = ExtendedMemoryTools.update_memory;
+exports.append_diary = ExtendedMemoryTools.append_diary;
 exports.delete_memory = ExtendedMemoryTools.delete_memory;
 exports.move_memory = ExtendedMemoryTools.move_memory;
 exports.link_memories = ExtendedMemoryTools.link_memories;

@@ -9,6 +9,7 @@ import androidx.compose.ui.window.DialogProperties
 import com.ai.assistance.operit.data.model.CloudEmbeddingConfig
 import com.ai.assistance.operit.data.model.MemoryLibraryPolicy
 import com.ai.assistance.operit.ui.features.memory.screens.memoryCategoryLabel
+import com.ai.assistance.operit.ui.features.memory.screens.memoryKindLabel
 import com.ai.assistance.operit.ui.features.memory.screens.memorySourceLabel
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -58,7 +59,7 @@ fun MemoryInfoDialog(
         Surface(Modifier.padding(16.dp).widthIn(max = 600.dp).fillMaxWidth().fillMaxHeight(0.9f), shape = KiyoriUiShapes.dialog) {
             Column {
                 Row(Modifier.fillMaxWidth().padding(start = 24.dp, end = 8.dp, top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text(stringResource(if (MemoryLibraryPolicy.kind(memory) == MemoryLibraryPolicy.KNOWLEDGE) R.string.library_knowledge else R.string.library_memories), Modifier.weight(1f), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                    Text(memoryKindLabel(MemoryLibraryPolicy.kind(memory)), Modifier.weight(1f), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
                     Box {
                         IconButton(onClick = { menu = true }, enabled = !isSaving) { Icon(Icons.Outlined.MoreVert, stringResource(R.string.library_more)) }
                         DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {

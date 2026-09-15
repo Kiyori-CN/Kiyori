@@ -11,6 +11,7 @@ import com.ai.assistance.operit.core.tools.ToolExecutor
 import com.ai.assistance.operit.data.model.AITool
 import com.ai.assistance.operit.data.model.CharacterCardMemoryProfileBindingMode
 import com.ai.assistance.operit.data.model.Memory
+import com.ai.assistance.operit.data.model.MemoryDiaryPolicy
 import com.ai.assistance.operit.data.model.MemoryLibraryPolicy
 import com.ai.assistance.operit.data.model.ToolResult
 import com.ai.assistance.operit.data.model.ToolValidationResult
@@ -198,6 +199,7 @@ class MemoryQueryToolExecutor(private val context: Context) : ToolExecutor {
                 "delete_memory" -> executeDeleteMemory(tool)
                 "move_memory" -> executeMoveMemory(tool)
                 "memory_folders" -> executeMemoryFolders(tool)
+                "append_diary" -> executeAppendDiary(tool)
                 "update_user_profile" -> executeUpdateUserProfile(tool)
                 "update_user_preferences" -> executeLegacyUserPreferencesUpdate(tool)
                 "link_memories" -> executeLinkMemories(tool)
@@ -281,8 +283,9 @@ class MemoryQueryToolExecutor(private val context: Context) : ToolExecutor {
         }
         val validLimit = (limit ?: 20).coerceIn(1, 100)
         val kind = tool.parameters.find { it.name == "library_kind" }?.value?.takeIf { it != "all" }
-        if (kind != null && kind !in listOf(MemoryLibraryPolicy.MEMORY, MemoryLibraryPolicy.KNOWLEDGE)) {
-            return ToolResult(toolName = tool.name, success = false, result = StringResultData(""), error = "library_kind must be memory, knowledge or all")
+        if (kind != null && kind !in MemoryLibraryPolicy.kinds) {
+            return ToolResult(toolName = tool.name, success = false, result = StringResultData(""),
+                error = "library_kind must be one of " + MemoryLibraryPolicy.kinds.joinToString(", ") + ", or all")
         }
         val (snapshotState, snapshotCreated) = getOrCreateQuerySnapshot(profileId, normalizedSnapshotId)
 
@@ -560,7 +563,8 @@ class MemoryQueryToolExecutor(private val context: Context) : ToolExecutor {
                 credibility = tool.parameters.find { it.name == "credibility" }?.value?.toFloatOrNull() ?: 0.8f,
                 importance = tool.parameters.find { it.name == "importance" }?.value?.toFloatOrNull() ?: 0.5f,
                 libraryKind = tool.parameters.find { it.name == "library_kind" }?.value ?: MemoryLibraryPolicy.MEMORY,
-                category = tool.parameters.find { it.name == "category" }?.value ?: "other"
+                category = tool.parameters.find { it.name == "category" }?.value ?: "other",
+                diaryPhase = tool.parameters.find { it.name == "phase" }?.value ?: MemoryDiaryPolicy.NOTE
             )
             
             if (memory != null) {
@@ -587,6 +591,59 @@ class MemoryQueryToolExecutor(private val context: Context) : ToolExecutor {
                 success = false,
                 result = StringResultData(""),
                 error = "Failed to create memory: ${e.message}"
+            )
+        }
+    }
+
+    /**
+     * 续写日记：只追加，不改写。既有记录保持原样，因此模型不能用它掩盖之前写错的结论，
+     * 需要更正时应当再追加一条说明，或显式走 update_memory 改写全文。
+     */
+    private suspend fun executeAppendDiary(tool: AITool): ToolResult {
+        val memoryRepository = getMemoryRepository(resolveActiveProfileId(tool))
+        val title = tool.parameters.find { it.name == "title" }?.value
+        if (title.isNullOrBlank() && tool.parameters.none { it.name == "uuid" && it.value.isNotBlank() }) {
+            return ToolResult(
+                toolName = tool.name, success = false, result = StringResultData(""),
+                error = "uuid or title is required to identify the diary"
+            )
+        }
+        val content = tool.parameters.find { it.name == "content" }?.value.orEmpty()
+        val rawPhase = tool.parameters.find { it.name == "phase" }?.value?.trim()?.lowercase(Locale.US)
+        if (!rawPhase.isNullOrEmpty() && rawPhase !in MemoryDiaryPolicy.phases) {
+            return ToolResult(
+                toolName = tool.name, success = false, result = StringResultData(""),
+                error = "phase must be one of " + MemoryDiaryPolicy.phases.joinToString(", ")
+            )
+        }
+        val phase = rawPhase?.takeIf { it.isNotEmpty() } ?: MemoryDiaryPolicy.NOTE
+
+        return try {
+            val memory = resolveMemory(tool, memoryRepository, title)
+            if (memory == null) {
+                return ToolResult(
+                    toolName = tool.name, success = false, result = StringResultData(""),
+                    error = "Diary not found (" + describeLocator(tool, title) + ")"
+                )
+            }
+            if (MemoryLibraryPolicy.kind(memory) != MemoryLibraryPolicy.DIARY) {
+                return ToolResult(
+                    toolName = tool.name, success = false, result = StringResultData(""),
+                    error = "Entry " + memory.uuid + " is not a diary. Create one with create_memory(library_kind=diary)."
+                )
+            }
+            val updated = requireNotNull(memoryRepository.appendDiaryEntry(memory, content, phase)) { "Append failed" }
+            val diary = MemoryDiaryPolicy.parse(updated.content)
+            val message = "Appended entry " + diary.entries.size + " (" + phase + ") to diary UUID: " +
+                updated.uuid + "; status: " + diary.status + ". Read the full timeline with get_memory_by_title(uuid)."
+            AppLogger.d(TAG, message)
+            ToolResult(toolName = tool.name, success = true, result = StringResultData(message))
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            AppLogger.e(TAG, "Failed to append diary entry", e)
+            ToolResult(
+                toolName = tool.name, success = false, result = StringResultData(""),
+                error = "Failed to append diary entry: " + (e.message ?: e.javaClass.simpleName)
             )
         }
     }

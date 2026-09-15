@@ -24,3 +24,18 @@ internal val memoryMoveToolPrompt = ToolPrompt(
         ToolParameterSchema(name = "target_folder_path", type = "string", description = "Destination folder; empty string means root. Titles stay unique per folder", required = true),
     ),
 )
+
+/**
+ * 日记只追加，不改写。历史记录是判断当时依据的证据，模型不能通过覆盖来抹掉走过的弯路；
+ * 需要更正时再追加一条说明，或显式改写全文。
+ */
+internal val memoryDiaryToolPrompt = ToolPrompt(
+    name = "append_diary",
+    description = "Append one timestamped entry to an existing diary (library_kind=diary). Existing entries are never rewritten. Create the diary first with create_memory(library_kind=diary); its content becomes the opening entry. A diary covers one work segment, so several diaries per day are normal. phase=closed marks the diary completed; appending again afterwards marks it in progress once more.",
+    parametersStructured = listOf(
+        ToolParameterSchema(name = "uuid", type = "string", description = "Stable diary UUID; preferred over title to disambiguate", required = false),
+        ToolParameterSchema(name = "title", type = "string", description = "Exact diary title, required unless uuid is supplied", required = false),
+        ToolParameterSchema(name = "content", type = "string", description = "Entry text, up to 20000 characters. Required unless phase=closed", required = false),
+        ToolParameterSchema(name = "phase", type = "string", description = "note, plan, progress, decision, evidence, risk, validation, closed", required = false, default = "\"note\""),
+    ),
+)

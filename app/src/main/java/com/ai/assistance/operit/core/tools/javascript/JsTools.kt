@@ -1292,7 +1292,23 @@ fun getJsToolsDefinition(): String {
                     if (normalizedCallerCardId !== undefined) params.caller_card_id = normalizedCallerCardId;
                     if (options.libraryKind !== undefined) params.library_kind = options.libraryKind;
                     if (options.category !== undefined) params.category = options.category;
+                    if (options.phase !== undefined) params.phase = options.phase;
                     return toolCall("create_memory", params);
+                },
+                // 续写日记：只追加一条带时间戳的记录，不覆盖既有正文
+                appendDiary: (uuidOrOptions, content, phase, callerCardId) => {
+                    const options =
+                        uuidOrOptions && typeof uuidOrOptions === 'object' && !Array.isArray(uuidOrOptions)
+                            ? uuidOrOptions
+                            : { uuid: uuidOrOptions, content, phase, callerCardId };
+                    const params = {};
+                    if (options.uuid !== undefined && options.uuid !== null) params.uuid = options.uuid;
+                    if (options.title !== undefined && options.title !== null) params.title = options.title;
+                    if (options.content !== undefined && options.content !== null) params.content = options.content;
+                    if (options.phase !== undefined && options.phase !== null) params.phase = options.phase;
+                    const normalizedCallerCardId = Tools.Memory._normalizeCallerCardId(options.callerCardId);
+                    if (normalizedCallerCardId !== undefined) params.caller_card_id = normalizedCallerCardId;
+                    return toolCall("append_diary", params);
                 },
                 // 更新记忆
                 update: (oldTitle, updates = {}, callerCardId) => {

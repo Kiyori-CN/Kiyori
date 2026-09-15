@@ -22,11 +22,13 @@ import androidx.compose.ui.unit.dp
 import com.ai.assistance.operit.ui.components.KiyoriModalBottomDrawer
 import com.ai.assistance.operit.ui.components.KiyoriDrawerScaffold
 import com.ai.assistance.operit.R
+import com.ai.assistance.operit.ui.features.memory.screens.diaryPhaseLabel
 import com.ai.assistance.operit.ui.features.memory.screens.memoryCategoryLabel
+import com.ai.assistance.operit.data.model.MemoryDiaryPolicy
 import com.ai.assistance.operit.data.model.MemoryLibraryPolicy
 import com.ai.assistance.operit.data.model.Memory
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun EditMemoryDialog(
     memory: Memory?,
@@ -46,9 +48,13 @@ fun EditMemoryDialog(
         importance: Float,
         folderPath: String,
         tags: List<String>,
-        category: String
+        category: String,
+        diaryPhase: String
     ) -> Unit
 ) {
+    // 日记的新建与编辑是两种动作：新建写的是开篇，编辑改的是已经发生过的记录。
+    // 两者共用一个表单，但必须让用户看清自己在做哪一件。
+    val diary = libraryKind == MemoryLibraryPolicy.DIARY || (memory != null && MemoryLibraryPolicy.kind(memory) == MemoryLibraryPolicy.DIARY)
     val currentLocale = LocalConfiguration.current.locales[0]
     val defaultFolder = initialFolderPath
     var category by rememberSaveable(memory?.id) { mutableStateOf(memory?.let(MemoryLibraryPolicy::category) ?: "other") }
@@ -62,6 +68,7 @@ fun EditMemoryDialog(
     var folderPath by rememberSaveable(memory?.id) { mutableStateOf(memory?.folderPath ?: defaultFolder) }
     var tags by rememberSaveable(memory?.id) { mutableStateOf(memory?.tags?.map { it.name } ?: emptyList<String>()) }
     var tagDraft by rememberSaveable(memory?.id) { mutableStateOf("") }
+    var diaryPhase by rememberSaveable(memory?.id) { mutableStateOf(MemoryDiaryPolicy.PLAN) }
     
     var showAdvanced by rememberSaveable { mutableStateOf(false) }
     var showDiscard by remember { mutableStateOf(false) }
@@ -88,8 +95,13 @@ fun EditMemoryDialog(
         },
     ) { dismiss ->
         KiyoriDrawerScaffold(
-            title = stringResource(if (memory != null) R.string.memory_edit_memory
-                else if (libraryKind == MemoryLibraryPolicy.KNOWLEDGE) R.string.library_new_note else R.string.library_new_memory),
+            title = stringResource(when {
+                memory != null && diary -> R.string.library_diary_edit_full
+                memory != null -> R.string.memory_edit_memory
+                libraryKind == MemoryLibraryPolicy.KNOWLEDGE -> R.string.library_new_note
+                libraryKind == MemoryLibraryPolicy.DIARY -> R.string.library_new_diary
+                else -> R.string.library_new_memory
+            }),
             onClose = dismiss,
             footer = {
                 Row(
@@ -113,7 +125,8 @@ fun EditMemoryDialog(
                                 importance,
                                 folderPath,
                                 (tags + tagDraft.trim()).filter { it.isNotBlank() }.distinct(),
-                                category
+                                category,
+                                diaryPhase
                             )
                         }
                     ) {
@@ -134,18 +147,36 @@ fun EditMemoryDialog(
             OutlinedTextField(
                 value = content,
                 onValueChange = { content = it },
-                label = { Text(stringResource(R.string.memory_content)) },
+                label = { Text(stringResource(if (diary && memory == null) R.string.library_diary_preface else R.string.memory_content)) },
                 modifier = Modifier.fillMaxWidth().heightIn(min = 160.dp, max = 280.dp),
                 enabled = !isSaving && memory?.isDocumentNode != true
             )
-            var categoryExpanded by remember { mutableStateOf(false) }
-            Box {
-                OutlinedButton(onClick = { categoryExpanded = true }, enabled = !isSaving) {
-                    Text(stringResource(R.string.library_category) + " · " + memoryCategoryLabel(category))
+            // 编辑全文会改写已经写下的记录；这句话必须出现在输入框旁边，而不是藏进确认弹窗。
+            if (diary) Text(
+                stringResource(if (memory == null) R.string.library_diary_new_hint else R.string.library_diary_edit_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            if (diary && memory == null) {
+                // 开篇本身就是第一条记录，因此阶段在这里就要选定，而不是等到第一次续写。
+                Text(stringResource(R.string.library_diary_phase), style = MaterialTheme.typography.labelLarge)
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    MemoryDiaryPolicy.appendablePhases.forEach { value ->
+                        FilterChip(selected = diaryPhase == value, onClick = { diaryPhase = value },
+                            enabled = !isSaving, label = { Text(diaryPhaseLabel(value)) })
+                    }
                 }
-                DropdownMenu(expanded = categoryExpanded, onDismissRequest = { categoryExpanded = false }) {
-                    MemoryLibraryPolicy.categories.forEach { value ->
-                        DropdownMenuItem(text = { Text(memoryCategoryLabel(value)) }, onClick = { category = value; categoryExpanded = false })
+            }
+            if (!diary) {
+                var categoryExpanded by remember { mutableStateOf(false) }
+                Box {
+                    OutlinedButton(onClick = { categoryExpanded = true }, enabled = !isSaving) {
+                        Text(stringResource(R.string.library_category) + " · " + memoryCategoryLabel(category))
+                    }
+                    DropdownMenu(expanded = categoryExpanded, onDismissRequest = { categoryExpanded = false }) {
+                        MemoryLibraryPolicy.categories.forEach { value ->
+                            DropdownMenuItem(text = { Text(memoryCategoryLabel(value)) }, onClick = { category = value; categoryExpanded = false })
+                        }
                     }
                 }
             }

@@ -5303,6 +5303,7 @@
     <string name="toolreg_update_memory_desc">Update memory: %1$s -&gt; %2$s</string>
     <string name="toolreg_delete_memory_desc">Delete memory: %1$s</string>
     <string name="toolreg_memory_folders_desc">Memory folders: %1$s</string>
+    <string name="toolreg_append_diary_desc">Continue diary: %1$s</string>
     <string name="toolreg_link_memories_desc">Link memories: [%1$s] -&gt; [%2$s] (type: %3$s)</string>
     <string name="toolreg_use_package_desc">Use tool package: %1$s</string>
     <string name="toolreg_calculate_desc">Calculate expression: %1$s</string>
@@ -5651,6 +5652,7 @@
     <string name="memory_error_import_document">Failed to import document: %1$s</string>
     <string name="memory_error_create_memory">Failed to create memory: %1$s</string>
     <string name="memory_error_update_memory">Failed to update memory: %1$s</string>
+    <string name="memory_error_append_diary">Failed to continue the diary: %1$s</string>
     <string name="memory_error_delete_memory">Failed to delete memory: %1$s</string>
     <string name="memory_error_delete_selected">Failed to batch delete: %1$s</string>
     <string name="memory_error_update_link">Failed to update link: %1$s</string>

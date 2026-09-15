@@ -38,6 +38,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ai.assistance.operit.data.preferences.preferencesManager
 import com.ai.assistance.operit.ui.features.memory.screens.dialogs.BatchDeleteConfirmDialog
+import com.ai.assistance.operit.data.model.MemoryLibraryPolicy
+import com.ai.assistance.operit.ui.features.memory.screens.dialogs.DiaryViewDialog
 import com.ai.assistance.operit.ui.features.memory.screens.dialogs.DocumentViewDialog
 import com.ai.assistance.operit.ui.features.memory.screens.dialogs.EditMemoryDialog
 import com.ai.assistance.operit.ui.features.memory.screens.dialogs.LinkMemoryDialog
@@ -339,6 +341,20 @@ fun MemoryScreen() {
                     isDirty = memoryTitle != uiState.selectedMemory!!.title || chunkStates.any { (id, content) -> originalChunks[id] != content },
                     folderPath = uiState.selectedMemory?.folderPath ?: ""
                 )
+            } else if (uiState.selectedMemory != null &&
+                MemoryLibraryPolicy.kind(uiState.selectedMemory!!) == MemoryLibraryPolicy.DIARY) {
+                // 日记有自己的阅读与续写形态；套用普通条目详情会把时间线压成一整段正文。
+                val diary = uiState.selectedMemory!!
+                DiaryViewDialog(
+                    memory = diary,
+                    isSaving = uiState.isSaving,
+                    error = uiState.error,
+                    onDismiss = { viewModel.clearSelection() },
+                    onEdit = { viewModel.startEditing(diary); viewModel.clearSelection() },
+                    onDelete = { viewModel.deleteMemory(diary.id) },
+                    onArchive = { viewModel.archiveMemory(diary) },
+                    onAppend = { body, phase -> viewModel.appendDiaryEntry(diary, body, phase) },
+                )
             } else if (uiState.selectedMemory != null) {
                 MemoryInfoDialog(
                     memory = uiState.selectedMemory!!,
@@ -399,10 +415,10 @@ fun MemoryScreen() {
                     isSaving = uiState.isSaving,
                     error = uiState.error,
                     onDismiss = { viewModel.cancelEditing() },
-                    onSave = { memory, title, content, contentType, source, credibility, importance, folderPath, tags, category ->
+                    onSave = { memory, title, content, contentType, source, credibility, importance, folderPath, tags, category, diaryPhase ->
                         if (memory == null) {
-                            // 创建新记忆的逻辑（如果需要的话）
-                             viewModel.createMemory(title, content, contentType, source, credibility, importance, folderPath, tags, category)
+                            // 新建条目；日记的开篇会被仓库包装成第一条带时间戳的记录。
+                            viewModel.createMemory(title, content, contentType, source, credibility, importance, folderPath, tags, category, diaryPhase)
                         } else {
                             viewModel.updateMemory(
                                 memory = memory,

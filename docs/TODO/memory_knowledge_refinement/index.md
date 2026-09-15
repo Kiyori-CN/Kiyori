@@ -4,6 +4,77 @@ status: verification_pending
 
 # 记忆与知识库重构
 
+## 2026-09-15 日记内容类型引入轮
+
+起点 `main / bb1bcfb5d`，工作区带上一轮遗留的日记分段草稿；用户授权实现、构建、提交推送。
+
+- 目标：把记忆库拆成「记忆 / 日记 / 知识」三个内容类型；日记支持一天多篇、按时间线续写与结束，
+  并在 Agent 侧提供只追加的写入工具。
+- 范围：`MemoryDiaryPolicy`（新增）、`MemoryLibraryPolicy`、`MemoryRepository` 的创建/更新/追加路径、
+  `MemoryViewModel` 与记忆库页面、日记详情与卡片、筛选面板、目录抽屉、`MemoryQueryToolExecutor`、
+  工具提示与注册、`JsTools.Memory`，以及中英文资源。
+- 非目标：不改 ObjectBox schema、备份格式与检索打分算法；不新增第二套存储；不安装或操作设备，不调用真实模型。
+- 关键决定：
+  - 日记正文内联保存结构，不新增实体。备份、导出、嵌入和检索因此沿用同一条正文路径，
+    旧库与旧备份不需要迁移；代价是单篇正文会持续变长，所以单次追加有 20000 字符上限并明确拒绝超限。
+  - 小节标题里的阶段是与界面语言无关的稳定键，界面渲染时才翻译；写入本地化文案会让历史记录在切换语言后含义漂移。
+  - 完结状态由「最后一节是否为 `closed`」推导，不新增状态字段，避免出现和正文对不上的第二份事实。
+  - 上一轮遗留的日记分段草稿在仓库层会被 `require(libraryKind in [memory, knowledge])` 拒绝，
+    本轮改为统一的 `MemoryLibraryPolicy.requireWritableKind`，类型表只有一份。
+  - 续写走与普通编辑相同的写入路径，复用已有的并发校验、重新嵌入和索引失效；
+    但追加前重新读取库中正文，否则两次续写之间会丢掉先写入的那条。
+- 风险与回滚：关注长日记的正文规模、时间线渲染性能、键盘遮挡续写区、旋转后的草稿保留，
+  以及模型把 `append_diary` 当成改写工具。回滚本轮提交即可，持久化格式未变，
+  已写入的日记在回滚后仍是可读的普通记忆正文。
+- 验收：本地源码审阅、日记结构单测、Debug APK 与候选树/远端 ref；
+  真机视觉、TalkBack、横屏、大字体、IME 与真实模型的工具调用保持 `verification_pending`。
+
+同轮完成的界面细节：
+
+- 分段控件由两段改三段，去掉选中打勾图标并压缩字号，窄屏下三个标签不被截断。
+- 搜索占位文案按内容类型区分，不再用一句话覆盖三种内容。
+- 筛选面板按类型给出条件：日记显示进行中/已完结，其余显示主题；顶栏筛选徽标计入日记状态。
+- 目录抽屉的目录菜单新增「新建子文件夹」，建嵌套目录不再需要手打完整路径。
+- 日记详情的续写草稿改为仅在追加成功后清空；此前的写法会在旋转屏幕时吞掉已恢复的草稿。
+
+### 本轮实际验证结果
+
+2026-09-15 本地验证（串行执行，均通过）：
+
+```powershell
+.\gradlew.bat :app:testDebugUnitTest --tests '*MemoryDiaryPolicyTest' --tests '*MemoryLibraryPolicyTest' --tests '*MemoryUiPolicyTest' --tests '*MemoryExportCompatibilityTest' --tests '*MemoryRepositoryCompatibilityTest' --tests '*MemoryObjectBoxCompatibilityTest' :app:assembleDebug --no-daemon --console=plain
+.\.venv\Scripts\python.exe -B ci/script/check_documentation.py --repository . --base bb1bcfb5d
+.\.venv\Scripts\python.exe -B ci/script/check_formal_readiness.py --repository . --require-main
+.\node_modules\.bin\tsc.cmd --noEmit --skipLibCheck --target ES2020 examples/types/memory.d.ts examples/types/results.d.ts
+```
+
+- 新增 `MemoryDiaryPolicyTest` 9 项：旧纯文本落入开篇、追加保留全部历史、完结由末节推导、
+  空正文仅收尾可用、未知阶段保留原文、摘要跟随最新有内容记录、超长拒绝、
+  尾部扫描的 `status` 与完整 `parse` 结果一致、三种可写类型校验。
+- `:app:compileDebugKotlin` 无本轮新增警告；首轮出现的 `Icons.Outlined.EventNote` 弃用提示已改用
+  `Icons.AutoMirrored.Outlined.EventNote` 消除。
+- 文档检查 525 文件、0 问题；正式开发准备检查 PASS；`memory.d.ts` / `results.d.ts` 类型检查通过。
+- `extended_memory_tools.js` 的 METADATA JSON 与脚本体分别用 `JSON.parse` 和 `new Function` 解析验证。
+- 未运行：单元全量、Lint、Release 构建、设备安装与真实模型的工具调用。
+  `memory_library.xml` 仍只提供 `values` 与 `values-en`，本轮新增 40 个 key、移除 1 个被按类型文案取代的 key，沿用该模块既有约定，
+  其余 5 个语种的缺失与基线一致，不在本轮机器生成。
+
+### Debug 产物
+
+2026-09-15 最终串行 `:app:assembleDebug` 成功，用时 5 分 54 秒。
+标准路径 `app/build/outputs/apk/debug/app-debug.apk`，487,148,155 字节。
+
+SHA-256：`28810c1d583eb04e66c847a0237ffe60b38e396058738aec98141d93fae5d1b8`。
+产物信息只描述该次构建，不代表设备或远端 CI 验收。
+
+### 已知限制
+
+- 日记正文随续写单调增长，长期使用的单篇日记会让每次追加重算整篇嵌入；
+  当前只有单条 20000 字符上限，没有整篇上限或分段落盘，长库表现待现场观察。
+- 时间戳按写入时的设备本地时间落盘，跨时区补写会显示为当时设备的时间；不做二次换算是刻意选择。
+- 日记的完结状态、分组日期与摘要都来自正文解析；用户手工改写全文后，这些派生显示会随之改变。
+- 续写区在小屏 + 输入法弹出时依赖 `imePadding`，真机 IME、横屏与大字体表现保持 `verification_pending`。
+
 ## 2026-09-15 文件夹模式与工具缺陷修复轮
 
 起点 `main / 37672dd7793d633df73a1fc13b70ee3103001d18`，工作区干净；用户授权实现、构建、提交推送。

@@ -13,7 +13,7 @@ export namespace Memory {
     }
 
     interface QueryOptions extends CallerScopedOptions {
-        libraryKind?: "memory" | "knowledge" | "all";
+        libraryKind?: "memory" | "diary" | "knowledge" | "all";
         query: string;
         folderPath?: string;
         limit?: number;
@@ -31,15 +31,27 @@ export namespace Memory {
         limit?: number;
     }
 
+    type DiaryPhase = "note" | "plan" | "progress" | "decision" | "evidence" | "risk" | "validation" | "closed";
+
     interface CreateOptions extends CallerScopedOptions {
-        libraryKind?: "memory" | "knowledge";
+        libraryKind?: "memory" | "diary" | "knowledge";
         category?: "preference" | "fact" | "decision" | "experience" | "event" | "other";
+        /** Diary only: phase of the opening entry. Ignored for other kinds */
+        phase?: Exclude<DiaryPhase, "closed">;
         title: string;
         content: string;
         contentType?: string;
         source?: string;
         folderPath?: string;
         tags?: string;
+    }
+
+    interface AppendDiaryOptions extends CallerScopedOptions {
+        /** Exact diary title, required unless uuid is supplied */
+        title?: string;
+        /** Entry text, up to 20000 characters. Required unless phase is "closed" */
+        content?: string;
+        phase?: DiaryPhase;
     }
 
     /**
@@ -92,6 +104,18 @@ export namespace Memory {
      */
     function create(title: string, content: string, contentType?: string, source?: string, folderPath?: string, tags?: string, callerCardId?: string): Promise<string>;
     function create(options: CreateOptions): Promise<string>;
+
+    /**
+     * Append one timestamped entry to an existing diary (libraryKind "diary").
+     * Existing entries are never rewritten; use update() only to rewrite the whole text.
+     * @param uuid - Stable diary UUID; preferred over title
+     * @param content - Entry text. Required unless phase is "closed"
+     * @param phase - Entry phase; "closed" marks the diary completed
+     * @param callerCardId - Optional caller role card id used to select the bound memory profile
+     * @returns Append result as a string, including the new entry number and diary status
+     */
+    function appendDiary(uuid: string, content?: string, phase?: DiaryPhase, callerCardId?: string): Promise<string>;
+    function appendDiary(options: AppendDiaryOptions): Promise<string>;
 
     /**
      * Update options for memory update

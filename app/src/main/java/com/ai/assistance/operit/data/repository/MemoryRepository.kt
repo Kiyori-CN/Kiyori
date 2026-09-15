@@ -5,6 +5,7 @@ import com.ai.assistance.operit.data.audit.ConversationAuditRedactor
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.data.db.ObjectBoxManager
 import com.ai.assistance.operit.data.model.Memory
+import com.ai.assistance.operit.data.model.MemoryDiaryPolicy
 import com.ai.assistance.operit.data.model.MemoryLibraryPolicy
 import com.ai.assistance.operit.data.model.MemoryLink
 import com.ai.assistance.operit.data.model.MemoryProperty
@@ -2380,11 +2381,19 @@ class MemoryRepository(private val context: Context, profileId: String) {
         credibility: Float = 0.8f,
         importance: Float = 0.5f,
         libraryKind: String = MemoryLibraryPolicy.MEMORY,
-        category: String = "other"
+        category: String = "other",
+        diaryPhase: String = MemoryDiaryPolicy.NOTE
     ): Memory? = withContext(Dispatchers.IO) {
         require(title.isNotBlank() && content.isNotBlank()) { "标题和正文不能为空" }
-        require(libraryKind in listOf(MemoryLibraryPolicy.MEMORY, MemoryLibraryPolicy.KNOWLEDGE))
+        MemoryLibraryPolicy.requireWritableKind(libraryKind)
         require(category in MemoryLibraryPolicy.categories)
+        // 日记的开篇内容就是第一条记录：正文结构只在这里生成一次，
+        // UI 与工具都不自己拼时间戳，否则两条路径写出的日记会解析成不同结构。
+        val storedContent = if (libraryKind == MemoryLibraryPolicy.DIARY) {
+            MemoryDiaryPolicy.seed(content.trim(), diaryPhase, Date())
+        } else {
+            content.trim()
+        }
         val normalizedTags = tags
             ?.map { it.trim() }
             ?.filter { it.isNotEmpty() }
@@ -2402,7 +2411,7 @@ class MemoryRepository(private val context: Context, profileId: String) {
 
         val memory = Memory(
             title = title,
-            content = content,
+            content = storedContent,
             contentType = contentType,
             source = source,
             credibility = credibility.coerceIn(0f, 1f),
@@ -2446,7 +2455,7 @@ class MemoryRepository(private val context: Context, profileId: String) {
         val expectedUpdatedAt = memory.updatedAt.time
         val draft = requireNotNull(memoryBox.get(memory.id)) { "条目已被删除" }
         check(draft.updatedAt.time == expectedUpdatedAt) { "条目已被其他操作修改，请刷新后重试" }
-        require(newLibraryKind in listOf(MemoryLibraryPolicy.MEMORY, MemoryLibraryPolicy.KNOWLEDGE))
+        MemoryLibraryPolicy.requireWritableKind(newLibraryKind)
         require(newCategory == MemoryLibraryPolicy.category(memory) || newCategory.isBlank() || newCategory in MemoryLibraryPolicy.categories)
         val cloudConfig = searchSettingsPreferences.loadCloudEmbedding()
         val previousDimension = draft.embedding?.vector?.size
@@ -2517,6 +2526,31 @@ class MemoryRepository(private val context: Context, profileId: String) {
             }
         }
         draft
+    }
+
+    /**
+     * 续写日记：在正文末尾追加一条带时间戳的记录。
+     *
+     * 追加走与普通编辑相同的写入路径，因此并发校验、重新嵌入和索引失效都只有一份实现；
+     * 历史记录不被改写，续写只增加新的小节。已归档的日记先恢复再续写，
+     * 否则追加的内容会立刻落进检索范围之外。
+     */
+    suspend fun appendDiaryEntry(
+        memory: Memory,
+        body: String,
+        phase: String = MemoryDiaryPolicy.NOTE,
+    ): Memory? = withContext(Dispatchers.IO) {
+        require(MemoryLibraryPolicy.kind(memory) == MemoryLibraryPolicy.DIARY) { "只有日记可以续写" }
+        require(!memory.archived) { "已归档的日记需要先恢复才能续写" }
+        // 追加必须基于库里的最新正文。沿用调用方手里的快照会在两次续写之间丢掉先写入的那条，
+        // 而追加本身没有“覆盖”语义，重新读取不会掩盖任何冲突。
+        val current = requireNotNull(memoryBox.get(memory.id)) { "日记已被删除" }
+        updateMemory(
+            memory = current,
+            newTitle = current.title,
+            newContent = MemoryDiaryPolicy.append(current.content, body, phase, Date()),
+            newLibraryKind = MemoryLibraryPolicy.DIARY,
+        )
     }
 
     /**

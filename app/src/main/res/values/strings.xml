@@ -5747,6 +5747,7 @@
     <string name="toolreg_update_memory_desc">更新记忆: %1$s -&gt; %2$s</string>
     <string name="toolreg_delete_memory_desc">删除记忆: %1$s</string>
     <string name="toolreg_memory_folders_desc">记忆文件夹: %1$s</string>
+    <string name="toolreg_append_diary_desc">续写日记: %1$s</string>
     <string name="toolreg_link_memories_desc">链接记忆: 「%1$s」 -&gt; 「%2$s」 (类型: %3$s)</string>
     <string name="toolreg_use_package_desc">使用工具包: %1$s</string>
     <string name="toolreg_calculate_desc">计算表达式: %1$s</string>
@@ -5999,6 +6000,7 @@
     <string name="memory_error_import_document">导入文档失败: %1$s</string>
     <string name="memory_error_create_memory">创建记忆失败: %1$s</string>
     <string name="memory_error_update_memory">更新记忆失败: %1$s</string>
+    <string name="memory_error_append_diary">续写日记失败: %1$s</string>
     <string name="memory_error_delete_memory">删除记忆失败: %1$s</string>
     <string name="memory_error_delete_selected">批量删除失败: %1$s</string>
     <string name="memory_error_update_link">更新连接失败: %1$s</string>

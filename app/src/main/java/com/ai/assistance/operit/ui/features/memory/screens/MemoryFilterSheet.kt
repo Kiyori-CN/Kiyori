@@ -12,6 +12,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import com.ai.assistance.operit.R
+import com.ai.assistance.operit.data.model.MemoryDiaryPolicy
 import com.ai.assistance.operit.data.model.MemoryLibraryPolicy
 import com.ai.assistance.operit.ui.features.memory.viewmodel.MemoryUiState
 import com.ai.assistance.operit.ui.features.memory.viewmodel.MemoryViewModel
@@ -25,6 +26,7 @@ import androidx.compose.ui.semantics.semantics
 @Composable
 internal fun MemoryFilterSheet(state: MemoryUiState, viewModel: MemoryViewModel, onDismiss: () -> Unit) {
     var tagQuery by remember { mutableStateOf("") }
+    val diary = state.libraryKind == MemoryLibraryPolicy.DIARY
     val tagOptions = remember(state.availableTags, state.tagFilter) {
         // 已选标签在当前查询变成空结果时仍可查看和取消，不能突然从选择器消失。
         (state.availableTags + listOfNotNull(state.tagFilter)).distinct().sorted()
@@ -51,12 +53,25 @@ internal fun MemoryFilterSheet(state: MemoryUiState, viewModel: MemoryViewModel,
                         FilterChip(selected = state.sortByTitle, onClick = { viewModel.setSortByTitle(true) }, label = { Text(stringResource(R.string.library_sort_title)) })
                     }
                 }
-                item {
+                // 主题是记忆的分类语义；日记按推进状态筛选，知识按主题归类仍然成立。
+                // 给日记也列一遍“偏好/事实/决策”只会提供一组永远筛不出东西的条件。
+                if (!diary) item {
                     Text(stringResource(R.string.library_category), style = MaterialTheme.typography.titleSmall)
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         FilterChip(selected = state.categoryFilter == null, onClick = { viewModel.setCategoryFilter(null) }, label = { Text(stringResource(R.string.library_all_categories)) })
                         MemoryLibraryPolicy.categories.forEach { category ->
                             FilterChip(selected = state.categoryFilter == category, onClick = { viewModel.setCategoryFilter(category) }, label = { Text(memoryCategoryLabel(category)) })
+                        }
+                    }
+                }
+                if (diary) item {
+                    Text(stringResource(R.string.library_diary_status), style = MaterialTheme.typography.titleSmall)
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FilterChip(selected = state.diaryStatusFilter == null, onClick = { viewModel.setDiaryStatusFilter(null) },
+                            label = { Text(stringResource(R.string.library_diary_status_all)) })
+                        listOf(MemoryDiaryPolicy.STATUS_ACTIVE, MemoryDiaryPolicy.STATUS_CLOSED).forEach { status ->
+                            FilterChip(selected = state.diaryStatusFilter == status, onClick = { viewModel.setDiaryStatusFilter(status) },
+                                label = { Text(diaryStatusLabel(status)) })
                         }
                     }
                 }

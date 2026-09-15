@@ -648,12 +648,14 @@ object SystemToolPromptsInternal {
                     listOf(
                         memoryFolderToolPrompt,
                         memoryMoveToolPrompt,
+                        memoryDiaryToolPrompt,
                         ToolPrompt(
                             name = "create_memory",
                             description = "Creates a new memory node in the library. Use this when you want to save important information for future reference. Titles are unique inside a folder; a duplicate is rejected and names the existing UUID, so update that entry instead of creating a second one.",
                             parametersStructured = listOf(
-                                ToolParameterSchema(name = "library_kind", type = "string", description = "memory = 记忆; knowledge = 知识; query also accepts all. Default: all for query, memory for create.", required = false),
-                                ToolParameterSchema(name = "category", type = "string", description = "preference, fact, decision, experience, event, other", required = false),
+                                ToolParameterSchema(name = "library_kind", type = "string", description = "memory = 记忆 (durable facts, preferences, decisions); diary = 日记 (append-only record of one work session; several per day are normal); knowledge = 知识 (reference documents and notes); query also accepts all. Default: all for query, memory for create.", required = false),
+                                ToolParameterSchema(name = "category", type = "string", description = "preference, fact, decision, experience, event, other. Ignored for diary entries", required = false),
+                                ToolParameterSchema(name = "phase", type = "string", description = "Diary only: phase of the opening entry — note, plan, progress, decision, evidence, risk, validation", required = false, default = "\"note\""),
                                 ToolParameterSchema(name = "title", type = "string", description = "required, string", required = true),
                                 ToolParameterSchema(name = "content", type = "string", description = "required, string", required = true),
                                 ToolParameterSchema(name = "content_type", type = "string", description = "optional", required = false, default = "\"text/plain\""),
@@ -3692,12 +3694,14 @@ object SystemToolPromptsInternal {
                     listOf(
                         memoryFolderToolPrompt,
                         memoryMoveToolPrompt,
+                        memoryDiaryToolPrompt,
                         ToolPrompt(
                             name = "create_memory",
                             description = "在记忆库中创建新的记忆节点。当你想保存重要信息供将来参考时使用。同一目录内标题唯一；重名会被拒绝并返回已存在条目的 UUID，此时应更新该条目而不是再建一条。",
                             parametersStructured = listOf(
-                                ToolParameterSchema(name = "library_kind", type = "string", description = "memory = 记忆; knowledge = 知识; query also accepts all. Default: all for query, memory for create.", required = false),
-                                ToolParameterSchema(name = "category", type = "string", description = "preference, fact, decision, experience, event, other", required = false),
+                                ToolParameterSchema(name = "library_kind", type = "string", description = "memory = 记忆 (durable facts, preferences, decisions); diary = 日记 (append-only record of one work session; several per day are normal); knowledge = 知识 (reference documents and notes); query also accepts all. Default: all for query, memory for create.", required = false),
+                                ToolParameterSchema(name = "category", type = "string", description = "preference, fact, decision, experience, event, other；日记条目忽略该参数", required = false),
+                                ToolParameterSchema(name = "phase", type = "string", description = "仅日记：开篇记录的阶段 — note, plan, progress, decision, evidence, risk, validation", required = false, default = "\"note\""),
                                 ToolParameterSchema(name = "title", type = "string", description = "必需, 字符串", required = true),
                                 ToolParameterSchema(name = "content", type = "string", description = "必需, 字符串", required = true),
                                 ToolParameterSchema(name = "content_type", type = "string", description = "可选", required = false, default = "\"text/plain\""),

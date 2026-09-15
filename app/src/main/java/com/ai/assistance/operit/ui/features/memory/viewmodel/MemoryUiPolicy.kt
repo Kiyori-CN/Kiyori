@@ -21,6 +21,7 @@ internal object MemoryUiPolicy {
     fun resetOrganizationFilters(state: MemoryUiState): MemoryUiState = state.copy(
         categoryFilter = null,
         tagFilter = null,
+        diaryStatusFilter = null,
         showArchived = false,
         sortByTitle = false,
     )

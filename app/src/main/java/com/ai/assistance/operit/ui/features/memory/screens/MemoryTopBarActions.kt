@@ -15,7 +15,8 @@ internal fun MemoryTopBarActions(
     onFilter: () -> Unit, onSettings: () -> Unit, onRefresh: () -> Unit,
 ) {
     val enabled = !isImporting && !state.isSaving
-    val hasFilters = state.showArchived || state.categoryFilter != null || state.tagFilter != null
+    val hasFilters = state.showArchived || state.categoryFilter != null || state.tagFilter != null ||
+        state.diaryStatusFilter != null
     KiyoriToolbarAction(Icons.Outlined.Settings, stringResource(R.string.library_settings),
         KiyoriActionRole.CONFIGURE, enabled, onClick = onSettings)
     KiyoriToolbarAction(Icons.Outlined.Tune, stringResource(R.string.library_filter),

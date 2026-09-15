@@ -20,6 +20,7 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.paneTitle
 import com.kiyori.design.theme.KiyoriUiShapes
 import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.CreateNewFolder
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -226,6 +227,8 @@ fun FolderNavigator(
     var showRenameDialog by remember(selectedProfileId) { mutableStateOf(false) }
     var showDeleteDialog by remember(selectedProfileId) { mutableStateOf(false) }
     var contextMenuFolder by remember(selectedProfileId) { mutableStateOf<String?>(null) }
+    // 新建的落点：顶部按钮用当前选中目录，目录菜单用被长按的那个目录。
+    var createParentPath by remember(selectedProfileId) { mutableStateOf<String?>(null) }
 
     val title = stringResource(R.string.library_location)
     // 共享抽屉已经限定可见视口，不再次乘高度比例，避免半展开时留下大片空白。
@@ -246,7 +249,7 @@ fun FolderNavigator(
                         onMemorySpaceCreate, onMemorySpaceRename, onMemorySpaceDelete, enabled = !isBusy)
                     Row(Modifier.fillMaxWidth().padding(start = 24.dp, end = 16.dp), verticalAlignment = Alignment.CenterVertically) {
                         Text(stringResource(R.string.folder_navigator_folder), style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
-                        TextButton(onClick = { showCreateDialog = true }, enabled = !isBusy) {
+                        TextButton(onClick = { createParentPath = null; showCreateDialog = true }, enabled = !isBusy) {
                             Icon(Icons.Outlined.Add, null, Modifier.size(18.dp))
                             Spacer(Modifier.width(6.dp))
                             Text(stringResource(R.string.foldernav_new_folder))
@@ -274,12 +277,13 @@ fun FolderNavigator(
     // 对话框
     if (showCreateDialog) {
         FolderCreateDialog(
-            parentPath = selectedFolderPath,
+            parentPath = createParentPath ?: selectedFolderPath,
             folderPaths = folderPaths,
-            onDismiss = { showCreateDialog = false },
+            onDismiss = { showCreateDialog = false; createParentPath = null },
             onCreate = { newPath ->
                 onFolderCreate?.invoke(com.ai.assistance.operit.data.repository.MemoryRepository.normalizeFolderPath(newPath) ?: newPath)
                 showCreateDialog = false
+                createParentPath = null
             }
         )
     }
@@ -325,6 +329,11 @@ fun FolderNavigator(
             },
             onDelete = {
                 showDeleteDialog = true
+            },
+            onCreateChild = { parent ->
+                createParentPath = parent
+                contextMenuFolder = null
+                showCreateDialog = true
             }
         )
     }
@@ -533,12 +542,14 @@ private fun FolderContextMenu(
     folderPath: String,
     onDismiss: () -> Unit,
     onRename: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    onCreateChild: (String) -> Unit,
 ) {
     // 选择先记录，等抽屉收起后再执行：直接在点击时打开下一层会让两个弹层同屏。
     var action by remember { mutableStateOf<FolderMenuAction?>(null) }
     KiyoriModalBottomDrawer(onDismissRequest = {
         when (action) {
+            FolderMenuAction.CREATE_CHILD -> onCreateChild(folderPath)
             FolderMenuAction.RENAME -> onRename()
             FolderMenuAction.DELETE -> onDelete()
             null -> onDismiss()
@@ -546,6 +557,9 @@ private fun FolderContextMenu(
     }) { dismiss ->
         KiyoriDrawerScaffold(stringResource(R.string.memory_folder_operations), dismiss) {
             Text(folderPath, style = MaterialTheme.typography.bodyMedium)
+            ListItem(headlineContent = { Text(stringResource(R.string.library_folder_new_child)) },
+                leadingContent = { Icon(Icons.Outlined.CreateNewFolder, null) },
+                modifier = Modifier.clickable { action = FolderMenuAction.CREATE_CHILD; dismiss() })
             ListItem(headlineContent = { Text(stringResource(R.string.memory_rename_folder)) },
                 leadingContent = { Icon(Icons.Outlined.Edit, null) },
                 modifier = Modifier.clickable { action = FolderMenuAction.RENAME; dismiss() })
@@ -556,7 +570,7 @@ private fun FolderContextMenu(
     }
 }
 
-private enum class FolderMenuAction { RENAME, DELETE }
+private enum class FolderMenuAction { CREATE_CHILD, RENAME, DELETE }
 
 /** 目录创建复用同一张路径表单：浏览页与位置抽屉不能各自校验一套路径规则。 */
 @Composable
