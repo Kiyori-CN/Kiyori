@@ -2636,8 +2636,6 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="edit_title_desc">Edit judul</string>
     <string name="reorder">Susun ulang</string>
     <string name="choose_delete_method">Silakan pilih metode penghapusan:</string>
-    <string name="swipe_hint">Geser kiri/kanan untuk mengedit atau menghapus (ketuk untuk tidak menampilkan lagi)</string>
-    <string name="long_press_manage">Tekan lama untuk mengelola</string>
     <string name="history_fast_scroll">Gulir cepat riwayat</string>
     <string name="history_scroll_to_top">Gulir ke atas</string>
     <string name="history_scroll_to_bottom">Gulir ke bawah</string>
@@ -7671,7 +7669,7 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="chat_stats_coverage_note">Cakupan penggunaan = laporan penggunaan / permintaan model. Cakupan cache = laporan cache / laporan penggunaan. Satu giliran percakapan dapat berisi beberapa permintaan model.</string>
 
     <string name="chat_history_search_failed">Pencarian isi gagal. Hanya judul yang cocok ditampilkan. Masukkan kembali kata kunci untuk mencoba lagi.</string>
-    <string name="chat_history_empty_hint">Belum ada percakapan. Mulai melalui Percakapan baru di atas.</string>
+    <string name="chat_history_empty_hint">Mulai percakapan baru; nanti bisa dikelompokkan menurut kartu karakter atau folder.</string>
     <string name="chat_delete_selected_messages_confirmation">Hapus %1$d pesan terpilih? Tindakan ini tidak dapat dibatalkan.</string>
     <string name="chat_draft_changed_before_send">Percakapan atau draf berubah. Periksa isi saat ini sebelum mengirim lagi.</string>
     <string name="shell_executor_clear_history_confirm">Hapus catatan perintah dan hasil sesi halaman ini? Perintah yang sudah dijalankan tidak dibatalkan.</string>
@@ -7873,4 +7871,21 @@ Sekarang Anda dapat menggunakan mode AutoGLM di antarmuka percakapan.</string>
     <string name="chat_stats_first_output">Waktu tunggu keluaran pertama</string>
     <string name="chat_stats_request_duration">Durasi total permintaan</string>
     <string name="chat_stats_timing_note">Pengamatan klien untuk permintaan saat ini atau terbaru: dari awal panggilan hingga konten pertama dan akhir aliran, termasuk persiapan lokal, jaringan, proksi, dan waktu tunggu server. Konten pertama dapat berupa penalaran atau data alat. Ini bukan RTT jaringan atau waktu inferensi server saja.</string>
+    <string name="chat_history_total_count">Percakapan: %1$d</string>
+    <string name="chat_history_filtered_count">Cocok %1$d dari %2$d</string>
+    <string name="chat_history_collapse">Tutup riwayat obrolan</string>
+    <string name="chat_history_search_placeholder">Cari judul atau pesan</string>
+    <string name="chat_history_searching">Mencari</string>
+    <string name="chat_history_searching_desc">Mencocokkan isi pesan; hasil judul muncul lebih dahulu.</string>
+    <string name="chat_history_no_result">Tidak ada percakapan yang cocok</string>
+    <string name="chat_history_empty_title">Belum ada percakapan</string>
+    <string name="chat_history_gesture_hint">Geser kanan untuk mengedit, kiri untuk menghapus; ketuk Lainnya untuk mengelola</string>
+    <string name="chat_history_hint_dismiss">Jangan tampilkan lagi</string>
+    <string name="chat_history_more_actions">Kelola percakapan %1$s</string>
+    <string name="chat_history_manage_chat">Kelola percakapan</string>
+    <string name="chat_history_lock_hint">Percakapan terkunci tidak dapat dihapus; ganti nama dan sematkan tetap bisa.</string>
+    <string name="chat_history_move_blocked">Sudah berada di batas bagian tersemat</string>
+    <string name="chat_history_delete_group_hint">Hapus percakapannya juga, atau bubarkan grupnya saja.</string>
+    <string name="chat_history_switch_behavior">Perilaku perpindahan</string>
+    <string name="chat_history_current_chat">Percakapan saat ini</string>
 </resources>

@@ -2735,8 +2735,6 @@
     <string name="edit_title_desc">제목 수정</string>
     <string name="reorder">순서 변경</string>
     <string name="choose_delete_method">삭제 방법을 선택하세요:</string>
-    <string name="swipe_hint">수정 또는 삭제하려면 왼쪽이나 오른쪽으로 스와이프하세요(숨기려면 탭하세요).</string>
-    <string name="long_press_manage">관리하려면 길게 누르세요.</string>
     <string name="history_fast_scroll">빠른 기록 스크롤</string>
     <string name="history_scroll_to_top">맨 위로 스크롤</string>
     <string name="history_scroll_to_bottom">맨 아래로 스크롤</string>
@@ -7518,7 +7516,7 @@
     <string name="chat_stats_coverage_note">사용량 제공 범위 = 사용량 보고 수 / 모델 요청 수입니다. 캐시 제공 범위 = 캐시 보고 수 / 사용량 보고 수입니다. 한 대화 턴에 여러 모델 요청이 포함될 수 있습니다.</string>
 
     <string name="chat_history_search_failed">내용 검색에 실패하여 제목 일치 항목만 표시합니다. 검색어를 다시 입력해 재시도하세요.</string>
-    <string name="chat_history_empty_hint">아직 대화가 없습니다. 위의 새 대화로 시작하세요.</string>
+    <string name="chat_history_empty_hint">새 대화를 시작하세요. 나중에 캐릭터 카드나 폴더로 분류할 수 있습니다.</string>
     <string name="chat_delete_selected_messages_confirmation">선택한 메시지 %1$d개를 삭제할까요? 되돌릴 수 없습니다.</string>
     <string name="chat_draft_changed_before_send">대화 또는 초안이 변경되었습니다. 현재 내용을 확인한 후 다시 보내세요.</string>
     <string name="shell_executor_clear_history_confirm">이 페이지 세션의 명령과 결과 기록을 지울까요? 이미 실행된 명령은 취소되지 않습니다.</string>
@@ -7720,4 +7718,21 @@
     <string name="chat_stats_first_output">첫 출력 대기 시간</string>
     <string name="chat_stats_request_duration">총 요청 시간</string>
     <string name="chat_stats_timing_note">현재 또는 최근 요청의 클라이언트 관측값입니다. 호출 시작부터 첫 콘텐츠와 스트림 종료까지 측정하며, 로컬 요청 준비, 네트워크, 프록시 및 서버 대기를 포함합니다. 첫 콘텐츠는 추론 또는 도구 데이터일 수 있습니다. 네트워크 RTT나 서버의 순수 추론 시간이 아닙니다.</string>
+    <string name="chat_history_total_count">대화: %1$d</string>
+    <string name="chat_history_filtered_count">일치 %1$d / 전체 %2$d</string>
+    <string name="chat_history_collapse">대화 기록 접기</string>
+    <string name="chat_history_search_placeholder">제목 또는 본문 검색</string>
+    <string name="chat_history_searching">검색 중</string>
+    <string name="chat_history_searching_desc">대화 본문을 검색하고 있습니다. 제목 일치 결과가 먼저 표시됩니다.</string>
+    <string name="chat_history_no_result">일치하는 대화가 없습니다</string>
+    <string name="chat_history_empty_title">아직 대화가 없습니다</string>
+    <string name="chat_history_gesture_hint">오른쪽으로 밀면 편집, 왼쪽으로 밀면 삭제. 더보기에서 관리할 수 있습니다</string>
+    <string name="chat_history_hint_dismiss">안내 숨기기</string>
+    <string name="chat_history_more_actions">대화 %1$s 관리</string>
+    <string name="chat_history_manage_chat">대화 관리</string>
+    <string name="chat_history_lock_hint">잠긴 대화는 삭제할 수 없습니다. 이름 변경과 고정은 그대로 사용할 수 있습니다.</string>
+    <string name="chat_history_move_blocked">이미 고정 구역의 끝입니다</string>
+    <string name="chat_history_delete_group_hint">대화까지 삭제하거나 그룹만 해제할 수 있습니다.</string>
+    <string name="chat_history_switch_behavior">전환 동작</string>
+    <string name="chat_history_current_chat">현재 대화</string>
 </resources>

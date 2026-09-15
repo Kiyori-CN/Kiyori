@@ -6,7 +6,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Forum
+import androidx.compose.material.icons.outlined.Forum
 import androidx.compose.material.icons.rounded.PictureInPictureAlt
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material3.*
@@ -49,7 +49,7 @@ fun ChatHeader(
         onCharacterClick: () -> Unit
 ) {
         val displayCharacterName = activeCharacterName.toChatHeaderName()
-        val historyColors = KiyoriSemanticTone.ORANGE.resolveColors()
+        val historyColors = KiyoriSemanticTone.BLUE.resolveColors()
         val floatingColors = KiyoriSemanticTone.CYAN.resolveColors()
         val characterColors = KiyoriSemanticTone.BLUE.resolveColors()
 
@@ -73,7 +73,7 @@ fun ChatHeader(
                                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                                 ) {
                                         Icon(
-                                                imageVector = Icons.Rounded.Forum,
+                                                imageVector = Icons.Outlined.Forum,
                                                 contentDescription =
                                                         if (showChatHistorySelector) stringResource(R.string.hide_history) else stringResource(R.string.show_history),
                                                 tint =
@@ -109,7 +109,7 @@ fun ChatHeader(
                                         // 会话列表与小窗是这一行的固定功能入口，保持语义色常亮：
                                         // 灰色只用于禁用，不用来表达"当前未展开"。
                                         Icon(
-                                                imageVector = Icons.Rounded.Forum,
+                                                imageVector = Icons.Outlined.Forum,
                                                 contentDescription =
                                                         if (showChatHistorySelector) stringResource(R.string.hide_history) else stringResource(R.string.show_history),
                                                 tint = historyIconColor?.let { Color(it) } ?: historyColors.icon,

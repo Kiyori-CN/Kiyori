@@ -3255,8 +3255,6 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="edit_title_desc">Editar título</string>
     <string name="reorder">Reordenar</string>
     <string name="choose_delete_method">Seleccione el método de eliminación:</string>
-    <string name="swipe_hint">Deslice hacia la izquierda o derecha para editar o eliminar (toque para no mostrar más)</string>
-    <string name="long_press_manage">Mantener presionado para gestionar</string>
     <string name="history_fast_scroll">Desplazamiento rápido del historial</string>
     <string name="history_scroll_to_top">Desplazar al inicio</string>
     <string name="history_scroll_to_bottom">Desplazar al final</string>
@@ -7781,7 +7779,7 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="chat_stats_coverage_note">Cobertura de uso = informes de uso / solicitudes al modelo. Cobertura de caché = informes de caché / informes de uso. Un turno puede incluir varias solicitudes al modelo.</string>
 
     <string name="chat_history_search_failed">Falló la búsqueda de contenido. Solo se muestran títulos coincidentes. Vuelve a introducir la palabra para reintentar.</string>
-    <string name="chat_history_empty_hint">Aún no hay conversaciones. Empieza con Nueva conversación arriba.</string>
+    <string name="chat_history_empty_hint">Inicia una conversación nueva; luego podrás agruparla por tarjeta de personaje o carpeta.</string>
     <string name="chat_delete_selected_messages_confirmation">¿Eliminar los %1$d mensajes seleccionados? No se puede deshacer.</string>
     <string name="chat_draft_changed_before_send">La conversación o el borrador cambió. Revisa el contenido antes de volver a enviar.</string>
     <string name="shell_executor_clear_history_confirm">¿Borrar los comandos y resultados de esta sesión de la página? No se deshacen los comandos ejecutados.</string>
@@ -7983,4 +7981,21 @@ Ahora puede usar el modo AutoGLM en la interfaz de conversación.</string>
     <string name="chat_stats_first_output">Espera hasta la primera salida</string>
     <string name="chat_stats_request_duration">Duración total de la solicitud</string>
     <string name="chat_stats_timing_note">Observación del cliente para la solicitud actual o reciente: desde el inicio de la llamada hasta el primer contenido y el fin del flujo, incluidos la preparación local, la red, el proxy y la espera del servidor. El primer contenido puede ser razonamiento o datos de herramientas. No representa el RTT de la red ni solo el tiempo de inferencia del servidor.</string>
+    <string name="chat_history_total_count">Conversaciones: %1$d</string>
+    <string name="chat_history_filtered_count">Coinciden %1$d de %2$d</string>
+    <string name="chat_history_collapse">Contraer el historial de chat</string>
+    <string name="chat_history_search_placeholder">Buscar títulos o mensajes</string>
+    <string name="chat_history_searching">Buscando</string>
+    <string name="chat_history_searching_desc">Buscando en el contenido de los mensajes; las coincidencias de título aparecen primero.</string>
+    <string name="chat_history_no_result">No hay conversaciones coincidentes</string>
+    <string name="chat_history_empty_title">Todavía no hay conversaciones</string>
+    <string name="chat_history_gesture_hint">Desliza a la derecha para editar, a la izquierda para eliminar; toca Más para gestionar</string>
+    <string name="chat_history_hint_dismiss">No mostrar de nuevo</string>
+    <string name="chat_history_more_actions">Gestionar la conversación %1$s</string>
+    <string name="chat_history_manage_chat">Gestionar la conversación</string>
+    <string name="chat_history_lock_hint">Las conversaciones bloqueadas no se pueden eliminar; cambiar el nombre y fijar siguen disponibles.</string>
+    <string name="chat_history_move_blocked">Ya está en el borde de su sección fijada</string>
+    <string name="chat_history_delete_group_hint">Elimina también las conversaciones o solo disuelve el grupo.</string>
+    <string name="chat_history_switch_behavior">Comportamiento al cambiar</string>
+    <string name="chat_history_current_chat">Conversación actual</string>
 </resources>

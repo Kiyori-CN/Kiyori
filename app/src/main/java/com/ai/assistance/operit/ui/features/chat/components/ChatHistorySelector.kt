@@ -27,28 +27,33 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.ArrowDownward
+import androidx.compose.material.icons.outlined.ArrowUpward
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.CreateNewFolder
+import androidx.compose.material.icons.outlined.DragHandle
+import androidx.compose.material.icons.outlined.Folder
+import androidx.compose.material.icons.outlined.Forum
+import androidx.compose.material.icons.outlined.LockOpen
+import androidx.compose.material.icons.outlined.PushPin
+import androidx.compose.material.icons.outlined.SearchOff
+import androidx.compose.material.icons.outlined.Warning
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.filled.AccountTree
 
-import androidx.compose.material.icons.filled.AddCircleOutline
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 
-import androidx.compose.material.icons.filled.DragHandle
 
-import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.KeyboardArrowUp
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.LockOpen
 
-import androidx.compose.material.icons.filled.SearchOff
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PushPin
@@ -59,8 +64,6 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -79,6 +82,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -104,8 +108,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
 import com.ai.assistance.operit.R
 import com.ai.assistance.operit.data.model.ChatHistory
 import com.ai.assistance.operit.data.model.CharacterCard
@@ -129,7 +133,6 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.ui.graphics.Brush
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ensureActive
 import com.ai.assistance.operit.util.AppLogger
@@ -143,6 +146,22 @@ import coil.compose.rememberAsyncImagePainter
 import com.ai.assistance.operit.data.preferences.UserPreferencesManager
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.flowOf
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.FilledTonalIconButton
+import androidx.compose.material3.RadioButton
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextAlign
+import com.ai.assistance.operit.ui.components.KiyoriDrawerScaffold
+import com.ai.assistance.operit.ui.components.KiyoriModalBottomDrawer
+import com.kiyori.design.theme.KiyoriUiShapes
+import java.time.LocalDateTime
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 
 private fun resolveBindingForCreate(
     historyDisplayMode: ChatHistoryDisplayMode,
@@ -424,6 +443,243 @@ private fun HistoryQuickScroller(
     }
 }
 
+/**
+ * 角色卡模式下的层级导轨，统一分组头与对话条目的缩进，避免两处各写一份魔法宽度。
+ * 高度显式传入：列表项测量高度无上界，导轨不能用 fillMaxHeight 跟随行高。
+ */
+@Composable
+private fun HistoryBranchRail(railHeight: Dp) {
+    Box(
+        modifier = Modifier
+            .width(22.dp)
+            .padding(start = 10.dp, end = 8.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Box(
+            modifier = Modifier
+                .width(2.dp)
+                .height(railHeight)
+                .clip(RoundedCornerShape(999.dp))
+                .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f))
+        )
+    }
+}
+
+/**
+ * 失败信息必须可见且能手动关闭。原实现把切换失败渲染成一行永久文案，用户既无法确认
+ * 是否已经重试成功，也没有关闭入口。
+ */
+@Composable
+private fun HistoryInlineBanner(
+    message: String,
+    onDismiss: () -> Unit
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 6.dp),
+        color = MaterialTheme.colorScheme.errorContainer,
+        shape = KiyoriUiShapes.control
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 10.dp, end = 2.dp, top = 6.dp, bottom = 6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.Warning,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onErrorContainer,
+                modifier = Modifier.size(16.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = message,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onErrorContainer,
+                modifier = Modifier.weight(1f)
+            )
+            IconButton(onClick = onDismiss, modifier = Modifier.size(32.dp)) {
+                Icon(
+                    imageVector = Icons.Outlined.Close,
+                    contentDescription = stringResource(R.string.close),
+                    tint = MaterialTheme.colorScheme.onErrorContainer,
+                    modifier = Modifier.size(16.dp)
+                )
+            }
+        }
+    }
+}
+
+/** 空列表、无结果与搜索中共用一个占位版式，保证三种状态的视觉重量一致。 */
+@Composable
+private fun HistoryStatusPlaceholder(
+    title: String,
+    description: String,
+    icon: ImageVector? = null,
+    showProgress: Boolean = false,
+    actionLabel: String? = null,
+    onAction: (() -> Unit)? = null
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 40.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        if (showProgress) {
+            CircularProgressIndicator(modifier = Modifier.size(28.dp), strokeWidth = 3.dp)
+        } else if (icon != null) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f),
+                modifier = Modifier.size(40.dp)
+            )
+        }
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        Text(
+            text = description,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center
+        )
+        if (actionLabel != null && onAction != null) {
+            TextButton(onClick = onAction) { Text(actionLabel) }
+        }
+    }
+}
+
+/** 底部抽屉里的操作行：单一命中区、固定高度、禁用时保留说明，不用 Toast 事后解释。 */
+@Composable
+private fun HistoryActionRow(
+    icon: ImageVector,
+    label: String,
+    onClick: () -> Unit,
+    enabled: Boolean = true,
+    destructive: Boolean = false,
+    supportingText: String? = null
+) {
+    val contentColor = when {
+        !enabled -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+        destructive -> MaterialTheme.colorScheme.error
+        else -> MaterialTheme.colorScheme.onSurface
+    }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(KiyoriUiShapes.control)
+            .clickable(enabled = enabled, onClick = onClick, role = Role.Button)
+            .heightIn(min = 52.dp)
+            .padding(horizontal = 20.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = contentColor,
+            modifier = Modifier.size(22.dp)
+        )
+        Spacer(modifier = Modifier.width(16.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodyLarge,
+                color = contentColor
+            )
+            if (supportingText != null) {
+                Text(
+                    text = supportingText,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (enabled) {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    } else {
+                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                    }
+                )
+            }
+        }
+    }
+}
+
+private val HISTORY_SAME_YEAR_DATE_FORMATTER: DateTimeFormatter =
+    DateTimeFormatter.ofPattern("MM-dd")
+private val HISTORY_FULL_DATE_FORMATTER: DateTimeFormatter =
+    DateTimeFormatter.ofPattern("yyyy-MM-dd")
+
+/**
+ * 对话列表没有任何时间线索时，用户只能靠标题回忆顺序。这里复用既有的相对时间文案，
+ * 一周以内给相对值，更早给数字日期，避免引入第二套本地化时间格式。
+ */
+@Composable
+private fun historyRelativeTimeLabel(updatedAt: LocalDateTime, nowMillis: Long): String {
+    val timestamp = remember(updatedAt) {
+        updatedAt.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+    }
+    val diff = nowMillis - timestamp
+    return when {
+        diff < 60_000L -> stringResource(R.string.time_just_now)
+        diff < 3_600_000L -> stringResource(R.string.time_minutes_ago, diff / 60_000L)
+        diff < 86_400_000L -> stringResource(R.string.time_hours_ago, diff / 3_600_000L)
+        diff < 604_800_000L -> stringResource(R.string.time_days_ago, diff / 86_400_000L)
+        else -> remember(updatedAt) {
+            val sameYear = updatedAt.year == LocalDateTime.now().year
+            updatedAt.format(
+                if (sameYear) HISTORY_SAME_YEAR_DATE_FORMATTER else HISTORY_FULL_DATE_FORMATTER
+            )
+        }
+    }
+}
+
+/** 设置抽屉里的开关行：整行可点，读屏读到一个 Switch 而不是标题、说明与开关三个独立节点。 */
+@Composable
+private fun HistorySettingsToggle(
+    title: String,
+    description: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(KiyoriUiShapes.control)
+            .toggleable(
+                value = checked,
+                role = Role.Switch,
+                onValueChange = onCheckedChange
+            ),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        shape = KiyoriUiShapes.control
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 14.dp, end = 14.dp, top = 10.dp, bottom = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                Text(text = title, style = MaterialTheme.typography.bodyMedium)
+                Text(
+                    text = description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Spacer(modifier = Modifier.width(12.dp))
+            Switch(checked = checked, onCheckedChange = null)
+        }
+    }
+}
+
 @OptIn(
     ExperimentalFoundationApi::class,
     ExperimentalMaterial3Api::class
@@ -467,14 +723,20 @@ fun ChatHistorySelector(
     var groupActionTarget by remember { mutableStateOf<ChatGroupTarget?>(null) }
     var groupToRename by remember { mutableStateOf<ChatGroupTarget?>(null) }
     var groupToDelete by remember { mutableStateOf<ChatGroupTarget?>(null) }
-    var hasLongPressedGroup by rememberLocal("has_long_pressed_group", defaultValue = false)
-    
-    // 搜索相关状态
-    var showSearchBox by remember { mutableStateOf(false) }
+
+    // 搜索常驻，不再有折叠状态；折叠后保留查询词会让列表被一个不可见条件继续过滤。
     var matchedChatIdsByContent by remember(searchQuery) { mutableStateOf<Set<String>>(emptySet()) }
     var isSearching by remember(searchQuery) { mutableStateOf(searchQuery.trim().length >= 2) }
     var searchFailed by remember(searchQuery) { mutableStateOf(false) }
     var showSettingsDialog by remember { mutableStateOf(false) }
+    // 相对时间必须随真实时间推进刷新，否则抽屉长时间停留会一直停在“刚刚”。
+    var nowMillis by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(60_000)
+            nowMillis = System.currentTimeMillis()
+        }
+    }
 
     val context = LocalContext.current
     val observableResources = LocalResources.current
@@ -591,12 +853,36 @@ fun ChatHistorySelector(
         val deleting = deletingChat.id in deletingChatIds
         AlertDialog(
             onDismissRequest = { if (!deleting) chatToDelete = null },
+            icon = {
+                Icon(
+                    imageVector = Icons.Outlined.Delete,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error
+                )
+            },
             title = { Text(stringResource(R.string.confirm_delete_chat)) },
             text = {
-                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                Column(
+                    modifier = Modifier.verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
                     Text(text = stringResource(R.string.delete_chat_confirmation, deletingChat.title))
-                    chatDeleteError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-                    if (deleting) CircularProgressIndicator()
+                    Text(
+                        text = stringResource(R.string.delete_operation_irreversible),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    chatDeleteError?.let {
+                        Text(
+                            text = it,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                    // 删除进度不再插在正文中间挤动文案，固定在底部占一行高度。
+                    if (deleting) {
+                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                    }
                 }
             },
             confirmButton = {
@@ -614,8 +900,10 @@ fun ChatHistorySelector(
                 }
             },
             dismissButton = {
-                TextButton(onClick = { chatToDelete = null }, enabled = !deleting) {
-                    Text(stringResource(R.string.cancel))
+                if (!chatDeletedWithCleanupError) {
+                    TextButton(onClick = { chatToDelete = null }, enabled = !deleting) {
+                        Text(stringResource(R.string.cancel))
+                    }
                 }
             }
         )
@@ -918,470 +1206,262 @@ fun ChatHistorySelector(
     }
 
     if (chatItemActionTarget != null) {
-        val resolvedTargetChat = remember(chatItemActionTarget, chatHistories) {
-            val target = chatItemActionTarget
-            if (target == null) {
-                null
-            } else {
-                chatHistories.firstOrNull { it.id == target.id } ?: target
-            }
+        val actionTargetChat = chatItemActionTarget!!
+        val resolvedTargetChat = remember(actionTargetChat, chatHistories) {
+            chatHistories.firstOrNull { it.id == actionTargetChat.id } ?: actionTargetChat
         }
-        val moveMenuIndex = filteredHistories.indexOfFirst { it.id == chatItemActionTarget?.id }
+        val moveMenuIndex = filteredHistories.indexOfFirst { it.id == actionTargetChat.id }
         val moveMenuChat = filteredHistories.getOrNull(moveMenuIndex)
         val canMoveUp = moveMenuChat != null && moveMenuIndex > 0 &&
             filteredHistories[moveMenuIndex - 1].pinned == moveMenuChat.pinned
         val canMoveDown = moveMenuChat != null && moveMenuIndex < filteredHistories.lastIndex &&
             filteredHistories[moveMenuIndex + 1].pinned == moveMenuChat.pinned
-        Dialog(onDismissRequest = { if (!moveSaving) chatItemActionTarget = null }) {
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(max = 560.dp)
-                    .padding(16.dp),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surface
-                ),
-                elevation = CardDefaults.cardElevation(
-                    defaultElevation = 6.dp
-                )
+        // 关闭动画跑完后才执行后续动作：直接在点击里切换状态会跳过共享抽屉的退出动画，
+        // 并让编辑或删除弹窗与正在收起的抽屉同时出现。
+        var pendingChatAction by remember(actionTargetChat.id) { mutableStateOf<(() -> Unit)?>(null) }
+        KiyoriModalBottomDrawer(
+            onDismissRequest = {
+                val action = pendingChatAction
+                pendingChatAction = null
+                chatItemActionTarget = null
+                action?.invoke()
+            },
+            confirmDismiss = { !moveSaving }
+        ) { dismissDrawer ->
+            fun runAndClose(action: () -> Unit) {
+                pendingChatAction = action
+                dismissDrawer()
+            }
+            KiyoriDrawerScaffold(
+                title = stringResource(R.string.chat_history_manage_chat),
+                onClose = dismissDrawer,
+                scrollableContent = false
             ) {
                 Column(
                     modifier = Modifier
-                        .padding(vertical = 16.dp)
-                        .verticalScroll(rememberScrollState()),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
+                        .padding(bottom = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
-                    Text(
-                        text = stringResource(R.string.chat_history),
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(horizontal = 24.dp)
-                    )
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp, vertical = 4.dp),
+                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        Text(
+                            text = resolvedTargetChat.title,
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            text = "${historyRelativeTimeLabel(resolvedTargetChat.updatedAt, nowMillis)} · " +
+                                (resolvedTargetChat.group ?: ungroupedText),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
 
-                    Text(
-                        text = resolvedTargetChat?.title ?: chatItemActionTarget!!.title,
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp),
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
-                    )
-
-                    Spacer(modifier = Modifier.height(16.dp))
-                    
                     if (moveSaving) {
-                        LinearProgressIndicator(Modifier.fillMaxWidth().padding(horizontal = 24.dp))
+                        LinearProgressIndicator(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 20.dp, vertical = 6.dp)
+                        )
                     }
                     moveError?.let { error ->
-                        Text(error, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(horizontal = 24.dp))
+                        Text(
+                            text = error,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp)
+                        )
                     }
 
-                    // 编辑选项
-                    Surface(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 4.dp)
-                            .clip(MaterialTheme.shapes.medium)
-                            .semantics {
-                                contentDescription = context.getString(R.string.edit_title)
-                            }
-                            .clickable(enabled = !moveSaving) {
-                                chatToEdit = chatItemActionTarget
-                                chatItemActionTarget = null
-                            },
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.Edit,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier
-                                    .size(24.dp)
-                                    .clearAndSetSemantics {}
-                            )
-                            Spacer(modifier = Modifier.width(16.dp))
-                            Text(
-                                stringResource(R.string.edit_title), 
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.clearAndSetSemantics {}
-                            )
-                        }
-                    }
-                    
-                    // 上移选项
-                    Surface(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 4.dp)
-                            .clip(MaterialTheme.shapes.medium)
-                            .semantics {
-                                contentDescription = context.getString(R.string.move_up)
-                            }
-                            .clickable(enabled = !moveSaving && canMoveUp) {
-                                val targetChat = moveMenuChat ?: return@clickable
-                                val currentIndex = filteredHistories.indexOfFirst { it.id == targetChat.id }
-                                if (!moveSaving && currentIndex > 0) {
-                                    val newHistories = filteredHistories.toMutableList()
-                                    newHistories.removeAt(currentIndex)
-                                    newHistories.add(currentIndex - 1, targetChat)
-                                    coroutineScope.launch {
-                                        if (submitMove(targetChat, targetChat, newHistories) && chatItemActionTarget?.id == targetChat.id) {
-                                            chatItemActionTarget = null
-                                        }
-                                    }
-                                }
-                            },
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.KeyboardArrowUp,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier
-                                    .size(24.dp)
-                                    .clearAndSetSemantics {}
-                            )
-                            Spacer(modifier = Modifier.width(16.dp))
-                            Text(
-                                stringResource(R.string.move_up), 
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.clearAndSetSemantics {}
-                            )
-                        }
-                    }
-                    
-                    // 下移选项
-                    Surface(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 4.dp)
-                            .clip(MaterialTheme.shapes.medium)
-                            .semantics {
-                                contentDescription = context.getString(R.string.move_down)
-                            }
-                            .clickable(enabled = !moveSaving && canMoveDown) {
-                                val targetChat = moveMenuChat ?: return@clickable
-                                val currentIndex = filteredHistories.indexOfFirst { it.id == targetChat.id }
-                                if (!moveSaving && currentIndex >= 0 && currentIndex < filteredHistories.size - 1) {
-                                    val newHistories = filteredHistories.toMutableList()
-                                    newHistories.removeAt(currentIndex)
-                                    newHistories.add(currentIndex + 1, targetChat)
-                                    coroutineScope.launch {
-                                        if (submitMove(targetChat, targetChat, newHistories) && chatItemActionTarget?.id == targetChat.id) {
-                                            chatItemActionTarget = null
-                                        }
-                                    }
-                                }
-                            },
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.KeyboardArrowDown,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier
-                                    .size(24.dp)
-                                    .clearAndSetSemantics {}
-                            )
-                            Spacer(modifier = Modifier.width(16.dp))
-                            Text(
-                                stringResource(R.string.move_down), 
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.clearAndSetSemantics {}
-                            )
-                        }
-                    }
+                    Spacer(modifier = Modifier.height(4.dp))
 
-                    // 置顶/取消置顶选项
-                    Surface(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 4.dp)
-                            .clip(MaterialTheme.shapes.medium)
-                            .semantics {
-                                contentDescription =
-                                    if (resolvedTargetChat?.pinned == true) {
-                                        context.getString(R.string.unpin_chat)
-                                    } else {
-                                        context.getString(R.string.pin_chat)
-                                    }
-                            }
-                            .clickable(enabled = !moveSaving) {
-                                val targetChat = resolvedTargetChat!!
-                                val newPinned = !targetChat.pinned
+                    HistoryActionRow(
+                        icon = Icons.Outlined.Edit,
+                        label = stringResource(R.string.edit_title),
+                        enabled = !moveSaving,
+                        onClick = { runAndClose { chatToEdit = resolvedTargetChat } }
+                    )
+
+                    HistoryActionRow(
+                        icon = if (resolvedTargetChat.pinned) Icons.Outlined.PushPin else Icons.Default.PushPin,
+                        label = if (resolvedTargetChat.pinned) {
+                            stringResource(R.string.unpin_chat)
+                        } else {
+                            stringResource(R.string.pin_chat)
+                        },
+                        enabled = !moveSaving,
+                        onClick = {
+                            val newPinned = !resolvedTargetChat.pinned
+                            runAndClose {
                                 coroutineScope.launch {
-                                    chatHistoryManager.updateChatPinned(targetChat.id, newPinned)
+                                    chatHistoryManager.updateChatPinned(resolvedTargetChat.id, newPinned)
                                 }
-                                chatItemActionTarget = null
-                            },
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.PushPin,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier
-                                    .size(24.dp)
-                                    .clearAndSetSemantics {}
-                            )
-                            Spacer(modifier = Modifier.width(16.dp))
-                            Text(
-                                text = if (resolvedTargetChat?.pinned == true) stringResource(R.string.unpin_chat) else stringResource(R.string.pin_chat),
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.clearAndSetSemantics {}
-                            )
-                        }
-                    }
-
-                    // 锁定/解锁选项
-                    Surface(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 4.dp)
-                            .clip(MaterialTheme.shapes.medium)
-                            .semantics {
-                                contentDescription =
-                                    if (resolvedTargetChat?.locked == true) {
-                                        context.getString(R.string.unlock_chat)
-                                    } else {
-                                        observableResources.getString(R.string.lock_chat)
-                                    }
                             }
-                            .clickable(enabled = !moveSaving) {
-                                val targetChat = resolvedTargetChat ?: chatItemActionTarget!!
-                                val newLocked = !targetChat.locked
+                        }
+                    )
+
+                    HistoryActionRow(
+                        icon = if (resolvedTargetChat.locked) Icons.Outlined.LockOpen else Icons.Default.Lock,
+                        label = if (resolvedTargetChat.locked) {
+                            stringResource(R.string.unlock_chat)
+                        } else {
+                            stringResource(R.string.lock_chat)
+                        },
+                        supportingText = stringResource(R.string.chat_history_lock_hint),
+                        enabled = !moveSaving,
+                        onClick = {
+                            val newLocked = !resolvedTargetChat.locked
+                            runAndClose {
                                 coroutineScope.launch {
-                                    chatHistoryManager.updateChatLocked(targetChat.id, newLocked)
+                                    chatHistoryManager.updateChatLocked(resolvedTargetChat.id, newLocked)
                                 }
-                                chatItemActionTarget = null
-                            },
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = if (resolvedTargetChat?.locked == true) Icons.Default.LockOpen else Icons.Default.Lock,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier
-                                    .size(24.dp)
-                                    .clearAndSetSemantics {}
-                            )
-                            Spacer(modifier = Modifier.width(16.dp))
-                            Text(
-                                text = if (resolvedTargetChat?.locked == true) stringResource(R.string.unlock_chat) else stringResource(R.string.lock_chat),
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.clearAndSetSemantics {}
-                            )
-                        }
-                    }
-                    
-                    // 删除选项
-                    Surface(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 4.dp)
-                            .clip(MaterialTheme.shapes.medium)
-                            .semantics {
-                                contentDescription = observableResources.getString(R.string.delete)
                             }
-                            .clickable(enabled = !moveSaving) {
-                                promptDeleteChat(chatItemActionTarget!!)
-                                chatItemActionTarget = null
-                            },
-                        color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f)
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.Delete,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.error,
-                                modifier = Modifier
-                                    .size(24.dp)
-                                    .clearAndSetSemantics {}
-                            )
-                            Spacer(modifier = Modifier.width(16.dp))
-                            Text(
-                                stringResource(R.string.delete), 
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.onErrorContainer,
-                                modifier = Modifier.clearAndSetSemantics {}
-                            )
                         }
-                    }
-                    
-                    Spacer(modifier = Modifier.height(8.dp))
+                    )
 
-                    TextButton(
-                        onClick = { chatItemActionTarget = null },
-                        modifier = Modifier.align(Alignment.End).padding(horizontal = 16.dp)
-                    ) {
-                        Text(stringResource(R.string.cancel))
-                    }
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp),
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)
+                    )
+
+                    HistoryActionRow(
+                        icon = Icons.Outlined.ArrowUpward,
+                        label = stringResource(R.string.move_up),
+                        enabled = !moveSaving && canMoveUp,
+                        supportingText = if (!canMoveUp) stringResource(R.string.chat_history_move_blocked) else null,
+                        onClick = {
+                            val targetChat = moveMenuChat ?: return@HistoryActionRow
+                            val currentIndex = filteredHistories.indexOfFirst { it.id == targetChat.id }
+                            if (currentIndex > 0) {
+                                val newHistories = filteredHistories.toMutableList()
+                                newHistories.removeAt(currentIndex)
+                                newHistories.add(currentIndex - 1, targetChat)
+                                coroutineScope.launch {
+                                    submitMove(targetChat, targetChat, newHistories)
+                                }
+                            }
+                        }
+                    )
+
+                    HistoryActionRow(
+                        icon = Icons.Outlined.ArrowDownward,
+                        label = stringResource(R.string.move_down),
+                        enabled = !moveSaving && canMoveDown,
+                        supportingText = if (!canMoveDown) stringResource(R.string.chat_history_move_blocked) else null,
+                        onClick = {
+                            val targetChat = moveMenuChat ?: return@HistoryActionRow
+                            val currentIndex = filteredHistories.indexOfFirst { it.id == targetChat.id }
+                            if (currentIndex >= 0 && currentIndex < filteredHistories.size - 1) {
+                                val newHistories = filteredHistories.toMutableList()
+                                newHistories.removeAt(currentIndex)
+                                newHistories.add(currentIndex + 1, targetChat)
+                                coroutineScope.launch {
+                                    submitMove(targetChat, targetChat, newHistories)
+                                }
+                            }
+                        }
+                    )
+
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp),
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)
+                    )
+
+                    // 锁定的对话此前仍然可以点“删除”，只在事后弹一个 Toast 解释。
+                    // 这里直接禁用并说明原因，冲突在点击前就可见。
+                    HistoryActionRow(
+                        icon = Icons.Outlined.Delete,
+                        label = stringResource(R.string.delete),
+                        destructive = true,
+                        enabled = !moveSaving && !resolvedTargetChat.locked,
+                        supportingText = if (resolvedTargetChat.locked) {
+                            stringResource(R.string.chat_locked_cannot_delete)
+                        } else {
+                            null
+                        },
+                        onClick = { runAndClose { promptDeleteChat(resolvedTargetChat) } }
+                    )
                 }
             }
         }
     }
 
     if (groupActionTarget != null) {
-        Dialog(onDismissRequest = { groupActionTarget = null }) {
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surface
-                ),
-                elevation = CardDefaults.cardElevation(
-                    defaultElevation = 6.dp
-                )
+        val groupTarget = groupActionTarget!!
+        var pendingGroupAction by remember(groupTarget) { mutableStateOf<(() -> Unit)?>(null) }
+        KiyoriModalBottomDrawer(
+            onDismissRequest = {
+                val action = pendingGroupAction
+                pendingGroupAction = null
+                groupActionTarget = null
+                action?.invoke()
+            }
+        ) { dismissDrawer ->
+            KiyoriDrawerScaffold(
+                title = stringResource(R.string.manage_group),
+                onClose = dismissDrawer,
+                scrollableContent = false
             ) {
                 Column(
-                    modifier = Modifier.padding(vertical = 16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
+                        .padding(bottom = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
-                    Text(
-                        text = stringResource(R.string.manage_group),
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(horizontal = 24.dp)
-                    )
-
-                    Text(
-                        text = groupActionTarget!!.groupName,
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp)
-                    )
-
-                    Spacer(modifier = Modifier.height(16.dp))
-                    
-                    // 重命名选项
-                    Surface(
+                    Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 4.dp)
-                            .clip(MaterialTheme.shapes.medium)
-                            .semantics {
-                                contentDescription = observableResources.getString(R.string.rename_group)
-                            }
-                            .clickable {
-                                groupToRename = groupActionTarget
-                                groupActionTarget = null
-                            },
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                            .padding(horizontal = 20.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.DriveFileRenameOutline,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier
-                                    .size(24.dp)
-                                    .clearAndSetSemantics {}
-                            )
-                            Spacer(modifier = Modifier.width(16.dp))
-                            Text(
-                                stringResource(R.string.rename_group), 
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.clearAndSetSemantics {}
-                            )
-                        }
+                        Icon(
+                            imageVector = Icons.Outlined.Folder,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Text(
+                            text = groupTarget.groupName,
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
                     }
-                    
-                    // 删除选项
-                    Surface(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 4.dp)
-                            .clip(MaterialTheme.shapes.medium)
-                            .semantics {
-                                contentDescription = observableResources.getString(R.string.delete_group)
-                            }
-                            .clickable {
-                                groupToDelete = groupActionTarget
-                                groupActionTarget = null
-                            },
-                        color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f)
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.Delete,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.error,
-                                modifier = Modifier
-                                    .size(24.dp)
-                                    .clearAndSetSemantics {}
-                            )
-                            Spacer(modifier = Modifier.width(16.dp))
-                            Text(
-                                stringResource(R.string.delete_group), 
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.onErrorContainer,
-                                modifier = Modifier.clearAndSetSemantics {}
-                            )
-                        }
-                    }
-                    
-                    Spacer(modifier = Modifier.height(8.dp))
 
-                    TextButton(
-                        onClick = { groupActionTarget = null },
-                        modifier = Modifier.align(Alignment.End).padding(horizontal = 16.dp)
-                    ) {
-                        Text(stringResource(R.string.cancel))
-                    }
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    HistoryActionRow(
+                        icon = Icons.Outlined.DriveFileRenameOutline,
+                        label = stringResource(R.string.rename_group),
+                        onClick = {
+                            pendingGroupAction = { groupToRename = groupTarget }
+                            dismissDrawer()
+                        }
+                    )
+
+                    HistoryActionRow(
+                        icon = Icons.Outlined.Delete,
+                        label = stringResource(R.string.delete_group),
+                        destructive = true,
+                        supportingText = stringResource(R.string.chat_history_delete_group_hint),
+                        onClick = {
+                            pendingGroupAction = { groupToDelete = groupTarget }
+                            dismissDrawer()
+                        }
+                    )
                 }
             }
         }
@@ -1401,17 +1481,27 @@ fun ChatHistorySelector(
             onDismissRequest = { closeRename() },
             title = { Text(stringResource(R.string.rename_group)) },
             text = {
-                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                Column(
+                    modifier = Modifier.verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
                     OutlinedTextField(
                         value = newGroupNameText,
                         onValueChange = { newGroupNameText = it },
                         enabled = !saving,
                         singleLine = true,
+                        shape = KiyoriUiShapes.field,
                         label = { Text(stringResource(R.string.new_group_name)) },
                         modifier = Modifier.fillMaxWidth()
                     )
-                    error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-                    if (saving) CircularProgressIndicator()
+                    error?.let {
+                        Text(
+                            text = it,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                    if (saving) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                 }
             },
             confirmButton = {
@@ -1480,132 +1570,97 @@ fun ChatHistorySelector(
                 } finally { deleting = false }
             }
         }
-        Dialog(onDismissRequest = { if (!deleting) groupToDelete = null }) {
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surface
-                ),
-                elevation = CardDefaults.cardElevation(
-                    defaultElevation = 6.dp
-                )
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp).verticalScroll(rememberScrollState()),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Delete,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.size(48.dp)
-                    )
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Text(
-                        text = stringResource(R.string.confirm_delete_group),
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold
-                    )
-
-                    Text(
-                        text = groupToDelete!!.groupName,
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-
-                    Spacer(modifier = Modifier.height(16.dp))
-                    HorizontalDivider()
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    Text(
-                        text = stringResource(R.string.choose_delete_method),
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-                    if (deleting) CircularProgressIndicator()
-
-                    TextButton(
-                        onClick = { deleteSelectedGroup(true) },
-                        enabled = !deleting && !partial,
+        // 两个删除口径都是破坏性的且各自有不同后果，用“确认/取消”两键对话框无法表达；
+        // 共享抽屉把它们并列成两条可读的选项，取消仍然是默认退路。
+        KiyoriModalBottomDrawer(
+            onDismissRequest = { groupToDelete = null },
+            confirmDismiss = { !deleting }
+        ) { dismissDrawer ->
+            KiyoriDrawerScaffold(
+                title = stringResource(R.string.confirm_delete_group),
+                onClose = dismissDrawer,
+                scrollableContent = false,
+                footer = {
+                    Row(
                         modifier = Modifier.fillMaxWidth(),
-                        shape = MaterialTheme.shapes.medium,
-                        colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                        horizontalArrangement = Arrangement.End
                     ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.Delete,
-                                contentDescription = null,
-                                modifier = Modifier.size(24.dp)
-                            )
-                            Spacer(modifier = Modifier.width(16.dp))
-                            Column {
-                                Text(
-                                    text = stringResource(R.string.delete_group_and_chats),
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Text(
-                                    text = stringResource(R.string.delete_operation_irreversible),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.error.copy(alpha = 0.8f)
-                                )
-                            }
-            }
-                    }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    TextButton(
-                        onClick = { deleteSelectedGroup(false) },
-                        enabled = !deleting && !partial,
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = MaterialTheme.shapes.medium
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Folder,
-                                contentDescription = null,
-                                modifier = Modifier.size(24.dp)
-                            )
-                            Spacer(modifier = Modifier.width(16.dp))
-                            Column {
-                                Text(
-                                    text = stringResource(R.string.delete_group_only),
-                                    style = MaterialTheme.typography.bodyLarge
-                                )
-                                Text(
-                                    text = stringResource(R.string.chats_move_to_ungrouped),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
+                        TextButton(onClick = dismissDrawer, enabled = !deleting) {
+                            Text(stringResource(if (partial) R.string.close else R.string.cancel))
                         }
                     }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    TextButton(
-                        onClick = { groupToDelete = null },
-                        enabled = !deleting,
-                        modifier = Modifier.align(Alignment.End)
+                }
+            ) {
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
+                        .padding(bottom = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Text(stringResource(R.string.cancel))
+                        Icon(
+                            imageVector = Icons.Outlined.Folder,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Text(
+                            text = target.groupName,
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
                     }
+                    Text(
+                        text = stringResource(R.string.choose_delete_method),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp)
+                    )
+
+                    if (deleting) {
+                        LinearProgressIndicator(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 20.dp, vertical = 6.dp)
+                        )
+                    }
+                    error?.let {
+                        Text(
+                            text = it,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    HistoryActionRow(
+                        icon = Icons.Outlined.Folder,
+                        label = stringResource(R.string.delete_group_only),
+                        supportingText = stringResource(R.string.chats_move_to_ungrouped),
+                        enabled = !deleting && !partial,
+                        onClick = { deleteSelectedGroup(false) }
+                    )
+
+                    HistoryActionRow(
+                        icon = Icons.Outlined.Delete,
+                        label = stringResource(R.string.delete_group_and_chats),
+                        supportingText = stringResource(R.string.delete_operation_irreversible),
+                        destructive = true,
+                        enabled = !deleting && !partial,
+                        onClick = { deleteSelectedGroup(true) }
+                    )
                 }
             }
         }
@@ -1688,6 +1743,8 @@ fun ChatHistorySelector(
                                 value = newTitle,
                                 onValueChange = { newTitle = it },
                                 enabled = !savingMetadata,
+                                singleLine = true,
+                                shape = KiyoriUiShapes.field,
                                 label = { Text(stringResource(R.string.new_title)) },
                                 modifier = Modifier.fillMaxWidth()
                         )
@@ -1697,6 +1754,7 @@ fun ChatHistorySelector(
                                     onValueChange = {},
                                     enabled = !savingMetadata,
                                     readOnly = true,
+                                    shape = KiyoriUiShapes.field,
                                     label = { Text(bindingLabel) },
                                     trailingIcon = {
                                         Icon(
@@ -1741,7 +1799,14 @@ fun ChatHistorySelector(
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                        metadataError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                        metadataError?.let {
+                            Text(
+                                text = it,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
+                        if (savingMetadata) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                     }
                 },
                 confirmButton = {
@@ -1805,52 +1870,39 @@ fun ChatHistorySelector(
     }
 
     if (showSettingsDialog) {
-        val dialogMetrics = rememberCompactDialogMetrics()
-        val outerPadding = if (dialogMetrics.isCompact) 8.dp else 16.dp
-        val contentPadding = if (dialogMetrics.isCompact) 12.dp else 16.dp
-        val scrollState = rememberCompactDialogScrollState()
-        val cardModifier =
-            Modifier
-                .fillMaxWidth()
-                .padding(outerPadding)
-                .let { base ->
-                    if (dialogMetrics.isCompact) {
-                        base.heightIn(max = dialogMetrics.maxHeight - outerPadding * 2)
-                    } else {
-                        base
+        // 这里的每个选项都即时生效，原来的“取消”按钮与实际行为相反；改为“完成”并统一到
+        // 共享底部抽屉，同时给显示模式补上单选语义，读屏不再把三项读成三个独立开关。
+        KiyoriModalBottomDrawer(onDismissRequest = { showSettingsDialog = false }) { dismissDrawer ->
+            KiyoriDrawerScaffold(
+                title = stringResource(R.string.chat_history_settings),
+                onClose = dismissDrawer,
+                scrollableContent = false,
+                footer = {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                        Button(onClick = dismissDrawer, shape = KiyoriUiShapes.control) {
+                            Text(stringResource(R.string.done))
+                        }
                     }
                 }
-        val contentModifier =
-            Modifier
-                .padding(contentPadding)
-                .verticalScrollWhenCompact(dialogMetrics, scrollState)
-
-        Dialog(onDismissRequest = { showSettingsDialog = false }) {
-            Card(
-                modifier = cardModifier,
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surface
-                ),
-                elevation = CardDefaults.cardElevation(
-                    defaultElevation = 6.dp
-                )
             ) {
-                Column(modifier = contentModifier) {
-                    Text(
-                        text = stringResource(R.string.chat_history_settings),
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(bottom = 16.dp)
-                    )
-
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 20.dp)
+                        .padding(bottom = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
                     Text(
                         text = stringResource(R.string.chat_display_mode),
                         style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(bottom = 8.dp)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    
+
                     listOf(
                         Triple(
                             ChatHistoryDisplayMode.BY_CHARACTER_CARD,
@@ -1872,24 +1924,27 @@ fun ChatHistorySelector(
                         Surface(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 4.dp)
-                                .clip(MaterialTheme.shapes.medium)
-                                .clickable {
-                                    onDisplayModeChange(mode)
-                                },
+                                .clip(KiyoriUiShapes.control)
+                                .selectable(
+                                    selected = selected,
+                                    role = Role.RadioButton,
+                                    onClick = { onDisplayModeChange(mode) }
+                                ),
                             color = if (selected) {
-                                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+                                MaterialTheme.colorScheme.secondaryContainer
                             } else {
-                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                                MaterialTheme.colorScheme.surfaceContainerHigh
                             },
-                            shape = MaterialTheme.shapes.medium
+                            shape = KiyoriUiShapes.control
                         ) {
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(12.dp),
+                                    .padding(start = 8.dp, end = 14.dp, top = 10.dp, bottom = 10.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
+                                RadioButton(selected = selected, onClick = null)
+                                Spacer(modifier = Modifier.width(4.dp))
                                 Column(
                                     modifier = Modifier.weight(1f),
                                     verticalArrangement = Arrangement.spacedBy(2.dp)
@@ -1905,110 +1960,34 @@ fun ChatHistorySelector(
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
-                                if (selected) {
-                                    Icon(
-                                        Icons.Default.Check,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.padding(start = 8.dp)
-                                    )
-                                }
                             }
-                        }
-                    }
-                    
-                    Spacer(modifier = Modifier.height(16.dp))
-                    HorizontalDivider()
-                    Spacer(modifier = Modifier.height(16.dp))
-                    
-                    Surface(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(MaterialTheme.shapes.medium)
-                            .clickable {
-                                onAutoSwitchCharacterCardChange(!autoSwitchCharacterCard)
-                            },
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
-                        shape = MaterialTheme.shapes.medium
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(12.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(
-                                modifier = Modifier.weight(1f),
-                                verticalArrangement = Arrangement.spacedBy(2.dp)
-                            ) {
-                                Text(
-                                    text = stringResource(R.string.history_auto_switch_character),
-                                    style = MaterialTheme.typography.bodyMedium
-                                )
-                                Text(
-                                    text = stringResource(R.string.history_auto_switch_character_desc),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                            Switch(
-                                checked = autoSwitchCharacterCard,
-                                onCheckedChange = onAutoSwitchCharacterCardChange,
-                                modifier = Modifier.padding(start = 8.dp)
-                            )
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(12.dp))
+                    HorizontalDivider(
+                        modifier = Modifier.padding(vertical = 4.dp),
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)
+                    )
 
-                    Surface(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(MaterialTheme.shapes.medium)
-                            .clickable {
-                                onAutoSwitchChatOnCharacterSelectChange(!autoSwitchChatOnCharacterSelect)
-                            },
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
-                        shape = MaterialTheme.shapes.medium
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(12.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(
-                                modifier = Modifier.weight(1f),
-                                verticalArrangement = Arrangement.spacedBy(2.dp)
-                            ) {
-                                Text(
-                                    text = stringResource(R.string.history_auto_switch_chat),
-                                    style = MaterialTheme.typography.bodyMedium
-                                )
-                                Text(
-                                    text = stringResource(R.string.history_auto_switch_chat_desc),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                            Switch(
-                                checked = autoSwitchChatOnCharacterSelect,
-                                onCheckedChange = onAutoSwitchChatOnCharacterSelectChange,
-                                modifier = Modifier.padding(start = 8.dp)
-                            )
-                        }
-                    }
-                    
-                    Spacer(modifier = Modifier.height(16.dp))
-                    
-                    TextButton(
-                        onClick = { showSettingsDialog = false },
-                        modifier = Modifier.align(Alignment.End)
-                    ) {
-                        Text(stringResource(R.string.cancel))
-                    }
+                    Text(
+                        text = stringResource(R.string.chat_history_switch_behavior),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    HistorySettingsToggle(
+                        title = stringResource(R.string.history_auto_switch_character),
+                        description = stringResource(R.string.history_auto_switch_character_desc),
+                        checked = autoSwitchCharacterCard,
+                        onCheckedChange = onAutoSwitchCharacterCardChange
+                    )
+
+                    HistorySettingsToggle(
+                        title = stringResource(R.string.history_auto_switch_chat),
+                        description = stringResource(R.string.history_auto_switch_chat_desc),
+                        checked = autoSwitchChatOnCharacterSelect,
+                        onCheckedChange = onAutoSwitchChatOnCharacterSelectChange
+                    )
                 }
             }
         }
@@ -2028,17 +2007,27 @@ fun ChatHistorySelector(
             onDismissRequest = { closeCreate() },
             title = { Text(stringResource(R.string.new_group)) },
             text = {
-                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                Column(
+                    modifier = Modifier.verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
                     OutlinedTextField(
                         value = newGroupName,
                         onValueChange = { newGroupName = it },
                         enabled = !creating && !createdButNotSelected,
                         singleLine = true,
+                        shape = KiyoriUiShapes.field,
                         label = { Text(stringResource(R.string.group_name)) },
                         modifier = Modifier.fillMaxWidth()
                     )
-                    error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-                    if (creating) CircularProgressIndicator()
+                    error?.let {
+                        Text(
+                            text = it,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                    if (creating) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                 }
             },
             confirmButton = {
@@ -2091,85 +2080,140 @@ fun ChatHistorySelector(
         }
     }
 
-    Column(modifier = modifier) {
-        if (moveSaving || selectingChat) {
-            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-        }
-        if (selectionError) {
-            Text(
-                stringResource(R.string.chat_selection_failed),
-                color = MaterialTheme.colorScheme.error,
-                modifier = Modifier.fillMaxWidth().padding(16.dp),
-            )
-        }
-        moveError?.let { error ->
-            Surface(color = MaterialTheme.colorScheme.errorContainer) {
-                Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
-                    Text(error, color = MaterialTheme.colorScheme.onErrorContainer)
-                    TextButton(onClick = { moveError = null }) { Text(stringResource(R.string.close)) }
-                }
-            }
-        }
+    val totalChatCount = chatHistories.size
+    val visibleChatCount = filteredHistories.size
+    val isFilteringHistories = searchQuery.trim().isNotEmpty()
+    val focusManager = LocalFocusManager.current
+    var showGestureHint by rememberLocal(key = "show_swipe_hint", defaultValue = true)
 
-        Column(
+    Column(modifier = modifier) {
+        // 抽屉自身是左侧面板，右上角是“收起”，不是页面级返回；标题下给出当前可见口径，
+        // 让搜索或显示模式造成的过滤结果始终可解释，而不是让用户面对一个来历不明的短列表。
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 16.dp)
+                .padding(start = 16.dp, end = 4.dp, top = 6.dp, bottom = 6.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = stringResource(R.string.chat_history),
                     style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurface
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
-                Spacer(modifier = Modifier.weight(1f))
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                Text(
+                    text = if (isFilteringHistories) {
+                        stringResource(
+                            R.string.chat_history_filtered_count,
+                            visibleChatCount,
+                            totalChatCount
+                        )
+                    } else {
+                        stringResource(R.string.chat_history_total_count, totalChatCount)
+                    },
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+            IconButton(
+                onClick = { showSettingsDialog = true },
+                modifier = Modifier.size(40.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Tune,
+                    contentDescription = stringResource(R.string.chat_history_settings),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+            if (onBack != null) {
+                IconButton(
+                    onClick = onBack,
+                    modifier = Modifier.size(40.dp)
                 ) {
-                    IconButton(
-                        onClick = { showSearchBox = !showSearchBox },
-                        modifier = Modifier.size(40.dp)
-                    ) {
-                        Icon(
-                            if (showSearchBox) Icons.Default.SearchOff else Icons.Outlined.Search,
-                            contentDescription = stringResource(R.string.search),
-                            tint = if (showSearchBox) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                    IconButton(
-                        onClick = { showSettingsDialog = true },
-                        modifier = Modifier.size(40.dp)
-                    ) {
-                        Icon(
-                            Icons.Outlined.Tune,
-                            contentDescription = stringResource(R.string.settings),
-                            tint = MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                    if (onBack != null) {
-                        IconButton(
-                            onClick = onBack,
-                            modifier = Modifier.size(40.dp)
-                        ) {
-                            Icon(
-                                Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = stringResource(R.string.back),
-                                tint = MaterialTheme.colorScheme.onSurface,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                    }
+                    Icon(
+                        imageVector = Icons.Outlined.Close,
+                        contentDescription = stringResource(R.string.chat_history_collapse),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(20.dp)
+                    )
                 }
             }
         }
 
-        // 新建对话按钮
+        // 搜索常驻。折叠式搜索会在收起时保留查询词，列表继续被一个看不见的条件过滤；
+        // 常驻输入框让过滤条件始终可见，清空也只需要一次点击。
+        OutlinedTextField(
+            value = searchQuery,
+            onValueChange = onSearchQueryChange,
+            isError = searchFailed,
+            supportingText = if (searchFailed) {
+                {
+                    Text(
+                        text = stringResource(R.string.chat_history_search_failed),
+                        style = MaterialTheme.typography.labelSmall
+                    )
+                }
+            } else {
+                null
+            },
+            placeholder = {
+                Text(
+                    text = stringResource(R.string.chat_history_search_placeholder),
+                    style = MaterialTheme.typography.bodyMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            },
+            leadingIcon = {
+                if (isSearching) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(18.dp),
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Outlined.Search,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            },
+            trailingIcon = {
+                if (searchQuery.isNotEmpty()) {
+                    IconButton(
+                        onClick = {
+                            onSearchQueryChange("")
+                            focusManager.clearFocus()
+                        },
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Close,
+                            contentDescription = stringResource(R.string.clear_search),
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+            },
+            singleLine = true,
+            shape = KiyoriUiShapes.field,
+            textStyle = MaterialTheme.typography.bodyMedium,
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+            keyboardActions = KeyboardActions(onSearch = { focusManager.clearFocus() }),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+                .semantics { contentDescription = context.getString(R.string.search_chat_history_hint) }
+        )
+
+        Spacer(modifier = Modifier.height(10.dp))
+
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -2178,7 +2222,7 @@ fun ChatHistorySelector(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Button(
-                onClick = { 
+                onClick = {
                     val (characterCardName, characterGroupId) = resolveBindingForCreate(
                         historyDisplayMode = historyDisplayMode,
                         activePrompt = activePrompt,
@@ -2186,119 +2230,165 @@ fun ChatHistorySelector(
                     )
                     onNewChat(characterCardName, characterGroupId)
                 },
-                modifier = Modifier.weight(1f)
+                modifier = Modifier
+                    .weight(1f)
+                    .height(40.dp),
+                shape = KiyoriUiShapes.control,
+                contentPadding = PaddingValues(horizontal = 12.dp)
             ) {
-                Icon(Icons.Outlined.Add, contentDescription = stringResource(R.string.new_chat))
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(stringResource(R.string.new_chat))
+                Icon(
+                    imageVector = Icons.Outlined.Add,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = stringResource(R.string.new_chat),
+                    style = MaterialTheme.typography.labelLarge,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
             }
-            IconButton(
+            FilledTonalIconButton(
                 onClick = {
                     if (historyDisplayMode != ChatHistoryDisplayMode.BY_FOLDER &&
-                        activePrompt is ActivePrompt.CharacterCard && activeCharacterCardName == null) {
-                        android.widget.Toast.makeText(context, R.string.chat_group_binding_loading, android.widget.Toast.LENGTH_SHORT).show()
+                        activePrompt is ActivePrompt.CharacterCard && activeCharacterCardName == null
+                    ) {
+                        android.widget.Toast.makeText(
+                            context,
+                            R.string.chat_group_binding_loading,
+                            android.widget.Toast.LENGTH_SHORT
+                        ).show()
                     } else {
-                        newGroupBinding = resolveBindingForCreate(historyDisplayMode, activePrompt, activeCharacterCardName)
+                        newGroupBinding = resolveBindingForCreate(
+                            historyDisplayMode,
+                            activePrompt,
+                            activeCharacterCardName
+                        )
                         showNewGroupDialog = true
                     }
                 },
-                modifier = Modifier.size(40.dp)
+                modifier = Modifier.size(40.dp),
+                shape = KiyoriUiShapes.control
             ) {
                 Icon(
-                    Icons.Default.AddCircleOutline,
+                    imageVector = Icons.Outlined.CreateNewFolder,
                     contentDescription = stringResource(R.string.new_group),
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(24.dp)
+                    modifier = Modifier.size(20.dp)
                 )
             }
         }
 
-        // 搜索框
-        if (showSearchBox) {
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = onSearchQueryChange,
-                isError = searchFailed,
-                supportingText = if (searchFailed) {
-                    { Text(stringResource(R.string.chat_history_search_failed)) }
-                } else null,
-                label = { Text(stringResource(R.string.search)) },
-                placeholder = { Text(stringResource(R.string.search_chat_history_hint)) },
-                leadingIcon = {
-                    if (isSearching) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(20.dp),
-                            strokeWidth = 2.dp
-                        )
-                    } else {
-                        Icon(Icons.Outlined.Search, contentDescription = null)
-                    }
-                },
-                trailingIcon = {
-                    if (searchQuery.isNotBlank()) {
-                        IconButton(onClick = { onSearchQueryChange("") }) {
-                            Icon(Icons.Default.SearchOff, contentDescription = stringResource(R.string.clear_search))
-                        }
-                    }
-                },
+        if (moveSaving || selectingChat) {
+            LinearProgressIndicator(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-                singleLine = true
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
             )
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
-        var showSwipeHint by rememberLocal(key = "show_swipe_hint", defaultValue = true)
+        if (selectionError) {
+            HistoryInlineBanner(
+                message = stringResource(R.string.chat_selection_failed),
+                onDismiss = { selectionError = false }
+            )
+        }
 
-        if (showSwipeHint) {
+        moveError?.let { error ->
+            HistoryInlineBanner(
+                message = error,
+                onDismiss = { moveError = null }
+            )
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        if (showGestureHint && chatHistories.isNotEmpty()) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 4.dp)
-                    .clickable { showSwipeHint = false },
-                horizontalArrangement = Arrangement.Center,
+                    .padding(start = 16.dp, end = 6.dp, bottom = 2.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
                     imageVector = Icons.Default.SwapHoriz,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                    modifier = Modifier.size(16.dp)
+                    modifier = Modifier.size(14.dp)
                 )
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(6.dp))
                 Text(
-                    text = stringResource(R.string.swipe_hint),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                    text = stringResource(R.string.chat_history_gesture_hint),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                    modifier = Modifier.weight(1f)
                 )
+                IconButton(
+                    onClick = { showGestureHint = false },
+                    modifier = Modifier.size(28.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Close,
+                        contentDescription = stringResource(R.string.chat_history_hint_dismiss),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                        modifier = Modifier.size(14.dp)
+                    )
+                }
             }
         }
-        HorizontalDivider()
-        Spacer(modifier = Modifier.height(8.dp))
+
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
 
         Box(
             modifier = Modifier
                 .fillMaxWidth()
+                .weight(1f)
                 .padding(end = 2.dp)
         ) {
             LazyColumn(
                 state = actualLazyListState,
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = 10.dp, end = 22.dp)
+                    .fillMaxSize()
+                    .padding(start = 10.dp, end = 22.dp),
+                contentPadding = PaddingValues(top = 8.dp, bottom = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
-                if (filteredHistories.isEmpty() && !isSearching && !searchFailed) {
-                    item(key = "history-empty-state") {
-                        Text(
-                            text = stringResource(
-                                if (searchQuery.isBlank()) R.string.chat_history_empty_hint
-                                else R.string.no_matching_chats_adjust_filter
-                            ),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 32.dp),
-                        )
+                if (filteredHistories.isEmpty()) {
+                    item(key = "history-placeholder-state") {
+                        when {
+                            isSearching ->
+                                HistoryStatusPlaceholder(
+                                    title = stringResource(R.string.chat_history_searching),
+                                    description = stringResource(R.string.chat_history_searching_desc),
+                                    showProgress = true
+                                )
+                            isFilteringHistories ->
+                                HistoryStatusPlaceholder(
+                                    icon = Icons.Outlined.SearchOff,
+                                    title = stringResource(R.string.chat_history_no_result),
+                                    description = stringResource(R.string.no_matching_chats_adjust_filter),
+                                    actionLabel = stringResource(R.string.clear_search),
+                                    onAction = {
+                                        onSearchQueryChange("")
+                                        focusManager.clearFocus()
+                                    }
+                                )
+                            else ->
+                                HistoryStatusPlaceholder(
+                                    icon = Icons.Outlined.Forum,
+                                    title = stringResource(R.string.chat_history_empty_title),
+                                    description = stringResource(R.string.chat_history_empty_hint),
+                                    actionLabel = stringResource(R.string.new_chat),
+                                    onAction = {
+                                        val (cardName, groupId) = resolveBindingForCreate(
+                                            historyDisplayMode = historyDisplayMode,
+                                            activePrompt = activePrompt,
+                                            activeCharacterCardName = activeCharacterCardName
+                                        )
+                                        onNewChat(cardName, groupId)
+                                    }
+                                )
+                        }
                     }
                 }
                 items(
@@ -2345,107 +2435,82 @@ fun ChatHistorySelector(
                             } else {
                                 characterCardAvatarUri
                             }
-                        
+
                         val isExpanded = !collapsedCharacters.contains(item.key)
                         val stateDescription = if (isExpanded) {
                             stringResource(R.string.expanded)
                         } else {
                             stringResource(R.string.collapsed)
                         }
-                        
+
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(top = 16.dp, bottom = 8.dp)
-                                .semantics {
+                                .padding(top = 12.dp, bottom = 4.dp)
+                                .clip(KiyoriUiShapes.control)
+                                .semantics(mergeDescendants = true) {
                                     contentDescription = "${item.name}, $stateDescription"
+                                    role = Role.Button
                                 }
-                                .pointerInput(Unit) {
-                                    detectTapGestures(
-                                        onTap = {
-                                            collapsedCharacters =
-                                                if (collapsedCharacters.contains(item.key)) {
-                                                    collapsedCharacters - item.key
-                                                } else {
-                                                    collapsedCharacters + item.key
-                                                }
+                                .clickable {
+                                    collapsedCharacters =
+                                        if (collapsedCharacters.contains(item.key)) {
+                                            collapsedCharacters - item.key
+                                        } else {
+                                            collapsedCharacters + item.key
                                         }
-                                    )
-                                },
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .padding(start = 8.dp)
-                                    .background(
-                                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
-                                        shape = RoundedCornerShape(topEnd = 16.dp, bottomEnd = 16.dp, topStart = 4.dp, bottomStart = 4.dp)
-                                    )
-                                    .padding(start = 8.dp, end = 16.dp, top = 6.dp, bottom = 6.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(24.dp)
-                                        .clip(CircleShape)
-                                        .background(
-                                            if (avatarUri != null) Color.Transparent 
-                                            else MaterialTheme.colorScheme.primaryContainer
-                                        ),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    if (avatarUri != null) {
-                                        Image(
-                                            painter = rememberAsyncImagePainter(model = Uri.parse(avatarUri)),
-                                            contentDescription = null,
-                                            modifier = Modifier
-                                                .fillMaxSize()
-                                                .clearAndSetSemantics {},
-                                            contentScale = ContentScale.Crop
-                                        )
-                                    } else {
-                                        Icon(
-                                            imageVector = if (!groupId.isNullOrBlank()) Icons.Default.Groups else Icons.Default.Person,
-                                            contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.primary,
-                                            modifier = Modifier
-                                                .size(16.dp)
-                                                .clearAndSetSemantics {}
-                                        )
-                                    }
                                 }
-                                Text(
-                                    text = item.name,
-                                    style = MaterialTheme.typography.titleSmall,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    fontWeight = FontWeight.SemiBold,
-                                    modifier = Modifier.clearAndSetSemantics {}
-                                )
-                            }
-                            
+                                .padding(horizontal = 6.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
                             Box(
                                 modifier = Modifier
-                                    .weight(1f)
-                                    .height(2.dp)
-                                    .padding(horizontal = 8.dp)
+                                    .size(24.dp)
+                                    .clip(CircleShape)
                                     .background(
-                                        brush = Brush.horizontalGradient(
-                                            colors = listOf(
-                                                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
-                                                Color.Transparent
-                                            )
-                                        )
+                                        if (avatarUri != null) Color.Transparent
+                                        else MaterialTheme.colorScheme.primaryContainer
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (avatarUri != null) {
+                                    Image(
+                                        painter = rememberAsyncImagePainter(model = Uri.parse(avatarUri)),
+                                        contentDescription = null,
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .clearAndSetSemantics {},
+                                        contentScale = ContentScale.Crop
                                     )
+                                } else {
+                                    Icon(
+                                        imageVector = if (!groupId.isNullOrBlank()) Icons.Default.Groups else Icons.Default.Person,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                        modifier = Modifier
+                                            .size(15.dp)
+                                            .clearAndSetSemantics {}
+                                    )
+                                }
+                            }
+                            Text(
+                                text = item.name,
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.primary,
+                                fontWeight = FontWeight.SemiBold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clearAndSetSemantics {}
                             )
-
                             Icon(
-                                imageVector = if (collapsedCharacters.contains(item.key)) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowUp,
+                                imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier
-                                    .padding(end = 16.dp)
-                                    .size(24.dp)
+                                    .size(20.dp)
                                     .clearAndSetSemantics {}
                             )
                         }
@@ -2457,101 +2522,108 @@ fun ChatHistorySelector(
                         } else {
                             stringResource(R.string.collapsed)
                         }
-                        
+                        val manageable = item.groupValue != null && item.scope != null
+
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 4.dp),
+                                .padding(top = 4.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             if (historyDisplayMode == ChatHistoryDisplayMode.BY_CHARACTER_CARD) {
-                                Box(
-                                    modifier = Modifier
-                                        .width(32.dp)
-                                        .padding(start = 16.dp, end = 8.dp)
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .width(2.dp)
-                                            .height(40.dp)
-                                            .align(Alignment.Center)
-                                            .background(
-                                                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f),
-                                                shape = RoundedCornerShape(1.dp)
-                                            )
-                                    )
-                                }
+                                HistoryBranchRail(railHeight = 36.dp)
                             }
                             Surface(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .clip(MaterialTheme.shapes.medium)
-                                    .semantics {
-                                        contentDescription = "${item.name}, $stateDescription"
-                                    }
-                                    .pointerInput(Unit) {
-                                        detectTapGestures(
-                                            onTap = {
-                                                collapsedGroups = if (collapsedGroups.contains(item.key)) {
-                                                    collapsedGroups - item.key
-                                                } else {
-                                                    collapsedGroups + item.key
-                                                }
-                                            },
-                                            onLongPress = {
-                                                if (item.groupValue != null && item.scope != null) {
-                                                    groupActionTarget = ChatGroupTarget(
-                                                        groupName = item.name,
-                                                        scope = item.scope
-                                                    )
-                                                    hasLongPressedGroup = true
-                                                }
-                                            }
-                                        )
-                                    },
-                                color = MaterialTheme.colorScheme.surfaceContainer,
-                                shadowElevation = 2.dp,
-                                shape = MaterialTheme.shapes.medium
+                                modifier = Modifier.weight(1f),
+                                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                shape = KiyoriUiShapes.control,
+                                tonalElevation = 0.dp,
+                                shadowElevation = 0.dp
                             ) {
                                 Row(
-                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Folder,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.clearAndSetSemantics {}
-                                    )
-                                    Column(
-                                        modifier = Modifier.weight(1f)
-                                    ) {
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Text(
-                                                text = item.name,
-                                                style = MaterialTheme.typography.titleSmall,
-                                                fontWeight = FontWeight.Bold,
-                                                color = MaterialTheme.colorScheme.onSurface,
-                                                modifier = Modifier.clearAndSetSemantics {}
-                                            )
-                                            if (item.groupValue != null && item.scope != null && !hasLongPressedGroup) {
-                                                Text(
-                                                    text = " (" + stringResource(R.string.long_press_manage) + ")",
-                                                    style = MaterialTheme.typography.bodySmall,
-                                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                                                    modifier = Modifier.clearAndSetSemantics {}
+                                    Row(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .semantics(mergeDescendants = true) {
+                                                contentDescription = "${item.name}, $stateDescription"
+                                                role = Role.Button
+                                            }
+                                            .pointerInput(item.key) {
+                                                detectTapGestures(
+                                                    onTap = {
+                                                        collapsedGroups = if (collapsedGroups.contains(item.key)) {
+                                                            collapsedGroups - item.key
+                                                        } else {
+                                                            collapsedGroups + item.key
+                                                        }
+                                                    },
+                                                    onLongPress = {
+                                                        if (manageable) {
+                                                            groupActionTarget = ChatGroupTarget(
+                                                                groupName = item.name,
+                                                                scope = item.scope
+                                                            )
+                                                        }
+                                                    }
                                                 )
                                             }
-                                        }
+                                            .padding(start = 10.dp, top = 8.dp, bottom = 8.dp, end = 4.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Outlined.Folder,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier
+                                                .size(18.dp)
+                                                .clearAndSetSemantics {}
+                                        )
+                                        Text(
+                                            text = item.name,
+                                            style = MaterialTheme.typography.labelLarge,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = MaterialTheme.colorScheme.onSurface,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .clearAndSetSemantics {}
+                                        )
+                                        Icon(
+                                            imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier
+                                                .size(18.dp)
+                                                .clearAndSetSemantics {}
+                                        )
                                     }
-                                    Icon(
-                                        imageVector = if (collapsedGroups.contains(item.key)) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowUp,
-                                        contentDescription = null,
-                                        modifier = Modifier.clearAndSetSemantics {}
-                                    )
+                                    // 分组管理此前只有长按入口，界面上没有任何提示。给出显式按钮后
+                                    // 不再需要把“长按管理”写进标题里占用本就紧张的一行宽度。
+                                    if (manageable) {
+                                        IconButton(
+                                            onClick = {
+                                                groupActionTarget = ChatGroupTarget(
+                                                    groupName = item.name,
+                                                    scope = item.scope
+                                                )
+                                            },
+                                            modifier = Modifier.size(32.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.MoreVert,
+                                                contentDescription = stringResource(R.string.manage_group),
+                                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        }
+                                    } else {
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                    }
                                 }
                             }
                         }
@@ -2564,7 +2636,7 @@ fun ChatHistorySelector(
                                     modifier = Modifier.padding(16.dp),
                                     imageVector = Icons.Outlined.Delete,
                                     contentDescription = stringResource(R.string.delete),
-                                    tint = Color.White
+                                    tint = MaterialTheme.colorScheme.onError
                                 )
                             },
                             background = MaterialTheme.colorScheme.error
@@ -2577,7 +2649,7 @@ fun ChatHistorySelector(
                                     modifier = Modifier.padding(16.dp),
                                     imageVector = Icons.Outlined.Edit,
                                     contentDescription = stringResource(R.string.edit_title),
-                                    tint = Color.White
+                                    tint = MaterialTheme.colorScheme.onPrimary
                                 )
                             },
                             background = MaterialTheme.colorScheme.primary
@@ -2589,163 +2661,187 @@ fun ChatHistorySelector(
                             animateItemModifier = Modifier.animateItem(placementSpec = null)
                         ) { isDragging ->
                             val isSelected = item.history.id == currentId
-                            val containerColor = if (isSelected) {
-                                MaterialTheme.colorScheme.primaryContainer
-                            } else {
-                                MaterialTheme.colorScheme.surface
+                            // 侧滑会把条目内容平移到删除/编辑背景之上，条目必须不透明；
+                            // 未选中时沿用抽屉底色，视觉上仍是“无卡片”的导航列表。
+                            val containerColor = when {
+                                isDragging -> MaterialTheme.colorScheme.surfaceContainerHighest
+                                isSelected -> MaterialTheme.colorScheme.secondaryContainer
+                                else -> MaterialTheme.colorScheme.surfaceContainerLow
                             }
                             val contentColor = if (isSelected) {
-                                MaterialTheme.colorScheme.onPrimaryContainer
+                                MaterialTheme.colorScheme.onSecondaryContainer
                             } else {
                                 MaterialTheme.colorScheme.onSurface
                             }
+                            val metaColor = if (isSelected) {
+                                MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.78f)
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            }
+                            val isStreaming = activeStreamingChatIds.contains(item.history.id)
+                            val parentChat = remember(item.history.parentChatId, chatHistories) {
+                                item.history.parentChatId?.let { parentId ->
+                                    chatHistories.find { it.id == parentId }
+                                }
+                            }
+                            val relativeTime = historyRelativeTimeLabel(item.history.updatedAt, nowMillis)
+                            val groupName = item.history.group ?: ungroupedText
+                            val rowDescription = listOfNotNull(
+                                item.history.title,
+                                relativeTime,
+                                groupName,
+                                if (isSelected) stringResource(R.string.chat_history_current_chat) else null
+                            ).joinToString(separator = ", ")
 
-                            // Room真实删除后由列表更新移除条目；不提前隐藏尚未删除的聊天。
-                            Box {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(vertical = 2.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    if (historyDisplayMode == ChatHistoryDisplayMode.BY_CHARACTER_CARD) {
-                                        Box(
-                                            modifier = Modifier
-                                                .width(32.dp)
-                                                .padding(start = 16.dp, end = 8.dp)
+                            // Room 真实删除后由列表更新移除条目；不提前隐藏尚未删除的聊天。
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                if (historyDisplayMode == ChatHistoryDisplayMode.BY_CHARACTER_CARD) {
+                                    HistoryBranchRail(railHeight = 52.dp)
+                                }
+                                Box(modifier = Modifier.weight(1f)) {
+                                    SwipeableActionsBox(
+                                        startActions = listOf(editAction),
+                                        endActions = listOf(deleteAction),
+                                        swipeThreshold = 96.dp,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clip(KiyoriUiShapes.control)
+                                    ) {
+                                        Surface(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            color = containerColor,
+                                            shape = KiyoriUiShapes.control,
+                                            shadowElevation = if (isDragging) 6.dp else 0.dp
                                         ) {
-                                            Box(
+                                            Row(
                                                 modifier = Modifier
-                                                    .width(2.dp)
-                                                    .height(50.dp)
-                                                    .align(Alignment.Center)
-                                                    .background(
-                                                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f),
-                                                        shape = RoundedCornerShape(1.dp)
-                                                    )
-                                            )
-                                        }
-                                    }
-                                    Box(modifier = Modifier.weight(1f)) {
-                                        SwipeableActionsBox(
-                                            startActions = listOf(editAction),
-                                            endActions = listOf(deleteAction),
-                                            swipeThreshold = 100.dp,
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .clip(MaterialTheme.shapes.medium)
-                                        ) {
-                                            Surface(
-                                                modifier = Modifier
-                                                    .fillMaxWidth(),
-                                                color = containerColor,
-                                                shape = MaterialTheme.shapes.medium,
-                                                shadowElevation = if (isDragging) 8.dp else 0.dp
+                                                    .fillMaxWidth()
+                                                    .heightIn(min = 52.dp)
+                                                    .padding(start = 2.dp, end = 2.dp),
+                                                verticalAlignment = Alignment.CenterVertically
                                             ) {
-                                                Box(
+                                                val dragDescription = stringResource(R.string.drag_item, item.history.title)
+                                                IconButton(
                                                     modifier = Modifier
-                                                        .fillMaxWidth()
+                                                        .size(28.dp)
+                                                        .draggableHandle()
+                                                        .semantics {
+                                                            contentDescription = dragDescription
+                                                        },
+                                                    onClick = {}
                                                 ) {
-                                                    val titlePreview = item.history.title.take(20)
-                                                    val groupName = item.history.group ?: ungroupedText
+                                                    Icon(
+                                                        imageVector = Icons.Outlined.DragHandle,
+                                                        contentDescription = null,
+                                                        tint = metaColor.copy(alpha = 0.6f),
+                                                        modifier = Modifier.size(16.dp)
+                                                    )
+                                                }
+                                                Column(
+                                                    modifier = Modifier
+                                                        .weight(1f)
+                                                        .semantics(mergeDescendants = true) {
+                                                            contentDescription = rowDescription
+                                                            role = Role.Button
+                                                        }
+                                                        .pointerInput(item.history.id) {
+                                                            detectTapGestures(
+                                                                onTap = { selectChat(item.history.id) },
+                                                                onLongPress = { chatItemActionTarget = item.history }
+                                                            )
+                                                        }
+                                                        .padding(start = 4.dp, top = 8.dp, bottom = 8.dp, end = 4.dp),
+                                                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                                                ) {
                                                     Row(
-                                                        modifier = Modifier
-                                                            .fillMaxWidth()
-                                                            .padding(horizontal = 10.dp)
-                                                            .semantics(mergeDescendants = false) {
-                                                                contentDescription = "$titlePreview, $groupName"
-                                                            }
-                                                            .pointerInput(Unit) {
-                                                                detectTapGestures(
-                                                                    onTap = { selectChat(item.history.id) },
-                                                                    onLongPress = { chatItemActionTarget = item.history }
-                                                                )
-                                                            },
-                                                        verticalAlignment = Alignment.CenterVertically
+                                                        verticalAlignment = Alignment.CenterVertically,
+                                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
                                                     ) {
-                                                        val dragDescription = stringResource(R.string.drag_item, item.history.title)
-                                                        IconButton(
+                                                        Text(
+                                                            text = item.history.title,
+                                                            style = MaterialTheme.typography.bodyMedium,
+                                                            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                                                            color = contentColor,
+                                                            maxLines = 1,
+                                                            overflow = TextOverflow.Ellipsis,
                                                             modifier = Modifier
-                                                                .draggableHandle()
-                                                                .semantics {
-                                                                    contentDescription = dragDescription
-                                                                },
-                                                            onClick = {}
-                                                        ) {
-                                                            Icon(
-                                                                imageVector = Icons.Default.DragHandle,
-                                                                contentDescription = null,
-                                                                tint = contentColor
-                                                            )
-                                                        }
-                                                        Spacer(modifier = Modifier.width(8.dp))
-                                                        Column(
-                                                            modifier = Modifier
-                                                                .weight(1f)
-                                                                .semantics { contentDescription = "" }
-                                                        ) {
-                                                            Text(
-                                                                text = item.history.title,
-                                                                style = MaterialTheme.typography.bodyMedium,
-                                                                color = contentColor,
-                                                                maxLines = 1,
-                                                                overflow = TextOverflow.Ellipsis
-                                                            )
-
-                                                            // 如果是分支，在右侧显示分支图标和父对话标题
-                                                            if (item.history.parentChatId != null) {
-                                                                val parentChat = chatHistories.find { it.id == item.history.parentChatId }
-                                                                if (parentChat != null) {
-                                                                    Spacer(modifier = Modifier.height(2.dp))
-                                                                    Row(
-                                                                        verticalAlignment = Alignment.CenterVertically,
-                                                                        modifier = Modifier.semantics { contentDescription = "" }
-                                                                    ) {
-                                                                        Icon(
-                                                                            imageVector = Icons.Default.AccountTree,
-                                                                            contentDescription = null,
-                                                                            tint = contentColor.copy(alpha = 0.6f),
-                                                                            modifier = Modifier.size(14.dp)
-                                                                        )
-                                                                        Spacer(modifier = Modifier.width(4.dp))
-                                                                        Text(
-                                                                            text = parentChat.title,
-                                                                            style = MaterialTheme.typography.bodySmall,
-                                                                            color = contentColor.copy(alpha = 0.6f),
-                                                                            maxLines = 1,
-                                                                            overflow = TextOverflow.Ellipsis
-                                                                        )
-                                                                    }
-                                                                }
-                                                            }
-                                                        }
-                                                        if (activeStreamingChatIds.contains(item.history.id)) {
-                                                            Spacer(modifier = Modifier.width(4.dp))
+                                                                .weight(1f, fill = false)
+                                                                .clearAndSetSemantics {}
+                                                        )
+                                                        if (isStreaming) {
                                                             CircularProgressIndicator(
-                                                                modifier = Modifier.size(12.dp),
+                                                                modifier = Modifier
+                                                                    .size(11.dp)
+                                                                    .clearAndSetSemantics {},
                                                                 strokeWidth = 1.5.dp,
-                                                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                                                                color = MaterialTheme.colorScheme.primary
                                                             )
                                                         }
                                                         if (item.history.pinned) {
-                                                            Spacer(modifier = Modifier.width(8.dp))
                                                             Icon(
                                                                 imageVector = Icons.Default.PushPin,
                                                                 contentDescription = null,
-                                                                tint = contentColor.copy(alpha = 0.6f),
-                                                                modifier = Modifier.size(16.dp)
+                                                                tint = metaColor,
+                                                                modifier = Modifier
+                                                                    .size(13.dp)
+                                                                    .clearAndSetSemantics {}
                                                             )
                                                         }
                                                         if (item.history.locked) {
-                                                            Spacer(modifier = Modifier.width(8.dp))
                                                             Icon(
                                                                 imageVector = Icons.Default.Lock,
                                                                 contentDescription = null,
-                                                                tint = contentColor.copy(alpha = 0.6f),
-                                                                modifier = Modifier.size(16.dp)
+                                                                tint = metaColor,
+                                                                modifier = Modifier
+                                                                    .size(13.dp)
+                                                                    .clearAndSetSemantics {}
                                                             )
                                                         }
                                                     }
+                                                    Row(
+                                                        verticalAlignment = Alignment.CenterVertically,
+                                                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                                        modifier = Modifier.clearAndSetSemantics {}
+                                                    ) {
+                                                        if (parentChat != null) {
+                                                            Icon(
+                                                                imageVector = Icons.Default.AccountTree,
+                                                                contentDescription = null,
+                                                                tint = metaColor,
+                                                                modifier = Modifier.size(11.dp)
+                                                            )
+                                                        }
+                                                        Text(
+                                                            text = if (parentChat != null) {
+                                                                "$relativeTime · ${parentChat.title}"
+                                                            } else {
+                                                                relativeTime
+                                                            },
+                                                            style = MaterialTheme.typography.labelSmall,
+                                                            color = metaColor,
+                                                            maxLines = 1,
+                                                            overflow = TextOverflow.Ellipsis
+                                                        )
+                                                    }
+                                                }
+                                                // 条目操作此前只有长按一个入口。显式“更多”按钮让重命名、
+                                                // 置顶、锁定和删除在不知道手势的情况下同样可达。
+                                                IconButton(
+                                                    onClick = { chatItemActionTarget = item.history },
+                                                    modifier = Modifier.size(32.dp)
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.MoreVert,
+                                                        contentDescription = stringResource(
+                                                            R.string.chat_history_more_actions,
+                                                            item.history.title
+                                                        ),
+                                                        tint = metaColor,
+                                                        modifier = Modifier.size(18.dp)
+                                                    )
                                                 }
                                             }
                                         }

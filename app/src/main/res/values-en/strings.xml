@@ -1,6 +1,6 @@
 <resources>
     <string name="chat_history_search_failed">Content search failed. Only title matches are shown. Re-enter a keyword to retry.</string>
-    <string name="chat_history_empty_hint">No conversations yet. Start one using New conversation above.</string>
+    <string name="chat_history_empty_hint">Start a new conversation; you can group it by character card or folder later.</string>
     <string name="chat_delete_selected_messages_confirmation">Delete the %1$d selected messages? This cannot be undone.</string>
     <string name="chat_draft_changed_before_send">The conversation or draft changed. Review the current content before sending again.</string>
     <string name="app_name">Kiyori</string>
@@ -3267,8 +3267,6 @@
     <string name="edit_title_desc">Edit title</string>
     <string name="reorder">Reorder</string>
     <string name="choose_delete_method">Please choose deletion method:</string>
-    <string name="swipe_hint">Swipe left or right to edit or delete (tap to hide)</string>
-    <string name="long_press_manage">Long press to manage</string>
 
     <!-- Settings Screen Subtitles -->
     <string name="settings_custom_headers">Custom Headers</string>
@@ -8590,4 +8588,21 @@
     <string name="artifact_storage_current">Currently saved settings</string>
     <string name="artifact_storage_leave_help">Your changes are not applied yet. Save before leaving, discard them, or continue editing.</string>
     <string name="artifact_storage_discard">Discard changes</string>
+    <string name="chat_history_total_count">Conversations: %1$d</string>
+    <string name="chat_history_filtered_count">Matching %1$d of %2$d</string>
+    <string name="chat_history_collapse">Collapse chat history</string>
+    <string name="chat_history_search_placeholder">Search titles or messages</string>
+    <string name="chat_history_searching">Searching</string>
+    <string name="chat_history_searching_desc">Matching message bodies; title matches appear first.</string>
+    <string name="chat_history_no_result">No matching conversations</string>
+    <string name="chat_history_empty_title">No conversations yet</string>
+    <string name="chat_history_gesture_hint">Swipe right to edit, left to delete; tap More to manage</string>
+    <string name="chat_history_hint_dismiss">Dismiss hint</string>
+    <string name="chat_history_more_actions">Manage conversation %1$s</string>
+    <string name="chat_history_manage_chat">Manage conversation</string>
+    <string name="chat_history_lock_hint">Locked conversations cannot be deleted; renaming and pinning still work.</string>
+    <string name="chat_history_move_blocked">Already at the edge of its pinned section</string>
+    <string name="chat_history_delete_group_hint">Delete the conversations too, or only disband the group.</string>
+    <string name="chat_history_switch_behavior">Switching behavior</string>
+    <string name="chat_history_current_chat">Current conversation</string>
 </resources>

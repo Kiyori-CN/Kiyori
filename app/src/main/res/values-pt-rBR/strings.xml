@@ -2617,8 +2617,6 @@ Agora é possível usar o modo AutoGLM na interface de diálogo.</string>
     <string name="edit_title_desc">Editar título</string>
     <string name="reorder">Reordenar</string>
     <string name="choose_delete_method">Selecione o método de exclusão:</string>
-    <string name="swipe_hint">Deslize para a esquerda ou direita para editar ou excluir (clique para não mostrar novamente)</string>
-    <string name="long_press_manage">Gerenciamento de imprensa longa</string>
     <string name="history_fast_scroll">O histórico rola rapidamente</string>
     <string name="history_scroll_to_top">role para cima</string>
     <string name="history_scroll_to_bottom">role para baixo</string>
@@ -7554,7 +7552,7 @@ Agora é possível usar o modo AutoGLM na interface de diálogo.</string>
     <string name="chat_stats_coverage_note">Cobertura de uso = relatórios de uso / solicitações ao modelo. Cobertura de cache = relatórios de cache / relatórios de uso. Um turno pode incluir várias solicitações ao modelo.</string>
 
     <string name="chat_history_search_failed">Falha na busca de conteúdo. Apenas títulos correspondentes são exibidos. Digite a palavra novamente para tentar de novo.</string>
-    <string name="chat_history_empty_hint">Ainda não há conversas. Use Nova conversa acima para começar.</string>
+    <string name="chat_history_empty_hint">Comece uma nova conversa; depois é possível agrupá-la por cartão de personagem ou pasta.</string>
     <string name="chat_delete_selected_messages_confirmation">Excluir as %1$d mensagens selecionadas? Esta ação não pode ser desfeita.</string>
     <string name="chat_draft_changed_before_send">A conversa ou o rascunho mudou. Confira o conteúdo antes de enviar novamente.</string>
     <string name="shell_executor_clear_history_confirm">Limpar os comandos e resultados desta sessão da página? Comandos já executados não serão desfeitos.</string>
@@ -7756,4 +7754,21 @@ Agora é possível usar o modo AutoGLM na interface de diálogo.</string>
     <string name="chat_stats_first_output">Espera pela primeira saída</string>
     <string name="chat_stats_request_duration">Duração total da solicitação</string>
     <string name="chat_stats_timing_note">Observação do cliente para a solicitação atual ou recente: do início da chamada ao primeiro conteúdo e ao fim do fluxo, incluindo preparação local, rede, proxy e espera no servidor. O primeiro conteúdo pode ser raciocínio ou dados de ferramentas. Não representa o RTT da rede nem apenas o tempo de inferência do servidor.</string>
+    <string name="chat_history_total_count">Conversas: %1$d</string>
+    <string name="chat_history_filtered_count">Correspondem %1$d de %2$d</string>
+    <string name="chat_history_collapse">Recolher o histórico de conversas</string>
+    <string name="chat_history_search_placeholder">Pesquisar títulos ou mensagens</string>
+    <string name="chat_history_searching">Pesquisando</string>
+    <string name="chat_history_searching_desc">Procurando no conteúdo das mensagens; as correspondências de título aparecem primeiro.</string>
+    <string name="chat_history_no_result">Nenhuma conversa correspondente</string>
+    <string name="chat_history_empty_title">Ainda não há conversas</string>
+    <string name="chat_history_gesture_hint">Deslize para a direita para editar, para a esquerda para excluir; toque em Mais para gerenciar</string>
+    <string name="chat_history_hint_dismiss">Não mostrar novamente</string>
+    <string name="chat_history_more_actions">Gerenciar a conversa %1$s</string>
+    <string name="chat_history_manage_chat">Gerenciar a conversa</string>
+    <string name="chat_history_lock_hint">Conversas bloqueadas não podem ser excluídas; renomear e fixar continuam funcionando.</string>
+    <string name="chat_history_move_blocked">Já está no limite da seção fixada</string>
+    <string name="chat_history_delete_group_hint">Exclua também as conversas ou apenas desfaça o grupo.</string>
+    <string name="chat_history_switch_behavior">Comportamento ao alternar</string>
+    <string name="chat_history_current_chat">Conversa atual</string>
 </resources>

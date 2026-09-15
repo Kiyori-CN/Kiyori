@@ -35,6 +35,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalWindowInfo
+import com.kiyori.design.theme.calculateKiyoriDrawerWidthDp
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -1127,18 +1129,23 @@ fun ChatHistorySelectorPanel(
         autoSwitchChatOnCharacterSelect: Boolean,
         onAutoSwitchChatOnCharacterSelectChange: (Boolean) -> Unit
 ) {
-    // 历史选择器面板（不再包含遮罩层，遮罩层已在外部处理）
-    Box(
-            modifier =
-                    Modifier.width(280.dp)
-                            .fillMaxHeight()
-                            .background(
-                                    color =
-                                            MaterialTheme.colorScheme.surface.copy(
-                                                    alpha = 0.95f
-                                            ),
-                                    shape = RoundedCornerShape(topEnd = 4.dp, bottomEnd = 4.dp)
-                            )
+    // 历史选择器面板（不再包含遮罩层，遮罩层已在外部处理）。
+    // 宽度改用与文件存储抽屉同一份几何，不再硬编码 280dp：窄屏不再挤压标题与操作，
+    // 平板与折叠屏也不会留下一条过窄的侧栏。
+    val panelDensity = LocalDensity.current
+    val containerWidthPx = LocalWindowInfo.current.containerSize.width
+    val drawerWidth = remember(containerWidthPx, panelDensity) {
+        // 共享几何要求正宽度；预览与异常窗口下容器宽度可能为 0，这里兜住下界而不是崩溃。
+        val windowWidthDp = with(panelDensity) { containerWidthPx.toDp().value }
+        calculateKiyoriDrawerWidthDp(windowWidthDp.coerceAtLeast(1f)).dp
+    }
+    Surface(
+            modifier = Modifier.width(drawerWidth).fillMaxHeight(),
+            color = MaterialTheme.colorScheme.surfaceContainerLow,
+            contentColor = MaterialTheme.colorScheme.onSurface,
+            shape = RoundedCornerShape(topEnd = 16.dp, bottomEnd = 16.dp),
+            tonalElevation = 0.dp,
+            shadowElevation = 2.dp
     ) {
         val activeStreamingChatIds by actualViewModel.activeStreamingChatIds.collectAsState()
         // 直接使用ChatHistorySelector

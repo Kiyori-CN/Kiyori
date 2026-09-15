@@ -4,6 +4,70 @@ status: in_progress
 
 # AI 对话全界面与交互优化
 
+## 2026-09-15 对话历史入口图标与左侧抽屉现代化
+
+本轮基线 `main@bed6fa794`，工作区干净，用户要求实现后提交推送。
+状态：实现与本地验证完成，真机现场验收 `verification_pending`（当前环境无可用设备或模拟器）。
+范围限定在 AI 对话顶栏下方那一行的“对话历史”入口，以及它打开的左侧抽屉；顶栏高度、消息区、
+悬浮小窗与 `FloatingChatWindowScreen` 的同名入口不在本轮改动内。
+
+| 阶段 | 方案与影响面 | 验收 |
+| --- | --- | --- |
+| 入口图标 | `ChatHeader` 的会话入口由 `Icons.Rounded.Forum` 填充图标改为 `Icons.Outlined.Forum` 线性轮廓，语义色由 ORANGE 改为 BLUE；保留主题自定义色覆盖、32dp 触摸目标与 `KIYORI_SECONDARY_BAR_VERTICAL_PADDING_DP` | 栏高与两种运行任务态（普通 / `runningTaskCount >= 2` 计数徽标）均不变 |
+| 抽屉外形与动效 | 面板宽度改用共享 `calculateKiyoriDrawerWidthDp`，表面改为不透明 `surfaceContainerLow` + 16dp 末端圆角；遮罩改用 `colorScheme.scrim` 与 `KiyoriSurfaceTokens.modalScrimAlpha`，补无障碍语义；滑入容器只包裹面板本身 | 窄屏/平板宽度、深浅色遮罩、进出动画偏移 |
+| 交互与逻辑 | 系统返回先收起抽屉；搜索常驻并可一键清空；条目与分组新增显式“更多”入口；条目操作、分组管理、分组删除与历史设置统一到共享底部抽屉 | 返回优先级、搜索过滤可见性、键盘操作、读屏朗读 |
+| 信息密度 | 条目补相对更新时间与分支来源，选中态改用 `secondaryContainer`；空列表、无结果与搜索中各自有占位与下一步动作 | 长标题截断、置顶/锁定/流式指示、三种占位状态 |
+| 交付 | 新增 17 条文案并补齐 en/es/id/ko/ms/pt-rBR 六种翻译，修订 `chat_history_empty_hint` 描述行，移除失去引用的 `swipe_hint` / `long_press_manage` | 串行 Debug APK、架构与正式准备检查、精确差异审查 |
+
+非目标：不改顶栏高度与结构、不改对话数据模型或仓储、不新增第二份历史状态所有者、
+不引入 Material `ModalBottomSheet`（共享抽屉迁移契约禁止）、不改悬浮小窗与浮动窗口入口。
+
+### 已确认缺陷与处理
+
+| 证据入口 | 原问题 | 本轮处理 |
+| --- | --- | --- |
+| `ChatHistorySelector` 搜索开关 | 折叠搜索框不清空 `searchQuery`，列表继续被一个界面上看不见的条件过滤 | 搜索常驻，尾部清除按钮同时收起键盘；过滤口径写进标题下的计数行 |
+| 同上，搜索图标 | 展开态用 `SearchOff`（“停用搜索”）表达“收起”，清除按钮同样用 `SearchOff` | 收起与清除统一为 `Icons.Outlined.Close` |
+| 同上，空状态 | `searchFailed` 为真时空状态被整体跳过，正文搜索失败且无标题命中会得到一块全空列表 | 空列表、无结果、搜索中三态各自渲染，失败提示回到输入框的 `supportingText` |
+| 同上，`selectionError` | 切换失败只渲染一行常驻文案，没有关闭入口，也无法判断重试是否已成功 | 改为可关闭的错误条，与排序失败共用同一版式 |
+| 同上，条目与分组操作 | 条目操作与分组管理只有长按一个入口，分组还把“(长按管理)”写进标题占用宽度 | 两处都新增显式“更多”按钮，长按保留；移除标题内联提示与 `has_long_pressed_group` 状态 |
+| 同上，锁定对话删除 | 锁定对话在操作菜单里仍可点“删除”，点完才用 Toast 解释失败 | 该行禁用并在行内说明原因，冲突在点击前可见 |
+| 同上，设置弹窗 | 选项即时生效，关闭按钮却写作“取消”，与实际行为相反；三个显示模式没有单选语义 | 按钮改为“完成”，显示模式改为 `Role.RadioButton` 可选行，开关行整行 `Role.Switch` |
+| `ChatScreenContent.ChatHistorySelectorPanel` | 面板宽度硬编码 280dp，与文件存储抽屉共享的宽度几何不一致；`surface` 叠 0.95 alpha 导致列表透出下层内容 | 改用 `calculateKiyoriDrawerWidthDp` 与不透明 `surfaceContainerLow` |
+| `AIChatScreen` 抽屉层 | 滑入容器 `matchParentSize()`，`initialOffsetX = { -it }` 按整屏宽计算，面板要等动画走完大半才进入视野 | 动画容器只包裹面板，偏移按面板自身宽度计算，并补 fade |
+| 同上 | 系统返回不收起抽屉，遮罩没有无障碍名称，遮罩色写死 `Color.Black` 0.3 | 新增 `BackHandler`，遮罩补 `Role.Button` 与语义名称，改用主题 `scrim` 与共享 alpha |
+| 条目侧滑 | 条目容器一度设为透明会让侧滑时的删除/编辑背景透过正文 | 未选中沿用抽屉底色的不透明表面，保持“无卡片”观感 |
+| 条目信息 | 列表只有标题，没有任何时间线索，长列表只能靠标题回忆顺序 | 复用既有 `time_*` 文案，一周内相对时间、更早用数字日期；一分钟一次的时钟仅在抽屉可见时运行 |
+
+`chatHistoriesFlow` 的条目不加载消息正文，所以时间只取 `updatedAt`，不展示消息条数。
+排序、分组、绑定与置顶桶的既有规则未改动；置顶边界仍禁止跨桶移动，只是把原因写进了操作行。
+
+### 自动验证与待验收
+
+- `./gradlew.bat :app:assembleDebug :app:lintDebug --no-daemon --console=plain`：`assembleDebug`
+  与单一 Launcher 校验通过，产物 `app/build/outputs/apk/debug/app-debug.apk`，
+  2026-09-15 22:19 生成，487,160,175 bytes，
+  SHA-256 `96B6C435D518FB765EBF0FDE2FFAE9EB61AA266FF7E767D1BCE08FCF2CD39E45`。
+- `lintDebug` 报 150 errors、110 warnings、2 hints。本轮改动的四个 Kotlin 文件与全部新增
+  `chat_history_*` 文案在报告中零命中；150 个 error 全部来自上一提交的
+  `values/memory_library.xml`（148 条）与 `values/strings.xml` 的
+  `toolreg_append_diary_desc`、`memory_error_append_diary`，属于既有 `MissingTranslation`。
+  过程中把英文计数文案改成数字结尾（"1 conversations" 本身不成立），消除 `PluralsCandidate`；
+  面板宽度改用 `LocalWindowInfo.containerSize` 消除 `ConfigurationScreenWidthHeight`；
+  时钟状态改 `mutableLongStateOf` 消除 `AutoboxingStateCreation`；删除本轮改动后不再引用的
+  `swipe_hint` 与 `long_press_manage` 六语言条目，避免留下新的 `UnusedResources`。
+- `./gradlew.bat :app:testDebugUnitTest --tests "com.ai.assistance.operit.ui.components.*"
+  --tests "com.kiyori.design.theme.*"` 通过，含共享底部抽屉迁移契约与语义色契约。
+- `python -B ci/script/check_formal_readiness.py --repository . --require-main` PASS；
+  `python -B ci/script/check_documentation.py --base bed6fa794` 525 文件 0 问题。
+- `python -B ci/script/check_architecture_boundaries.py --repository .` 仍报 ARCH009/ARCH010
+  （`app/objectbox-models/default.json`）与 ARCH041（`KiyoriToolbarAction.kt` 语义色消费者）两项。
+  已用 `HEAD` 的独立 worktree 复跑，同样失败且内容一致，属于本轮之前就存在的快照漂移，
+  与本轮差异无关；本轮没有新增语义色消费者，也没有触碰 ObjectBox 模型。
+- `verification_pending`：真机窄屏与大字体下的抽屉排版、深浅色遮罩与选中态对比、读屏朗读顺序、
+  侧滑与拖拽重排的手势冲突、键盘弹出时的搜索框可见性。当前环境未连接设备或模拟器，
+  未安装 APK，未执行真实对话切换、删除或分组操作。
+
 ## 2026-09-14 对话统计、缓存与调用稳定性升级
 
 本轮基线 `main@1576b3457d06d1f35ad8f0c7a23895389342181d`，工作区干净，用户授权修复后提交推送。

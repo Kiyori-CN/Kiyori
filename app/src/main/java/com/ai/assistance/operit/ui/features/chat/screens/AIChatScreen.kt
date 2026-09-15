@@ -9,13 +9,16 @@ import androidx.annotation.RequiresApi
 import com.ai.assistance.operit.util.AppLogger
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.compose.BackHandler
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -46,6 +49,10 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -113,6 +120,7 @@ import com.ai.assistance.operit.ui.main.components.LocalSetScreenSoftInputMode
 import com.ai.assistance.operit.ui.main.components.LocalSetUseScreenImePadding
 import com.kiyori.design.theme.KiyoriSemanticTone
 import com.kiyori.design.theme.KiyoriUiShapes
+import com.kiyori.design.theme.KiyoriSurfaceTokens
 import com.kiyori.design.theme.rememberKiyoriUiTokens
 import com.kiyori.design.theme.resolveColors
 import com.ai.assistance.operit.ui.main.components.LocalKiyoriAiHostSystemBackEnabled
@@ -1191,41 +1199,58 @@ val actualViewModel: ChatViewModel =
                         onOpenCharacterSettings = onNavigateToModelPrompts
                     )
 
+                    // 抽屉展开时先由它消费返回手势，再轮到页面栈；否则用户必须先精确点中遮罩。
+                    // 同时跟随可见的 pager 页：AI 宿主在其他页面时仍在组合中，不能抢占前台 Back。
+                    BackHandler(enabled = aiHostSystemBackEnabled && showChatHistorySelector) {
+                        actualViewModel.showChatHistorySelector(false)
+                    }
+
+                    val historyScrimDescription = stringResource(R.string.chat_history_collapse)
                     AnimatedVisibility(
                         visible = showChatHistorySelector,
-                        enter = fadeIn(animationSpec = tween(300)),
-                        exit = fadeOut(animationSpec = tween(300)),
+                        enter = fadeIn(animationSpec = tween(220)),
+                        exit = fadeOut(animationSpec = tween(220)),
                         modifier = Modifier.matchParentSize()
                     ) {
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
-                                .background(Color.Black.copy(alpha = 0.3f))
+                                .background(
+                                    MaterialTheme.colorScheme.scrim
+                                        .copy(alpha = KiyoriSurfaceTokens.modalScrimAlpha)
+                                )
+                                .semantics {
+                                    contentDescription = historyScrimDescription
+                                    role = Role.Button
+                                }
                                 .clickable(
                                     interactionSource = remember { MutableInteractionSource() },
                                     indication = null
                                 ) {
-                                    actualViewModel.toggleChatHistorySelector()
+                                    actualViewModel.showChatHistorySelector(false)
                                 }
                         )
                     }
 
-                    AnimatedVisibility(
-                        visible = showChatHistorySelector,
-                        enter = androidx.compose.animation.slideInHorizontally(
-                            initialOffsetX = { -it },
-                            animationSpec = tween(300)
-                        ),
-                        exit = androidx.compose.animation.slideOutHorizontally(
-                            targetOffsetX = { -it },
-                            animationSpec = tween(300)
-                        ),
-                        modifier = Modifier.matchParentSize()
+                    // 动画容器必须只包住面板本身。此前它铺满整屏，滑入偏移按屏宽计算，
+                    // 面板要等动画走完大半才出现，看起来像是延迟响应。
+                    Box(
+                        modifier = Modifier.matchParentSize(),
+                        contentAlignment = Alignment.TopStart
                     ) {
-                        val chatHistorySearchQuery by actualViewModel.chatHistorySearchQuery.collectAsState()
-                        Box(modifier = Modifier.fillMaxSize()) {
-                            Box(modifier = Modifier.align(Alignment.TopStart)) {
-                                ChatHistorySelectorPanel(
+                        AnimatedVisibility(
+                            visible = showChatHistorySelector,
+                            enter = slideInHorizontally(
+                                initialOffsetX = { -it },
+                                animationSpec = tween(260)
+                            ) + fadeIn(animationSpec = tween(160)),
+                            exit = slideOutHorizontally(
+                                targetOffsetX = { -it },
+                                animationSpec = tween(220)
+                            ) + fadeOut(animationSpec = tween(160))
+                        ) {
+                            val chatHistorySearchQuery by actualViewModel.chatHistorySearchQuery.collectAsState()
+                            ChatHistorySelectorPanel(
                                     actualViewModel = actualViewModel,
                                     chatHistories = displayedChatHistories,
                                     currentChatId = currentChatId ?: "",
@@ -1243,8 +1268,7 @@ val actualViewModel: ChatViewModel =
                                     onAutoSwitchChatOnCharacterSelectChange = {
                                         autoSwitchChatOnCharacterSelect = it
                                     }
-                                )
-                            }
+                            )
                         }
                     }
                 }
