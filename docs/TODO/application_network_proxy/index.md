@@ -11,6 +11,7 @@ date: 2026-08-23
 <details>
 <summary>本页导航</summary>
 
+- [2026-09-15 系统 VPN 并存出站底座](#2026-09-15-系统-vpn-并存出站底座)
 - [2026-09-14 内置代理导致 AI 流中断](#2026-09-14-内置代理导致-ai-流中断)
 - [2026-09-07 系统兼容性、路由与设置完整性](#2026-09-07-系统兼容性路由与设置完整性)
 - [2026-08-30 runtime 指纹内存溢出修复](#2026-08-30-runtime-指纹内存溢出修复)
@@ -43,6 +44,88 @@ date: 2026-08-23
 
 </details>
 <!-- doc-toc:end -->
+
+## 2026-09-15 系统 VPN 并存出站底座
+
+现场输入（当前进程代理日志，已脱敏）：内嵌代理与外部 Clash 同时开启，`代理局域网地址` 与
+`允许与系统 VPN 并存` 均已打开，网页与对话仍不可用。
+
+```text
+[路由解析] module=AI_SERVICES route=PROXY vpnActive=true endpointPort=38833
+           controllerHealthy=true mixedPortListening=true
+[Mihomo]   [TCP] 127.0.0.1:45248 --> api.deepseek.com:443 match Match using 🐟漏网之鱼[...]
+[网络请求] 连接失败 type=SSLHandshakeException failureStage=REQUEST_OR_HEADERS elapsedMs=16056
+[Mihomo]   warning [TCP] dial ... --> api.deepseek.com:443 error: context deadline exceeded
+```
+
+### 根因
+
+核心健康、mixed-port 在听、规则命中与出站节点都正确，失败发生在核心与节点服务器之间的拨号。
+外部 Clash 建立 Android VPN/TUN 后接管本应用的全部套接字，其中包括内嵌 Mihomo 自己的出站：
+两层代理互相嵌套，出站要么被外层规则再次代理，要么落进外层的 fake-ip 段。
+
+两个开关都不触及这条链路，因此打开它们不会改变结果：`代理局域网地址` 只决定私有地址是否进入
+核心，`允许与系统 VPN 并存` 此前只解除 `VPN_CONFLICT` 拒绝，仍然是嵌套链路。
+
+### 修复
+
+`允许与系统 VPN 并存` 改为真正的并存：核心的出站不再嵌套进系统 VPN。
+
+- 新增 `KiyoriVpnBypassUnderlay`——主进程内的回环 SOCKS5 中继（CONNECT 与 UDP ASSOCIATE），
+  随机端口、随机用户名口令，拒绝匿名握手；与核心进程同生共死，核心意外退出、被替换或停止都会关闭它。
+- 运行配置注入保留名 `KIYORI-VPN-BYPASS` 的 socks5 出站，并给每个订阅代理与代理集合加上
+  `dialer-proxy`。核心把节点地址原样交给中继，中继把真实套接字绑定到当前"非 VPN"的物理
+  Network 后再连接，域名也在该网络上解析。订阅不得占用该保留名，节点列表不展示它。
+- 并存模式下核心改用固定明文解析器并强制经过中继（每个地址各一条 UDP 与 TCP 路径），
+  不保留订阅自带的 DoH 与 `fake-ip`：DoH 需要一次隧道内的引导解析，正是要避免的输入。
+- 该模式进入 runtime 指纹，切换开关重建核心；网络切换只更新中继选中的 Network，不重启核心。
+- 系统开启"阻止不使用 VPN 的连接"时绑定连接会被内核拒绝，中继回退系统默认路由并记录警告，
+  不静默失败，也不伪装成节点故障。
+- 顺带：`isSystemVpnActive()` 不再在每个被代理的请求上做跨进程查询，改为由既有网络 callback 刷新缓存。
+
+### 边界
+
+模块 `DIRECT` 不受该开关影响，仍可能经过系统 VPN；这是"直连只表示不经过 Kiyori Mihomo"的既有契约。
+不引入第二个核心、不启用 Android VPN/TUN、不自动接管外部 mixed-port、不在失败时静默换节点或直连。
+
+### 回归：底座监听在 IPv6 回环
+
+首个安装包在没有外部 Clash 时也不可用。日志证据：
+
+```text
+[TCP] dial KIYORI-VPN-BYPASS mihomo --> 223.5.5.5:53 error: 127.0.0.1:40425 connect error:
+      dial tcp 127.0.0.1:40425: connect: connection refused
+[TCP] dial DIRECT (match DomainSuffix/cn) ... --> web.gotab.cn:443 error: dns resolve failed
+```
+
+`InetAddress.getLoopbackAddress()` 在 Android 上返回 IPv6 的 `::1`，中继因此监听在
+`[::1]:40425`，而运行配置写给核心的是 `127.0.0.1`：核心的每一次拨号都被拒绝。由于并存模式下
+核心的解析器也走底座，失败从“出站不可用”放大成“全部域名解析失败”，连规则里命中 DIRECT
+的域名也一起失效，所以未开启外部代理时同样不可用。
+
+修复与加固：
+
+- 监听地址改为固定的 IPv4 字面量，与运行配置完全一致；`allocateLoopbackPort()` 同样改用该地址，
+  否则预留的端口并不在核心实际绑定的地址族上。
+- 启动阶段应用先对自己的监听端口完成一次 SOCKS5 握手，不可达就明确失败，不让核心带着不可用的
+  解析器进入 RUNNING。
+- 接受循环不再因一次瞬时 accept 错误退出；真的结束时关闭监听，让后续连接立即被拒绝而不是挂起。
+- 网络来源抽成接口，中继可以脱离 Android 框架被完整验证：新增回环 CONNECT 端到端用例、
+  匿名与错误口令拒绝用例，以及“监听端点与生成配置一致”的用例。
+
+### 本地验证
+
+- `:app:testDebugUnitTest`：3017 个测试通过（含新增 9 个中继与编解码用例、3 个运行配置注入用例）。
+- `:app:assembleDebug`：PASS，parent-death、脚本代理 runtime、播放器 runtime packaging
+  与唯一 Debug launcher 门禁通过。
+- 生成的运行配置经人工审阅：底座出站在前且自身没有 `dialer-proxy`，每个订阅出站与代理集合
+  各带一条 `dialer-proxy`，DNS 四条记录全部指向底座。
+
+### 待验证边界
+
+未安装 APK、未操作设备、未使用真实订阅与外部 Clash 复测。真机仍需确认 TUN 生效时的实际绕行、
+VPN 锁定设备上的回退、UDP 传输节点（Hysteria2/TUIC）的 ASSOCIATE 通路、网络切换与长流稳定性；
+在这些证据完成前本专项保持 `verification_pending`。
 
 ## 2026-09-14 内置代理导致 AI 流中断
 
@@ -862,7 +945,7 @@ VPN。确定行为如下：
 | 开启 | 关闭 | 直连 | 模块 -> 网络 |
 | 开启 | 关闭 | 代理 | 模块 -> Kiyori Mihomo -> 节点 |
 | 开启 | 开启，未授权并存 | 代理 | 拒绝启动/停止核心并显示 `VPN_CONFLICT` |
-| 开启 | 开启，已授权并存 | 代理 | 模块 -> Kiyori Mihomo -> 系统 VPN -> 节点 |
+| 开启 | 开启，已授权并存 | 代理 | 模块 -> Kiyori Mihomo -> 应用内出站底座 -> 物理网络 -> 节点 |
 | 开启 | 开启 | 直连 | 模块 -> 系统 VPN |
 
 因此界面不再显示“外部 HTTP / Clash mixed-port”的主机、端口、用户名、密码。外部 Clash 使用

@@ -253,6 +253,16 @@ data class KiyoriProxyEndpoint(
     val port: Int,
 )
 
+/**
+ * 内嵌核心出站底座的回环坐标与一次性凭据。存在这个绑定时，核心的全部出站都交给
+ * 应用内的 SOCKS5 中继，由中继绑定非 VPN 的物理网络后再发起真实连接。
+ */
+data class KiyoriVpnBypassBinding(
+    val port: Int,
+    val username: String,
+    val password: String,
+)
+
 object KiyoriNetworkProxyPolicy {
     fun canEnable(config: KiyoriNetworkProxyConfig): Boolean =
         activeSubscription(config)?.let {

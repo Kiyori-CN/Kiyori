@@ -123,6 +123,8 @@ class KiyoriNetworkProxyManager private constructor(context: Context) {
     private val startupReconciliationScheduled = AtomicBoolean(false)
     private val startupReconciliationLaunched = AtomicBoolean(false)
     @Volatile private var browserWebViewRuntimeReady = false
+    @Volatile private var systemVpnActive = false
+    @Volatile private var systemVpnStateObserved = false
     @Volatile private var browserSiteProxyDisabledProvider: ((String) -> Boolean)? = null
     @Volatile private var browserSiteProxyDisabledDomainsProvider: (() -> Set<String>)? = null
     private var lastHandledUnexpectedRuntimeGeneration: Long? = null
@@ -154,6 +156,9 @@ class KiyoriNetworkProxyManager private constructor(context: Context) {
                     val signature = connectivity.allNetworks.map { network ->
                         "$network:${connectivity.getNetworkCapabilities(network)?.hasTransport(NetworkCapabilities.TRANSPORT_VPN)}"
                     }.sorted().joinToString("|")
+                    // 每个被代理的请求都会问一次 VPN 状态；那是一次跨进程查询，
+                    // 只在网络真正变化时刷新，热路径读缓存即可。
+                    refreshSystemVpnState()
                     if (signature == previous) continue
                     previous = signature
                     // 网络事件不取消正在保存的事务；只合并待处理通知，在现有锁中重读最新配置。
@@ -564,6 +569,7 @@ class KiyoriNetworkProxyManager private constructor(context: Context) {
                     config.testUrl,
                     KiyoriNetworkProxyPolicy.runtimeMode(config),
                     config.customRules,
+                    config.allowConcurrentSystemVpn,
                 )
             if (
                 KiyoriNetworkProxyPolicy.effectiveMode(
@@ -590,7 +596,7 @@ class KiyoriNetworkProxyManager private constructor(context: Context) {
         proxyLog.info(
             "运行协调",
             "开始协调 enabled=${config.enabled} proxyRequired=${KiyoriNetworkProxyPolicy.requiresEmbeddedProxy(config)} " +
-                "vpnActive=${isSystemVpnActive()}",
+                "vpnActive=${isSystemVpnActive()} vpnBypass=${config.allowConcurrentSystemVpn}",
         )
         if (!KiyoriNetworkProxyPolicy.requiresEmbeddedProxy(config)) {
             try {
@@ -617,6 +623,7 @@ class KiyoriNetworkProxyManager private constructor(context: Context) {
                 config.testUrl,
                 KiyoriNetworkProxyPolicy.runtimeMode(config),
                 config.customRules,
+                config.allowConcurrentSystemVpn,
             )
             if (
                 KiyoriNetworkProxyPolicy.effectiveModuleMode(
@@ -691,6 +698,7 @@ class KiyoriNetworkProxyManager private constructor(context: Context) {
                 config.testUrl,
                 KiyoriNetworkProxyPolicy.runtimeMode(config),
                 config.customRules,
+                config.allowConcurrentSystemVpn,
             )
             if (KiyoriNetworkProxyPolicy.effectiveMode(config, KiyoriNetworkModule.BROWSER) != KiyoriNetworkConnectionMode.DIRECT) {
                 setWebViewProxy(endpoint, config.proxyPrivateNetworks)
@@ -820,6 +828,7 @@ class KiyoriNetworkProxyManager private constructor(context: Context) {
                     config.testUrl,
                     KiyoriNetworkProxyPolicy.runtimeMode(config),
                     config.customRules,
+                    config.allowConcurrentSystemVpn,
                 )
                 val state = runtimeState.value
                 proxyLog.info(
@@ -1269,7 +1278,12 @@ class KiyoriNetworkProxyManager private constructor(context: Context) {
         mutationMutex.withLock {
             val current = currentConfig()
             val subscription = KiyoriNetworkProxyPolicy.requireSubscription(current, subscriptionId)
-            val snapshot = runtime.probeSnapshot(subscription, current.testUrl)
+            val snapshot =
+                runtime.probeSnapshot(
+                    subscription,
+                    current.testUrl,
+                    current.allowConcurrentSystemVpn,
+                )
             val refreshed =
                 subscription.copy(
                     nodeTests = mergeSnapshot(subscription.nodeTests, snapshot, System.currentTimeMillis()),
@@ -1321,7 +1335,12 @@ class KiyoriNetworkProxyManager private constructor(context: Context) {
             val delay = runtime.testActiveNodeDelay(nodeName, testUrl)
             return runtime.refreshActiveSnapshot() to delay
         }
-        return runtime.probeNodeDelay(subscription, nodeName, testUrl)
+        return runtime.probeNodeDelay(
+            subscription,
+            nodeName,
+            testUrl,
+            currentConfig().allowConcurrentSystemVpn,
+        )
     }
 
     private suspend fun testGroupDelaysForSubscription(
@@ -1333,7 +1352,12 @@ class KiyoriNetworkProxyManager private constructor(context: Context) {
             val delays = runtime.testActiveGroupDelays(groupName, testUrl)
             return runtime.refreshActiveSnapshot() to delays
         }
-        return runtime.probeGroupDelays(subscription, groupName, testUrl)
+        return runtime.probeGroupDelays(
+            subscription,
+            groupName,
+            testUrl,
+            currentConfig().allowConcurrentSystemVpn,
+        )
     }
 
     private suspend fun persistNodeTestResult(
@@ -1404,11 +1428,19 @@ class KiyoriNetworkProxyManager private constructor(context: Context) {
             withContext(Dispatchers.IO) { configStore.reset() }
         }
 
-    fun isSystemVpnActive(): Boolean {
+    fun isSystemVpnActive(): Boolean =
+        if (systemVpnStateObserved) systemVpnActive else refreshSystemVpnState()
+
+    private fun refreshSystemVpnState(): Boolean {
         val manager = appContext.getSystemService(ConnectivityManager::class.java)
-        return manager.allNetworks.any { network ->
-            manager.getNetworkCapabilities(network)?.hasTransport(NetworkCapabilities.TRANSPORT_VPN) == true
-        }
+        val active =
+            manager.allNetworks.any { network ->
+                manager.getNetworkCapabilities(network)
+                    ?.hasTransport(NetworkCapabilities.TRANSPORT_VPN) == true
+            }
+        systemVpnActive = active
+        systemVpnStateObserved = true
+        return active
     }
 
     private suspend fun replaceUrlSubscriptionLocked(
@@ -1456,6 +1488,7 @@ class KiyoriNetworkProxyManager private constructor(context: Context) {
             config.testUrl,
             KiyoriNetworkProxyPolicy.runtimeMode(config),
             config.customRules,
+            config.allowConcurrentSystemVpn,
         )
     }
 

@@ -102,6 +102,7 @@ internal fun computeMihomoRuntimeFingerprint(
     testUrl: String,
     routingMode: KiyoriNetworkConnectionMode,
     customRules: List<KiyoriNetworkProxyRule>,
+    vpnBypass: Boolean,
 ): String =
     sha256Utf8 {
         append(subscriptionId)
@@ -111,6 +112,9 @@ internal fun computeMihomoRuntimeFingerprint(
         append(testUrl)
         append('\u0000')
         append(routingMode.name)
+        append('\u0000')
+        // 出站底座决定核心自身如何拨号；复用按另一种底座启动的进程只会静默失效。
+        append(vpnBypass.toString())
         append('\u0000')
         customRules.forEachIndexed { index, rule ->
             if (index > 0) append('\u0001')
@@ -258,6 +262,7 @@ class KiyoriMihomoRuntime private constructor(context: Context) {
         val runtimeGeneration: Long,
         val startedAtEpochMillis: Long,
         val outputCollector: ProcessOutputCollector,
+        val vpnBypass: KiyoriVpnBypassUnderlay?,
         @Volatile var expectedStop: Boolean = false,
         @Volatile var stopReason: String? = null,
         @Volatile var controllerHealthy: Boolean = true,
@@ -400,11 +405,13 @@ class KiyoriMihomoRuntime private constructor(context: Context) {
         testUrl: String,
         routingMode: KiyoriNetworkConnectionMode = KiyoriNetworkConnectionMode.GLOBAL,
         customRules: List<KiyoriNetworkProxyRule> = emptyList(),
+        vpnBypass: Boolean = false,
     ): KiyoriProxyEndpoint {
         awaitStartupCleanup()
         return withContext(Dispatchers.IO) {
             mutex.withLock {
-                val active = startOrReuseLocked(config, testUrl, routingMode, customRules)
+                val active =
+                    startOrReuseLocked(config, testUrl, routingMode, customRules, vpnBypass)
                 if (active.appliedSelections != config.selectedGroupItems) {
                     applySelectionsLocked(active, config.selectedGroupItems)
                     active.appliedSelections = config.selectedGroupItems
@@ -418,8 +425,9 @@ class KiyoriMihomoRuntime private constructor(context: Context) {
     suspend fun discoverSnapshot(
         config: KiyoriProxySubscription,
         testUrl: String,
+        vpnBypass: Boolean = false,
     ): MihomoRuntimeSnapshot {
-        ensureReady(config, testUrl)
+        ensureReady(config, testUrl, vpnBypass = vpnBypass)
         return withContext(Dispatchers.IO) {
             mutex.withLock {
                 val active = requireActiveRuntimeLocked()
@@ -487,8 +495,9 @@ class KiyoriMihomoRuntime private constructor(context: Context) {
     suspend fun probeSnapshot(
         config: KiyoriProxySubscription,
         testUrl: String,
+        vpnBypass: Boolean = false,
     ): MihomoRuntimeSnapshot =
-        withProbeRuntime(config, testUrl, KiyoriMihomoProbePhase.READY) { active ->
+        withProbeRuntime(config, testUrl, KiyoriMihomoProbePhase.READY, vpnBypass) { active ->
             refreshSnapshotLocked(active)
         }
 
@@ -496,8 +505,9 @@ class KiyoriMihomoRuntime private constructor(context: Context) {
         config: KiyoriProxySubscription,
         nodeName: String,
         testUrl: String,
+        vpnBypass: Boolean = false,
     ): Pair<MihomoRuntimeSnapshot, Int> =
-        withProbeRuntime(config, testUrl, KiyoriMihomoProbePhase.TESTING) { active ->
+        withProbeRuntime(config, testUrl, KiyoriMihomoProbePhase.TESTING, vpnBypass) { active ->
             val delay = testNodeDelay(active, nodeName.trim(), testUrl)
             refreshSnapshotLocked(active) to delay
         }
@@ -506,8 +516,9 @@ class KiyoriMihomoRuntime private constructor(context: Context) {
         config: KiyoriProxySubscription,
         groupName: String,
         testUrl: String,
+        vpnBypass: Boolean = false,
     ): Pair<MihomoRuntimeSnapshot, Map<String, Int>> =
-        withProbeRuntime(config, testUrl, KiyoriMihomoProbePhase.TESTING) { active ->
+        withProbeRuntime(config, testUrl, KiyoriMihomoProbePhase.TESTING, vpnBypass) { active ->
             val delays = testGroupDelays(active, groupName.trim(), testUrl)
             refreshSnapshotLocked(active) to delays
         }
@@ -516,6 +527,7 @@ class KiyoriMihomoRuntime private constructor(context: Context) {
         config: KiyoriProxySubscription,
         testUrl: String,
         operationPhase: KiyoriMihomoProbePhase,
+        vpnBypass: Boolean,
         block: (ActiveRuntime) -> T,
     ): T {
         awaitStartupCleanup()
@@ -540,9 +552,13 @@ class KiyoriMihomoRuntime private constructor(context: Context) {
                                 ),
                             workDirectory = probeDirectory,
                             directoryLabel = "probe",
+                            vpnBypass = vpnBypass,
                         )
                     },
-                    release = { active -> stopProcessBlocking(active.process) },
+                    release = { active ->
+                        active.vpnBypass?.close()
+                        stopProcessBlocking(active.process)
+                    },
                 ) { active ->
                     withContext(Dispatchers.IO) {
                         applySelectionsLocked(active, config.selectedGroupItems)
@@ -611,6 +627,7 @@ class KiyoriMihomoRuntime private constructor(context: Context) {
         testUrl: String,
         routingMode: KiyoriNetworkConnectionMode,
         customRules: List<KiyoriNetworkProxyRule>,
+        vpnBypass: Boolean,
     ): ActiveRuntime {
         if (config.sanitizedYaml.isBlank()) {
             throw KiyoriNetworkException(
@@ -626,6 +643,7 @@ class KiyoriMihomoRuntime private constructor(context: Context) {
                 testUrl = testUrl,
                 routingMode = routingMode,
                 customRules = customRules,
+                vpnBypass = vpnBypass,
             )
         activeRuntime?.let { active ->
             if (active.process.isAlive && active.fingerprint == fingerprint) {
@@ -650,6 +668,7 @@ class KiyoriMihomoRuntime private constructor(context: Context) {
                         directoryLabel = "runtime",
                         routingMode = routingMode,
                         customRules = customRules,
+                        vpnBypass = vpnBypass,
                     )
                 }
             activeRuntime = active
@@ -683,6 +702,7 @@ class KiyoriMihomoRuntime private constructor(context: Context) {
         directoryLabel: String,
         routingMode: KiyoriNetworkConnectionMode = KiyoriNetworkConnectionMode.GLOBAL,
         customRules: List<KiyoriNetworkProxyRule> = emptyList(),
+        vpnBypass: Boolean = false,
     ): ActiveRuntime {
         val nativeDirectory = File(appContext.applicationInfo.nativeLibraryDir)
         val core = nativeDirectory.resolve(CORE_FILE_NAME)
@@ -700,6 +720,62 @@ class KiyoriMihomoRuntime private constructor(context: Context) {
         var controllerPort = allocateLoopbackPort()
         while (controllerPort == mixedPort) controllerPort = allocateLoopbackPort()
         val secret = randomHex(32)
+        // 出站底座必须先于核心存在：核心启动时就会按配置解析并可能立即拨号。
+        val underlay = if (vpnBypass) startVpnBypassUnderlay(directoryLabel) else null
+        try {
+            return launchMihomoProcess(
+                config = config,
+                testUrl = testUrl,
+                fingerprint = fingerprint,
+                workDirectory = workDirectory,
+                directoryLabel = directoryLabel,
+                routingMode = routingMode,
+                customRules = customRules,
+                core = core,
+                launcher = launcher,
+                mixedPort = mixedPort,
+                controllerPort = controllerPort,
+                secret = secret,
+                underlay = underlay,
+            )
+        } catch (error: Throwable) {
+            underlay?.close()
+            throw error
+        }
+    }
+
+    private fun startVpnBypassUnderlay(directoryLabel: String): KiyoriVpnBypassUnderlay {
+        val underlay =
+            KiyoriVpnBypassUnderlay.start(
+                context = appContext,
+                credential =
+                    KiyoriUnderlayCredential(
+                        username = randomHex(8),
+                        password = randomHex(24),
+                    ),
+            )
+        proxyLog.info(
+            "Mihomo $directoryLabel",
+            "已启用系统 VPN 并存出站底座 ${underlay.describeState()}",
+        )
+        return underlay
+    }
+
+    private fun launchMihomoProcess(
+        config: KiyoriProxySubscription,
+        testUrl: String,
+        fingerprint: String,
+        workDirectory: File,
+        directoryLabel: String,
+        routingMode: KiyoriNetworkConnectionMode,
+        customRules: List<KiyoriNetworkProxyRule>,
+        core: File,
+        launcher: File,
+        mixedPort: Int,
+        controllerPort: Int,
+        secret: String,
+        underlay: KiyoriVpnBypassUnderlay?,
+    ): ActiveRuntime {
         val runtimeConfig =
             MihomoConfigSanitizer.buildRuntimeConfig(
                 sanitizedYaml = config.sanitizedYaml,
@@ -709,6 +785,7 @@ class KiyoriMihomoRuntime private constructor(context: Context) {
                 testUrl = testUrl,
                 routingMode = routingMode,
                 customRules = customRules,
+                vpnBypass = underlay?.binding,
             )
         val configFile = workDirectory.resolve(CONFIG_FILE_NAME)
         configFile.writeText(runtimeConfig.yaml, Charsets.UTF_8)
@@ -752,6 +829,7 @@ class KiyoriMihomoRuntime private constructor(context: Context) {
                 runtimeGeneration = generation,
                 startedAtEpochMillis = startedAtEpochMillis,
                 outputCollector = outputCollector,
+                vpnBypass = underlay,
             )
         try {
             val deadline = System.currentTimeMillis() + READINESS_TIMEOUT_MILLIS
@@ -988,7 +1066,11 @@ class KiyoriMihomoRuntime private constructor(context: Context) {
                 }.distinct()
             val nodes =
                 orderedNames.mapNotNull { name ->
-                    if (name in groupNames || name in CONTROLLER_BUILTIN_OUTBOUNDS) {
+                    if (
+                        name in groupNames ||
+                            name in CONTROLLER_BUILTIN_OUTBOUNDS ||
+                            name == MihomoConfigSanitizer.VPN_BYPASS_PROXY_NAME
+                    ) {
                         return@mapNotNull null
                     }
                     val proxy = proxies.optJSONObject(name) ?: return@mapNotNull null
@@ -1238,6 +1320,7 @@ class KiyoriMihomoRuntime private constructor(context: Context) {
                 )
         if (!active.process.isAlive) {
             activeRuntime = null
+            active.vpnBypass?.close()
             clearRuntimeDirectory()
             proxyLog.error(
                 "运行时健康",
@@ -1282,6 +1365,8 @@ class KiyoriMihomoRuntime private constructor(context: Context) {
                             KiyoriNetworkProxyLogLevel.ERROR -> proxyLog.error("主运行时", detailedMessage)
                         }
                         activeRuntime = null
+                        // 进程没了，出站底座就不该继续监听回环端口和网络回调。
+                        active.vpnBypass?.close()
                         mutableState.value =
                             KiyoriMihomoRuntimeState(
                                 phase = outcome.phase,
@@ -1422,6 +1507,7 @@ class KiyoriMihomoRuntime private constructor(context: Context) {
                     stopReason = reason,
                 )
             exitCode = withContext(Dispatchers.IO) { stopProcessBlocking(active.process) }
+            active.vpnBypass?.close()
             proxyLog.info(
                 "主运行时",
                 "内嵌 Mihomo 停止完成 runtimeGeneration=${active.runtimeGeneration} " +
@@ -1490,8 +1576,10 @@ class KiyoriMihomoRuntime private constructor(context: Context) {
         if (file.isDirectory) file.setExecutable(true, true)
     }
 
+    // `getLoopbackAddress()` 在 Android 上是 IPv6 的 `::1`；核心按配置绑定 127.0.0.1，
+    // 预留端口必须发生在同一个地址族上才算真的空闲。
     private fun allocateLoopbackPort(): Int =
-        ServerSocket(0, 1, java.net.InetAddress.getLoopbackAddress()).use { it.localPort }
+        ServerSocket(0, 1, KiyoriVpnBypassUnderlay.LOOPBACK_ADDRESS).use { it.localPort }
 
     private fun randomHex(byteCount: Int): String =
         ByteArray(byteCount)

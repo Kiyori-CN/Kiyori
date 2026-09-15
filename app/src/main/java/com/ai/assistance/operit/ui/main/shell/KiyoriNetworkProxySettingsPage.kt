@@ -711,7 +711,7 @@ internal fun KiyoriNetworkProxySettingsPage(
             item(key = "network_proxy_overview_advanced") {
                 KiyoriSettingsGroupSection(
                     title = "网络选项",
-                    description = "直连仍可能经过 Android 系统 VPN；并存时 Kiyori Mihomo 位于应用请求链路内。",
+                    description = "直连仍可能经过 Android 系统 VPN；并存时内嵌核心的出站改走物理网络。",
                 ) {
                     KiyoriSettingsRow(
                         title = "代理日志",
@@ -731,7 +731,7 @@ internal fun KiyoriNetworkProxySettingsPage(
                     KiyoriSettingsDivider()
                     KiyoriSettingsRow(
                         title = "代理局域网地址",
-                        description = "允许私有地址进入 Kiyori 内嵌代理",
+                        description = "私有地址不再直连，交由内嵌核心按当前模式处理",
                         kind = KiyoriSettingsRowKind.TOGGLE,
                         icon = Icons.Outlined.Tune,
                         iconTone = KiyoriSemanticTone.ORANGE,
@@ -747,7 +747,7 @@ internal fun KiyoriNetworkProxySettingsPage(
                     KiyoriSettingsDivider()
                     KiyoriSettingsRow(
                         title = "允许与系统 VPN 并存",
-                        description = "应用请求先经过 Kiyori Mihomo，再经过外部 Clash/VPN",
+                        description = "内嵌核心出站绕开系统 VPN，直接使用 Wi-Fi 或蜂窝网络",
                         kind = KiyoriSettingsRowKind.TOGGLE,
                         icon = Icons.Default.VpnKey,
                         iconTone = KiyoriSemanticTone.RED,
@@ -1890,7 +1890,8 @@ private fun networkProxyUserMessage(error: KiyoriNetworkException): String =
         KiyoriNetworkErrorCode.SUBSCRIPTION_DUPLICATE -> "该订阅地址已存在；可编辑已有条目或创建副本。"
         KiyoriNetworkErrorCode.SUBSCRIPTION_NOT_FOUND -> "订阅已不存在，请刷新订阅库。"
         KiyoriNetworkErrorCode.SUBSCRIPTION_IN_USE -> "该订阅正在被代理路线使用，请先切换订阅或关闭应用内代理。"
-        KiyoriNetworkErrorCode.VPN_CONFLICT -> "检测到外部系统 VPN；请在高级设置中明确允许并存。"
+        KiyoriNetworkErrorCode.VPN_CONFLICT ->
+            "检测到外部系统 VPN；在网络选项中开启“允许与系统 VPN 并存”后，内嵌核心的出站会绕开 VPN 直接使用物理网络。"
         KiyoriNetworkErrorCode.CORE_MISSING -> "当前 APK 未包含内嵌 Mihomo 核心。"
         KiyoriNetworkErrorCode.CORE_START_FAILED -> "内嵌 Mihomo 无法启动或 Controller 不可用。"
         KiyoriNetworkErrorCode.GROUP_SELECTION_INVALID -> "策略组或所选项目已失效，请刷新节点后重新选择。"

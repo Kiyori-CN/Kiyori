@@ -434,4 +434,110 @@ class MihomoConfigSanitizerTest {
             }
         assertFalse(parseError.message.orEmpty().contains(secret))
     }
+
+    @Test
+    fun `vpn bypass binding gives every outbound a loopback dialer and a bypassing resolver`() {
+        val sanitized =
+            MihomoConfigSanitizer.sanitize(
+                """
+                proxies:
+                  - { name: node-a, type: ss, server: a.example.com, port: 443, cipher: aes-128-gcm, password: p }
+                  - { name: node-b, type: vmess, server: b.example.com, port: 443, uuid: 00000000-0000-4000-8000-000000000000 }
+                proxy-providers:
+                  provider-a:
+                    type: http
+                    url: https://example.com/subscription.yaml
+                dns:
+                  enable: true
+                  enhanced-mode: fake-ip
+                  nameserver:
+                    - https://dns.example.com/dns-query
+                """.trimIndent(),
+            )
+
+        val runtime =
+            MihomoConfigSanitizer.buildRuntimeConfig(
+                sanitizedYaml = sanitized.yaml,
+                mixedPort = 31001,
+                controllerPort = 31002,
+                controllerSecret = "controller-secret",
+                testUrl = KiyoriNetworkProxyConfig.DEFAULT_TEST_URL,
+                routingMode = KiyoriNetworkConnectionMode.RULE,
+                vpnBypass =
+                    KiyoriVpnBypassBinding(
+                        port = 41999,
+                        username = "underlay-user",
+                        password = "underlay-password",
+                    ),
+            )
+
+        val bypassName = MihomoConfigSanitizer.VPN_BYPASS_PROXY_NAME
+        assertTrue(runtime.yaml.contains("name: " + bypassName))
+        assertTrue(runtime.yaml.contains("port: 41999"))
+        assertTrue(runtime.yaml.contains("username: underlay-user"))
+        // 每个订阅出站都必须经过底座，否则一部分节点仍然会掉回系统 VPN。
+        assertEquals(3, runtime.yaml.split("dialer-proxy: " + bypassName).size - 1)
+        // 订阅自带的 DoH 需要一次隧道内的引导解析，并存模式不保留它。
+        assertFalse(runtime.yaml.contains("dns.example.com"))
+        assertFalse(runtime.yaml.contains("fake-ip"))
+        assertTrue(runtime.yaml.contains("223.5.5.5#" + bypassName))
+        assertTrue(runtime.yaml.contains("tcp://223.5.5.5#" + bypassName))
+    }
+
+    @Test
+    fun `runtime without the binding keeps the subscription resolver and adds no dialer`() {
+        val sanitized =
+            MihomoConfigSanitizer.sanitize(
+                """
+                proxies:
+                  - { name: node-a, type: ss, server: a.example.com, port: 443, cipher: aes-128-gcm, password: p }
+                dns:
+                  enable: true
+                  nameserver:
+                    - 1.1.1.1
+                """.trimIndent(),
+            )
+
+        val runtime =
+            MihomoConfigSanitizer.buildRuntimeConfig(
+                sanitizedYaml = sanitized.yaml,
+                mixedPort = 31001,
+                controllerPort = 31002,
+                controllerSecret = "controller-secret",
+                testUrl = KiyoriNetworkProxyConfig.DEFAULT_TEST_URL,
+                routingMode = KiyoriNetworkConnectionMode.RULE,
+            )
+
+        assertFalse(runtime.yaml.contains("dialer-proxy"))
+        assertFalse(runtime.yaml.contains(MihomoConfigSanitizer.VPN_BYPASS_PROXY_NAME))
+        assertTrue(runtime.yaml.contains("1.1.1.1"))
+    }
+
+    @Test
+    fun `subscriptions cannot occupy the reserved underlay name`() {
+        val bypassName = MihomoConfigSanitizer.VPN_BYPASS_PROXY_NAME
+        val proxyError =
+            assertThrows(KiyoriNetworkException::class.java) {
+                MihomoConfigSanitizer.sanitize(
+                    """
+                    proxies:
+                      - { name: $bypassName, type: socks5, server: attacker.example.com, port: 1080 }
+                    """.trimIndent(),
+                )
+            }
+        assertEquals(KiyoriNetworkErrorCode.CONFIG_INVALID, proxyError.code)
+
+        val groupError =
+            assertThrows(KiyoriNetworkException::class.java) {
+                MihomoConfigSanitizer.sanitize(
+                    """
+                    proxies:
+                      - { name: node-a, type: socks5, server: a.example.com, port: 1080 }
+                    proxy-groups:
+                      - { name: $bypassName, type: select, proxies: [node-a] }
+                    """.trimIndent(),
+                )
+            }
+        assertEquals(KiyoriNetworkErrorCode.CONFIG_INVALID, groupError.code)
+    }
 }

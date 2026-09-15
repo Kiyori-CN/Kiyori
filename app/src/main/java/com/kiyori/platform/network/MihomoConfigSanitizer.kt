@@ -51,6 +51,12 @@ data class MihomoRuntimeConfig(
 
 object MihomoConfigSanitizer {
     const val ROUTE_GROUP_NAME = "KIYORI_APP_PROXY"
+
+    /**
+     * 并存模式下注入的出站底座名称。订阅里的代理、代理组、代理集合都不能占用它，
+     * 否则核心会把自己的出站指向订阅节点，形成无法诊断的自环。
+     */
+    const val VPN_BYPASS_PROXY_NAME = "KIYORI-VPN-BYPASS"
     const val MAX_YAML_BYTES = 4 * 1024 * 1024
 
     private val loadSettings =
@@ -187,6 +193,7 @@ object MihomoConfigSanitizer {
         testUrl: String,
         routingMode: KiyoriNetworkConnectionMode = KiyoriNetworkConnectionMode.GLOBAL,
         customRules: List<KiyoriNetworkProxyRule> = emptyList(),
+        vpnBypass: KiyoriVpnBypassBinding? = null,
     ): MihomoRuntimeConfig {
         require(mixedPort in 1..65535) { "Invalid Mihomo mixed port" }
         require(controllerPort in 1..65535) { "Invalid Mihomo controller port" }
@@ -255,14 +262,28 @@ object MihomoConfigSanitizer {
                 "find-process-mode" to "off",
                 "geo-auto-update" to false,
             )
-        if (proxyResult.accepted.isNotEmpty()) {
-            runtime["proxies"] = proxyResult.accepted.map(NamedMapping::mapping)
+        val bypassProxy = vpnBypass?.let(::buildVpnBypassProxy)
+        if (proxyResult.accepted.isNotEmpty() || bypassProxy != null) {
+            runtime["proxies"] =
+                buildList {
+                    bypassProxy?.let(::add)
+                    proxyResult.accepted.forEach { proxy ->
+                        add(withVpnBypassDialer(proxy.mapping, vpnBypass))
+                    }
+                }
         }
         if (providers.isNotEmpty()) {
-            runtime["proxy-providers"] = providers.associate { it.name to it.mapping }
+            runtime["proxy-providers"] =
+                providers.associate { provider ->
+                    provider.name to withVpnBypassDialer(provider.mapping, vpnBypass)
+                }
         }
         if (subRules.isNotEmpty()) runtime["sub-rules"] = subRules.mapValues { it.value.accepted }
-        sanitizeDns(root["dns"])?.let { runtime["dns"] = it }
+        if (vpnBypass != null) {
+            runtime["dns"] = vpnBypassDnsConfiguration()
+        } else {
+            sanitizeDns(root["dns"])?.let { runtime["dns"] = it }
+        }
 
         val routeGroup =
             linkedMapOf<String, Any?>(
@@ -391,7 +412,7 @@ object MihomoConfigSanitizer {
             val mapping = stringKeyMap(entry, "proxy ${index + 1}")
             val name = mapping["name"]?.toString()?.trim().orEmpty()
             if (name.isEmpty()) invalid("Proxy ${index + 1} has no name.")
-            if (name == ROUTE_GROUP_NAME || name in BUILTIN_OUTBOUNDS || !seen.add(name)) {
+            if (name in RESERVED_OUTBOUND_NAMES || name in BUILTIN_OUTBOUNDS || !seen.add(name)) {
                 invalid("Proxy name is reserved or duplicated: $name")
             }
             val type = mapping["type"]?.toString()?.trim().orEmpty()
@@ -412,7 +433,7 @@ object MihomoConfigSanitizer {
         val seen = linkedSetOf<String>()
         return providers.entries.map { (rawName, rawValue) ->
             val name = rawName.trim()
-            if (name.isEmpty() || name == ROUTE_GROUP_NAME || !seen.add(name)) {
+            if (name.isEmpty() || name in RESERVED_OUTBOUND_NAMES || !seen.add(name)) {
                 invalid("Proxy provider name is blank, reserved, or duplicated.")
             }
             val source = stringKeyMap(rawValue, "proxy provider $name")
@@ -676,7 +697,7 @@ object MihomoConfigSanitizer {
             if (
                 name.isEmpty() ||
                     type.isEmpty() ||
-                    name == ROUTE_GROUP_NAME ||
+                    name in RESERVED_OUTBOUND_NAMES ||
                     name in proxyNames ||
                     name in providerNames ||
                     !groupNames.add(name)
@@ -795,6 +816,57 @@ object MihomoConfigSanitizer {
             is Boolean -> raw
             else -> invalid("The $label value must be a boolean.")
         }
+
+    /**
+     * 出站底座本身不能再带 dialer-proxy，否则核心会向自己发起无限嵌套的拨号。
+     */
+    private fun buildVpnBypassProxy(binding: KiyoriVpnBypassBinding): Map<String, Any?> {
+        if (binding.port !in 1..65535) invalid("The VPN bypass underlay port is invalid.")
+        if (binding.username.isBlank() || binding.password.isBlank()) {
+            invalid("The VPN bypass underlay credential is missing.")
+        }
+        return linkedMapOf(
+            "name" to VPN_BYPASS_PROXY_NAME,
+            "type" to "socks5",
+            "server" to "127.0.0.1",
+            "port" to binding.port,
+            "username" to binding.username,
+            "password" to binding.password,
+            "udp" to true,
+        )
+    }
+
+    private fun withVpnBypassDialer(
+        mapping: Map<String, Any?>,
+        binding: KiyoriVpnBypassBinding?,
+    ): Map<String, Any?> {
+        if (binding == null) return mapping
+        // 代理与代理集合使用同一个键名；代理组不接受该字段，出站身份来自被选中的成员。
+        return LinkedHashMap(mapping).apply { put("dialer-proxy", VPN_BYPASS_PROXY_NAME) }
+    }
+
+    /**
+     * 并存模式下核心的解析必须与出站走同一条物理链路。系统 VPN 通常同时接管 DNS，
+     * 隧道内查到的可能是外层的 fake-ip；核心拿它去连节点只会超时，且无法从日志区分。
+     * 这里改用固定的明文解析器并强制经过出站底座，同时给出 UDP 与 TCP 两条路径，
+     * 使 UDP 关联不可用时仍能解析。订阅自带的 DoH 会依赖一次隧道内的引导解析，
+     * 正是要避免的输入，所以并存模式不保留它。
+     */
+    private fun vpnBypassDnsConfiguration(): Map<String, Any?> =
+        linkedMapOf(
+            "enable" to true,
+            "ipv6" to false,
+            "respect-rules" to false,
+            "enhanced-mode" to "normal",
+            "default-nameserver" to DEFAULT_DNS_SERVERS,
+            "nameserver" to
+                DEFAULT_DNS_SERVERS.flatMap { server ->
+                    listOf(
+                        "$server#$VPN_BYPASS_PROXY_NAME",
+                        "tcp://$server#$VPN_BYPASS_PROXY_NAME",
+                    )
+                },
+        )
 
     private fun sanitizeDns(raw: Any?): Map<String, Any?>? {
         if (raw == null) {
@@ -1005,6 +1077,7 @@ object MihomoConfigSanitizer {
         )
     private val BUILTIN_OUTBOUNDS =
         setOf("DIRECT", "REJECT", "REJECT-DROP", "PASS", "COMPATIBLE")
+    private val RESERVED_OUTBOUND_NAMES = setOf(ROUTE_GROUP_NAME, VPN_BYPASS_PROXY_NAME)
     private val DEFAULT_DNS_SERVERS = listOf("223.5.5.5", "119.29.29.29")
     private val SUPPORTED_GROUP_TYPES = setOf("select", "url-test", "fallback", "load-balance")
     private val SUPPORTED_RULE_TYPES =
