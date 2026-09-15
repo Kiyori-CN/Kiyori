@@ -15,21 +15,36 @@
     "tools": [
         {
             "name": "create_memory",
-            "description": { "zh": "创建新的记忆节点。", "en": "Create a new memory node." },
+            "description": { "zh": "创建新的记忆节点。同一目录内标题唯一，重名会返回已存在条目的 uuid。", "en": "Create a new memory node. Titles are unique per folder; a duplicate returns the existing uuid." },
             "parameters": [
                 { "name": "title", "description": { "zh": "记忆标题", "en": "Memory title" }, "type": "string", "required": true },
                 { "name": "content", "description": { "zh": "记忆内容", "en": "Memory content" }, "type": "string", "required": true },
                 { "name": "content_type", "description": { "zh": "可选：内容类型，默认 text/plain", "en": "Optional: content type (default: text/plain)" }, "type": "string", "required": false },
                 { "name": "source", "description": { "zh": "可选：来源，默认 ai_created", "en": "Optional: source (default: ai_created)" }, "type": "string", "required": false },
-                { "name": "folder_path", "description": { "zh": "可选：文件夹路径，默认空", "en": "Optional: folder path (default: empty)" }, "type": "string", "required": false },
-                { "name": "tags", "description": { "zh": "可选：标签（逗号分隔字符串）", "en": "Optional: tags (comma-separated string)" }, "type": "string", "required": false }
+                { "name": "folder_path", "description": { "zh": "可选：文件夹路径，默认空（根目录）", "en": "Optional: folder path (default: empty = root)" }, "type": "string", "required": false },
+                { "name": "tags", "description": { "zh": "可选：标签（逗号分隔字符串）", "en": "Optional: tags (comma-separated string)" }, "type": "string", "required": false },
+                { "name": "credibility", "description": { "zh": "可选：可信度 0-1，默认 0.8", "en": "Optional: credibility 0-1 (default: 0.8)" }, "type": "number", "required": false },
+                { "name": "importance", "description": { "zh": "可选：重要性 0-1，默认 0.5", "en": "Optional: importance 0-1 (default: 0.5)" }, "type": "number", "required": false },
+                { "name": "library_kind", "description": { "zh": "可选：memory 记忆 / diary 日记 / knowledge 知识，默认 memory", "en": "Optional: memory / diary / knowledge (default: memory)" }, "type": "string", "required": false },
+                { "name": "phase", "description": { "zh": "可选：仅日记，开篇阶段 note/plan/progress/decision/evidence/risk/validation", "en": "Optional: diary only, opening phase note/plan/progress/decision/evidence/risk/validation" }, "type": "string", "required": false }
+            ]
+        },
+        {
+            "name": "append_diary",
+            "description": { "zh": "向已有日记追加一条带时间戳的记录，不改写既有内容。phase=closed 表示结束。", "en": "Append one timestamped entry to an existing diary without rewriting earlier entries. phase=closed completes it." },
+            "parameters": [
+                { "name": "uuid", "description": { "zh": "可选：日记 UUID（优先使用，可定位同名条目）", "en": "Optional: diary UUID (preferred; resolves duplicate titles)" }, "type": "string", "required": false },
+                { "name": "title", "description": { "zh": "日记标题（未提供 uuid 时必填）", "en": "Diary title (required when uuid is omitted)" }, "type": "string", "required": false },
+                { "name": "content", "description": { "zh": "记录正文，最多 20000 字符；phase=closed 时可省略", "en": "Entry text, up to 20000 characters; optional when phase=closed" }, "type": "string", "required": false },
+                { "name": "phase", "description": { "zh": "可选：note/plan/progress/decision/evidence/risk/validation/closed，默认 note", "en": "Optional: note/plan/progress/decision/evidence/risk/validation/closed (default: note)" }, "type": "string", "required": false }
             ]
         },
         {
             "name": "update_memory",
-            "description": { "zh": "按标题更新已有记忆节点。", "en": "Update an existing memory node by title." },
+            "description": { "zh": "更新已有记忆节点，按 uuid 或原标题定位。", "en": "Update an existing memory node, located by uuid or old title." },
             "parameters": [
-                { "name": "old_title", "description": { "zh": "原始标题（用于定位记忆）", "en": "Old title (to locate the memory)" }, "type": "string", "required": true },
+                { "name": "uuid", "description": { "zh": "可选：记忆 UUID（优先使用，可定位同名条目）", "en": "Optional: memory UUID (preferred; resolves duplicate titles)" }, "type": "string", "required": false },
+                { "name": "old_title", "description": { "zh": "原始标题（未提供 uuid 时必填）", "en": "Old title (required when uuid is omitted)" }, "type": "string", "required": false },
                 { "name": "new_title", "description": { "zh": "可选：新标题（重命名）", "en": "Optional: new title (rename)" }, "type": "string", "required": false },
                 { "name": "content", "description": { "zh": "可选：新内容", "en": "Optional: new content" }, "type": "string", "required": false },
                 { "name": "content_type", "description": { "zh": "可选：内容类型", "en": "Optional: content type" }, "type": "string", "required": false },
@@ -42,9 +57,10 @@
         },
         {
             "name": "delete_memory",
-            "description": { "zh": "按标题删除记忆节点（不可逆）。", "en": "Delete a memory node by title (irreversible)." },
+            "description": { "zh": "删除记忆节点（不可逆），按 uuid 或标题定位。", "en": "Delete a memory node (irreversible), located by uuid or title." },
             "parameters": [
-                { "name": "title", "description": { "zh": "要删除的记忆标题", "en": "Memory title to delete" }, "type": "string", "required": true }
+                { "name": "uuid", "description": { "zh": "可选：记忆 UUID（优先使用，可定位同名条目）", "en": "Optional: memory UUID (preferred; resolves duplicate titles)" }, "type": "string", "required": false },
+                { "name": "title", "description": { "zh": "要删除的记忆标题（未提供 uuid 时必填）", "en": "Memory title to delete (required when uuid is omitted)" }, "type": "string", "required": false }
             ]
         },
         {
@@ -52,6 +68,7 @@
             "description": { "zh": "批量移动记忆到新文件夹。可按标题列表和/或来源文件夹筛选。", "en": "Move memories to another folder in batch. Filter by titles and/or source folder." },
             "parameters": [
                 { "name": "target_folder_path", "description": { "zh": "目标文件夹路径（空字符串表示未分类）", "en": "Target folder path (empty string means uncategorized)" }, "type": "string", "required": true },
+                { "name": "uuids", "description": { "zh": "可选：UUID 列表（逗号或换行分隔，优先使用）", "en": "Optional: UUID list (comma/newline separated, preferred)" }, "type": "string", "required": false },
                 { "name": "titles", "description": { "zh": "可选：标题列表（逗号或换行分隔）", "en": "Optional: title list (comma/newline separated)" }, "type": "string", "required": false },
                 { "name": "source_folder_path", "description": { "zh": "可选：来源文件夹路径（空字符串表示未分类）", "en": "Optional: source folder path (empty string means uncategorized)" }, "type": "string", "required": false }
             ]
@@ -131,12 +148,28 @@ const ExtendedMemoryTools = (function () {
             source: params.source,
             folderPath: params.folder_path,
             tags: params.tags,
+            credibility: params.credibility,
+            importance: params.importance,
+            libraryKind: params.library_kind,
+            phase: params.phase,
             callerCardId: resolveCallerCardId(),
         });
         return { success: result.length > 0, message: '记忆创建完成', data: result };
     }
+    // 只追加，不改写：要更正之前的记录就再追加一条说明，或显式调用 update_memory 改写全文。
+    async function append_diary(params) {
+        const result = await Tools.Memory.appendDiary({
+            uuid: params.uuid,
+            title: params.title,
+            content: params.content,
+            phase: params.phase,
+            callerCardId: resolveCallerCardId(),
+        });
+        return { success: result.length > 0, message: '日记续写完成', data: result };
+    }
     async function update_memory(params) {
         const result = await Tools.Memory.update({
+            uuid: params.uuid,
             oldTitle: params.old_title,
             newTitle: params.new_title,
             content: params.content,
@@ -152,18 +185,20 @@ const ExtendedMemoryTools = (function () {
     }
     async function delete_memory(params) {
         const result = await Tools.Memory.deleteMemory({
+            uuid: params.uuid,
             title: params.title,
             callerCardId: resolveCallerCardId(),
         });
         return { success: result.length > 0, message: '记忆删除完成', data: result };
     }
     async function move_memory(params) {
-        const titles = params.titles
-            ? params.titles.split(/[,\n|]/).map(s => s.trim()).filter(Boolean)
+        const splitList = (raw) => raw
+            ? raw.split(/[,\n|]/).map(s => s.trim()).filter(Boolean)
             : undefined;
         const result = await Tools.Memory.move({
             targetFolderPath: params.target_folder_path,
-            titles,
+            uuids: splitList(params.uuids),
+            titles: splitList(params.titles),
             sourceFolderPath: params.source_folder_path,
             callerCardId: resolveCallerCardId(),
         });
@@ -250,6 +285,7 @@ const ExtendedMemoryTools = (function () {
         // 这些工具都可能修改记忆/偏好，默认不做自动化演示，避免污染用户数据。
         results.push({ tool: 'create_memory', result: { success: null, message: '未测试（会写入记忆库）' } });
         results.push({ tool: 'update_memory', result: { success: null, message: '未测试（会修改记忆库）' } });
+        results.push({ tool: 'append_diary', result: { success: null, message: '未测试（会写入日记）' } });
         results.push({ tool: 'delete_memory', result: { success: null, message: '未测试（会删除记忆库数据）' } });
         results.push({ tool: 'move_memory', result: { success: null, message: '未测试（会批量修改记忆文件夹）' } });
         results.push({ tool: 'link_memories', result: { success: null, message: '未测试（会修改记忆库链接）' } });
@@ -266,6 +302,7 @@ const ExtendedMemoryTools = (function () {
     return {
         create_memory: (params) => wrapToolExecution(create_memory, params),
         update_memory: (params) => wrapToolExecution(update_memory, params),
+        append_diary: (params) => wrapToolExecution(append_diary, params),
         delete_memory: (params) => wrapToolExecution(delete_memory, params),
         move_memory: (params) => wrapToolExecution(move_memory, params),
         link_memories: (params) => wrapToolExecution(link_memories, params),
@@ -278,6 +315,7 @@ const ExtendedMemoryTools = (function () {
 })();
 exports.create_memory = ExtendedMemoryTools.create_memory;
 exports.update_memory = ExtendedMemoryTools.update_memory;
+exports.append_diary = ExtendedMemoryTools.append_diary;
 exports.delete_memory = ExtendedMemoryTools.delete_memory;
 exports.move_memory = ExtendedMemoryTools.move_memory;
 exports.link_memories = ExtendedMemoryTools.link_memories;
